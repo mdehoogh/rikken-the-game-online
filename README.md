@@ -16,7 +16,9 @@ DEVELOPMENT
   NODE APP INITIALIZATION
   -----------------------
   A demo version of rikken-the-game where a single person plays all four hands is available at: https://mdh-rikken-the-game.herokuapp.com.
-  
+  It's index.html is present in this project at the root level, and is used as base of the client (browser) part, extended in such a way
+  that the server part (app) running on the server machine communicates over a web socket to the client.
+
 
 
 
