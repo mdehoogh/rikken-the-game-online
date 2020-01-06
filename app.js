@@ -1,29 +1,57 @@
-const express      = require('express');
 const path         = require('path');
 const favicon      = require('serve-favicon');
 const logger       = require('morgan');
 const cookieParser = require('cookie-parser');
 const bodyParser   = require('body-parser');
+
+// MONGOOSE SETUP
 const mongoose     = require('mongoose');
-
-
 mongoose.connect('mongodb://localhost/rikken-the-game-online');
+// END MONGOOSE SETUP
 
-const app = express();
+// EXPRESS SERVER SETUP
+const express      = require('express');
+const app=express();
+// END EXPRESS SERVER SETUP
+
+// SOCKET.IO SERVER SETUP
+const server      = require('http').createServer(app);
+const io          = require('socket.io')(server);
+
+// define what to do when clients connect
+io.on('connection', client => {
+    console.log("Client: ",client);
+    console.log("\tConnected!");
+    // any client can disconnect!
+    client.on('disconnect', () => { 
+        console.log("Client: "+client);
+        console.log("\tDisconnecting...");
+    });
+    // responding to any number of client events
+    client.on('three-second counter', data => { 
+        // TODO respond to event 'event'
+        console.log("Client: "+client);
+        console.log("\tReceived three-second counter data: ",data);
+    });
+});
+// END SOCKET.IO SERVER SETUP
 
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'hbs');
 
 // default value for title local
-app.locals.title = 'Express - Generated with IronGenerator';
+app.locals.title = 'Rikken - het spel';
 
 // uncomment after placing your favicon in /public
 //app.use(favicon(path.join(__dirname, 'public', 'favicon.ico')));
 app.use(logger('dev'));
+
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
+
 app.use(cookieParser());
+
 app.use(express.static(path.join(__dirname, 'public')));
 
 const index = require('./routes/index');
@@ -45,6 +73,10 @@ app.use((err, req, res, next) => {
   // render the error page
   res.status(err.status || 500);
   res.render('error');
+});
+
+server.listen(3000,()=>{
+  console.log("Express server listening on port 3000.");
 });
 
 module.exports = app;

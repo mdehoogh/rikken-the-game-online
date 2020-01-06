@@ -680,17 +680,42 @@ function cancelGame(){
         rikkenTheGame.cancel();
     }
 }
+/*
+function newGame(){
 
+    console.log("Rikken - het spel >>> Nieuw spel beginnen!");
+    if(!players&&rikkenTheGame)players=rikkenTheGame._players; // take players from the last game (to continue with)
+    
+    if(!players){rikkenTheGame=null;newPlayers();} // game is no use (to get players)
+
+    if(!players){alert("Aanmaken nieuwe spelers mislukt!");return;}
+
+    try{
+        if(!rikkenTheGame){
+            rikkenTheGame=new RikkenTheGame(players,onlineRikkenTheGameEventListener);
+            console.log("Rikken - het spel >>> Spel aangemaakt!");
+        }
+        rikkenTheGame.start();
+        console.log("Rikken - het spel >>> Spel gestart!");
+    }catch(error){
+        setInfo("Starten van het spel mislukt: "+error);
+    }
+
+}
+*/
 window.onload=function(){
     // event handlers for next, cancel, and newPlayers buttons
     for(let nextButton of document.getElementsByClassName('next'))nextButton.onclick=nextPage;
     for(let cancelButton of document.getElementsByClassName('cancel'))cancelButton.onclick=cancelPage;
+    
+    /*
     // whenever we have new game (with the same players)
     for(let newGameButton of document.getElementsByClassName("new-game"))newGameButton.onclick=newGame;
-    // whenever we have new player(name)s
+     // whenever we have new player(name)s
     for(let newGamePlayersButton of document.getElementsByClassName('new-game-players'))newGamePlayersButton.onclick=newGamePlayers;
     // whenever the game is canceled
     for(let cancelGameButton of document.getElementsByClassName('cancel-game'))cancelGameButton.onclick=cancelGame;
+    */
 
     // attach an onclick event handler for all bid buttons
     for(let bidButton of document.getElementsByClassName("bid"))bidButton.onclick=bidButtonClicked;

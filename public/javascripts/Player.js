@@ -25,8 +25,8 @@ class PlayerGame extends PlayerEventListener{
     getHighestBid(){}
     // MDH@03JAN2020: I needed to add the following methods
     getPlayerName(player){}
-    get deltaPoints(player){}
-    get points(player){}
+    get deltaPoints(){}
+    get points(){}
     isPlayerPartner(player,otherPlayer){}
     get numberOfTricksPlayed(){}
     getTrickAtIndex(trickIndex){} // get the last trick played

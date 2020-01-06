@@ -8,12 +8,42 @@
     <div>
       <p id='info'>Informatie wordt hier getoond.</p>
     </div>
-    <script src='/js/info.js'></script>
+    <script src='/javascripts/info.js'></script>
     {{{body}}}
-    <script src="js/Card.js"></script>
-    <script src="js/CardHolder.js"></script>
-    <script src="js/Player.js"></script>
-    <script src="js/RikkenTheGameProxy.js"></script>
-    <script src="js/client.js"></script>  
+    {{! link socket.io-client script from the server }}
+    <script src='/socket.io/socket.io.js'></script>
+    <script>
+        var intervalId,intervalCount=0;
+        function setInfo(info){document.getElementById('info').innerHTML=info;}
+        var socket=io('http://localhost:3000');
+        socket.on('three-second counter', function (data) {
+            console.log("Three-second counter: ",data);
+            // socket.emit('my other event', { my: 'data' });
+        });
+        socket.on('connect',function(){
+            setInfo("Connected!");
+        });
+        socket.on('disconnect',function(){
+            setInfo("Disconnected!");
+            if(intervalId)clearInterval(intervalId); // stop sending counter
+        });
+        window.onload=()=>{
+            // connect immediately
+            console.log("Connecting...");
+            socket.connect();
+            intervalId=setInterval(function(){
+                intervalCount++;
+                setInfo("Sending three-second counter "+intervalCount+".")
+                socket.emit("three-second counter",{count:intervalCount});
+            },3000);
+            // disconnect after 30 seconds
+            setTimeout(function(){socket.disconnect();},30000);
+        }
+    </script>
+    <script src="javascripts/Card.js"></script>
+    <script src="javascripts/CardHolder.js"></script>
+    <script src="javascripts/Player.js"></script>
+    <script src="javascripts/RikkenTheGame.js"></script>
+    <script src="javascripts/client.js"></script>  
   </body>
 </html>
