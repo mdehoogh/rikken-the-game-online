@@ -1,1 +1,13 @@
 MDH@06JAN2020: adding socket.io-client script (cdn)
+module.exports=(io)=>{
+
+
+    initialize:function(gameeventlistener){
+
+    },
+
+    joinTable(playerId){
+
+    },
+
+}
