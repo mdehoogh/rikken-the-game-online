@@ -1,6 +1,7 @@
 /**
  * a placeholder for a player
  */
+const {CardHolder}=require('./CardHolder.js');
 
 /**
  * a Player can make a bid, or play a card, choose a trump and partner suite
@@ -341,4 +342,4 @@ class Player extends CardHolder{
 }
 
 // export the Player class
-module.exports=Player;
+module.exports={PlayerEventListener,PlayerGame,Player};

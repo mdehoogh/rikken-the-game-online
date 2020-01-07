@@ -1,6 +1,8 @@
 /**
- * 
+ * adapted from the demo version of Rikken to export the classes
  */
+const {PlayerEventListener,PlayerGame,Player}=require('./Player.js');
+const {CardHolder}=require('./CardHolder.js');
 
 // posssible game states
 const OUT_OF_ORDER=-1,IDLE=0,DEALING=1,BIDDING=2,INITIATE_PLAYING=3,TRUMP_CHOOSING=4,PARTNER_CHOOSING=5,PLAYING=6,CANCELING=7,FINISHED=8;
@@ -175,11 +177,23 @@ class RikkenTheGame extends PlayerGame{
             this._tricks.forEach((trick)=>{while(1){let card=trick.getFirstCard();if(!card)break;card.holder=this.deckOfCards;}});
         }
         if(this.deckOfCards.numberOfCards!=52){
-            alert("BUG: Deck of cards holds only "+this.deckOfCards.numberOfCards+".");
+            console.log("BUG: Deck of cards holds only "+this.deckOfCards.numberOfCards+".");
             return false;
         }
         // the successor of the current dealer is to deal next
         this.dealer=(this.dealer+1)%this.numberOfPlayers;
+        // MDH@07JAN2020: moved out of the constructor to be called whenever the game tries to reach the IDLE state
+        let player=this.numberOfPlayers;
+        // technically we only need to do this once but it can't heart I guess to do it again
+        // AND because we update the dealer beforehand
+        while(--player>=0){
+            this._players[player].playsTheGameAtIndex(this,player);
+            if(this._players[player].game!=this){
+                console.log("Failed to register player '"+this._players[player].name+"'.");
+                return false;
+            }
+        }
+        // initialize all the lot
         this._trumpSuite=-1; // the trump suite
         this._partnerSuite=-1;this._partnerRank=-1; // the card of the partner (for games with trump and a partner)
         this._trick=null; // the current trick
@@ -220,6 +234,9 @@ class RikkenTheGame extends PlayerGame{
                 this._players.unshift(new EmulatedPlayer(RikkenTheGame.MY_NAME));
             this._points.unshift(0); // start with zero points
         }
+
+        // MDH@07JAN2020: we can move the following to when the game wants to move to the IDLE state
+        /*
         // register the game with each of the players and initialie the player bids as well
         ////this._passBidCount=0; // the number of players that bid 'pass'
         ////this._playersBids=[];
@@ -231,6 +248,7 @@ class RikkenTheGame extends PlayerGame{
             ////this._playersBids.push([]);
         }
         ////if(this._playersBids.length<4)throw new Error("Failed to initialize the player bids.");
+        */
 
         // it's easiest to simply create a new deck of cards each time (instead of repossessing the cards)
         this.deckOfCards=new DeckOfCards();
@@ -250,8 +268,10 @@ class RikkenTheGame extends PlayerGame{
         this._topopMinimum=11;
         this._topopMaximum=41;
 
+        /* MDH@07JAN2020: let start() take care of moving the IDLE state (so subclass constructors can do their thing)
         // move the state to the IDLE state!!!!
         this.state=IDLE;
+        */
 
     }
 
@@ -1019,3 +1039,5 @@ class RikkenTheGame extends PlayerGame{
     }
 
 }
+
+module.exports = {RikkenTheGameEventListener,Trick,RikkenTheGame};

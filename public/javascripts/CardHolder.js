@@ -1,6 +1,8 @@
 /**
  * defines someone that holds cards
  */
+const Card=require('./Card.js');
+
 class CardHolder{
 
     // MDH@04DEC2019: allowing now to construct fixed size card holders (like Trick)
@@ -174,3 +176,5 @@ class HoldableCard extends Card{
     toString(){return "Holdable "+super.toString();}
 
 }
+
+module.exports={CardHolder,HoldableCard};

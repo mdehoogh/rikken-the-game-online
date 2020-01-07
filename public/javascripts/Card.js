@@ -47,10 +47,6 @@ const CARD_SVG_FRAGMENTS=[
     ['\x0e','\x0f','\x10','\x11','\x12','\x13','\x14','\x15','\x16','\x17','\x18','\x19','\x0d']
 ];
 
-const CARD_FONT_CHARACTERS=[
-    []
-]
-
 class Card{
 
     constructor(cardSuiteIndex,cardNameIndex){
@@ -112,3 +108,5 @@ function compareCardsWithPlayAndTrumpSuite(card1,card2,playSuite,trumpSuite){
     // ASSERT neither card is play suite or trump suite, both cards are irrelevant (should happen though)
     return 0; // considered equal that is irrelevant
 }
+
+module.exports=Card;

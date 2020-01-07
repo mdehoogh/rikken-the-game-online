@@ -1,6 +1,7 @@
 /**
  * 
  */
+const {CardHolder,HoldableCard}=require("./CardHolder.js");
 
 class DeckOfCards extends CardHolder{
 

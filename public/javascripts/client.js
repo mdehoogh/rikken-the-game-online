@@ -27,6 +27,17 @@ function initializeBidderSuitecardsButton(){
     });
 }
 
+function getCookie(name) {
+    var v = document.cookie.match('(^|;) ?' + name + '=([^;]*)(;|$)');
+    return v ? v[2] : null;
+}
+function setCookie(name, value, days) {
+    var d = new Date;
+    d.setTime(d.getTime() + 24*60*60*1000*days);
+    document.cookie = name + "=" + value + ";path=/;expires=" + d.toGMTString();
+}
+function deleteCookie(name) { setCookie(name, '', -1); }
+
 /**
  * shows the current player names at the start of the game
  */
@@ -703,7 +714,104 @@ function newGame(){
 
 }
 */
+
+// MDH@07JAN2020: additional stuff that we're going to need to make this stuff work
+class PlayerGameProxy extends PlayerGame {
+
+    // what the player will be calling when (s)he made a bid, played a card, choose trump or partner suite
+    bidMade(bid){
+        if(this._state===OUT_OF_ORDER)return false;
+        this._socket.emit('BID',{'by':this._playerIndex,'bid':bid});
+        return true;
+    }
+    cardPlayed(card){
+        if(this._state===OUT_OF_ORDER)return false;
+        this._socket.emit('CARD',{'player':this._playerIndex,'card':[card.suite,card.rank]});
+        return true;
+    }
+    trumpSuiteChosen(trumpSuite){
+        if(this._state===OUT_OF_ORDER)return false;
+        this._socket.emit('TRUMP',{'player':this._playerIndex,'suite':trumpSuite});
+        return true;
+    }
+    partnerSuiteChosen(partnerSuite){
+        if(this._state===OUT_OF_ORDER)return false;
+        this._socket.emit('PARTNER',{'player':this._playerIndex,'suite':partnerSuite});
+        return true;
+    }
+
+    prepareForCommunication(cookiename){
+        this._socket.on('connect',()=>{
+            this._state=IDLE;
+        }
+        this._socket.on('disconnect'),()=>{
+            this._state=OUT_OF_ORDER;
+        }
+        // register to receive data on all custom events
+        this._socket.on('STATECHANGE',(data)=>{
+            this._state=data.to;
+        });
+        this._socket.on('DEALER',(data)=>{
+            this._dealer=data;
+        });
+        this._socket.on('TRUMP',(data)=>{
+
+        });
+        // try to connect immediately...
+        this._socket.connect();
+    }
+
+    constructor(socket){
+        this._state=OUT_OF_ORDER;
+        this._socket=socket;
+        this._dealer=_dealer;
+        this._trumpSuite=-1;this._trumpPlayer=-1;
+        this._partnerSuite=-1;this._partnerRank=-1;
+        this._numberOfTricksWon=[0,0,0,0]; // assume no tricks won by anybody
+        this.highestBid=-1;this._highestBidders=[]; // no highest bidders yet
+        this._playerNames=null;
+        this._partnerIds=null; // storing the ids of the partners (then using the player names to find the name)
+        this._deltaPoints=null;
+        this._points=null;
+        this._lastTrickPlayed=null;
+        this._teamNames=null;
+        this._playerIndex=-1; // the 'current' player
+        prepareForCommunication();
+    }
+
+    // information about the game itself organized by state
+    // PLAYING
+    getTrumpSuite(){return this._trumpSuite;}
+    getPartnerSuite(){return this._partnerSuite;}
+    getPartnerRank(){return this._partnerRank;}
+    getTrumpPlayer(){return this._trumpPlayer;}
+    getNumberOfTricksWonByPlayer(player){return this._numberOfTricksWon[player];}
+    getPartnerName(player){return this._partnerNames[player];}
+    getHighestBidders(){return this._highestBidders;}
+    getHighestBid(){return this._highestBid;}
+    // MDH@03JAN2020: I needed to add the following methods
+    getPlayerName(player){return this._playerNames[player];}
+    get deltaPoints(){return this._deltaPoints;}
+    get points(){return this._points;}
+    isPlayerPartner(player,otherPlayer){return this._partnerIds[player]===otherPlayer;}
+    getLastTrickPlayed(){return this._lastTrickPlayed;}
+    get numberOfTricksPlayed(){return this._numberOfTricksPlayed;}
+    getTrickAtIndex(trickIndex){} // get the last trick played
+    getTeamName(player){return this._getTeamNames[player];}
+    get fourthAcePlayer(){return this._fourthAcePlayer;}
+
+}
+
+// functions to obtain a connection
+function getNewConnection(userIdCookie){
+    let userId=getCookie(userIdCookie);
+    if(!userId)return null; // no user id cookie present, so no go
+    var socket=io('http://localhost:3000?user='+userId); // pass the user in every communication automatically
+    return socket;
+}
+
 window.onload=function(){
+
     // event handlers for next, cancel, and newPlayers buttons
     for(let nextButton of document.getElementsByClassName('next'))nextButton.onclick=nextPage;
     for(let cancelButton of document.getElementsByClassName('cancel'))cancelButton.onclick=cancelPage;
