@@ -339,3 +339,6 @@ class Player extends CardHolder{
     toString(){return this.name;}
 
 }
+
+// export the Player class
+module.exports=Player;
