@@ -1,1 +1,2 @@
 MDH@06JAN2020: adding socket.io-client script (cdn)
+HDH@06JAN2020: created structure for Passport login and signup, still need to connect routes to their hbs files and then to the app.js
