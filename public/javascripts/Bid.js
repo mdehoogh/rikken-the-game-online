@@ -6,3 +6,5 @@ class PlayerBid{
     get bid(){return this._bid;}
     get player(){return this._player;}
 }
+
+module.exports=PlayerBid;

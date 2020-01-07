@@ -2,7 +2,7 @@
  * adapted from the demo version of Rikken to export the classes
  */
 const {PlayerEventListener,PlayerGame,Player}=require('./Player.js');
-const {CardHolder}=require('./CardHolder.js');
+const {CardHolder,HoldableCard}=require('./CardHolder.js');
 
 // posssible game states
 const OUT_OF_ORDER=-1,IDLE=0,DEALING=1,BIDDING=2,INITIATE_PLAYING=3,TRUMP_CHOOSING=4,PARTNER_CHOOSING=5,PLAYING=6,CANCELING=7,FINISHED=8;
@@ -201,7 +201,7 @@ class RikkenTheGame extends PlayerGame{
         this._highestBid=-1; // no highest bid yet
         this._highestBidPlayers=[]; // all the players that made the highest bid (and are playing it)
         this._playersBids=[]; // at most 5 players
-        let player=this.numberOfPlayers;while(--player>=0)this._playersBids.push([]);
+        player=this.numberOfPlayers;while(--player>=0)this._playersBids.push([]);
         // MDH@08DEC2019: keep track of the partner of each player in this.partners
         //                from the start of the game
         this._partners=null;

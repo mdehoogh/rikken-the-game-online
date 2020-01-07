@@ -2,7 +2,7 @@
 const {PlayerEventListener,PlayerGame,Player}=require('./public/javascripts/Player.js'); // the player class we'll be extending...
 const {RikkenTheGameEventListener,Trick,RikkenTheGame}=require('./public/javascripts/RikkenTheGame.js'); // the (original) RikkenTheGame that we extend here
 
-module.exports=(io,gamesListener)=>{
+module.exports=(socket_io_server,gamesListener)=>{
 
     function getCardsInfo(cardHolder){
         let cardsInfo=[];cardHolder._cards.forEach((card)=>{cardsInfo.push([card.suite,card.rank]);});return cardsInfo;
@@ -12,6 +12,7 @@ module.exports=(io,gamesListener)=>{
     class RemotePlayer extends Player {
 
         constructor(client){
+            super();
             this._client=client;
             this._userId=null;
             this._wantsToPlay=false; // a flag that determines if a remote player wants to play
@@ -175,7 +176,7 @@ module.exports=(io,gamesListener)=>{
             // at the point we can already emit to all player clients
             // if we have a RikkenTheGame at the other end we will need to tell it to initialize itself as well
             // in which case most it will be the same
-            if(result)io.to(this._tableId).emit('DEALER',this.dealer); // sync the dealer to the correct value
+            if(result)socket_io_server.to(this._tableId).emit('DEALER',this.dealer); // sync the dealer to the correct value
             return result;
         }
 
@@ -189,7 +190,7 @@ module.exports=(io,gamesListener)=>{
                 case IDLE:
                     // how about sending all the names of the players???
                     let playerNames=[];this._players.forEach((player)=>{playerNames.push(player.name);});
-                    io.to(this._tableId).emit("PLAYERS",playerNames);
+                    socket_io_server.to(this._tableId).emit("PLAYERS",playerNames);
                     break;
                 case BIDDING:
                     // every player should know the cards it's been dealt (before moving to bidding page)
@@ -208,7 +209,7 @@ module.exports=(io,gamesListener)=>{
                             'highestBidPlayers':this.highestBidPlayers,
                             'trumpPlayer':this.trumpPlayer,  
                         };
-                        io.to(this._tableId).emit('PLAYINFO',playInfo);
+                        socket_io_server.to(this._tableId).emit('PLAYINFO',playInfo);
                     }
                     break;
                 case FINISHED:
@@ -216,91 +217,23 @@ module.exports=(io,gamesListener)=>{
                     // we also want to send who won the tricks...
                     {
                         let tricksInfo=[];
-                        this._tricks.forEach((trick)=>{tricksInfo.push({'cards':getCardsInfo(trick),'winner':trick.winner,'firstplayer':trick.firstPlayer});
-                        io.to(this._tableId).emit('RESULTS',{'tricks':tricksInfo,'deltapoints':this.deltaPoints,'points':this.points});
+                        this._tricks.forEach((trick)=>{tricksInfo.push({'cards':getCardsInfo(trick),'winner':trick.winner,'firstplayer':trick.firstPlayer});});
+                        socket_io_server.to(this._tableId).emit('RESULTS',{'tricks':tricksInfo,'deltapoints':this.deltaPoints,'points':this.points});
                     }
                     break;
             }
-            io.to(this._tableId).emit('STATECHANGE',{from:oldstate,to:this._state});
+            socket_io_server.to(this._tableId).emit('STATECHANGE',{from:oldstate,to:this._state});
         }
         
-        get numberOfPlayers(){return this._players.length;}
-        
-        get numberOfTricksPlayed(){return this._tricks.length;}
-
-        // PlayerGame implementation
-        getTrumpSuite(){return this._trumpSuite;}
-        getPartnerSuite(){return this._partnerSuite;}
-        getPartnerRank(){return this._partnerRank;}
-        getNumberOfTricksWonByPlayer(player){
-            return(player>=0&&player<this.numberOfPlayers?this._players[player].numberOfTricksWon:0);
-        }
-        getPartnerName(player){ // here player denotes
-            let partner=(player>=0&&player<this.numberOfPlayers?this._players[player].partner:-1);
-            return(partner>=0&&partner<this.numberOfPlayers?this._players[partner].name:null);
-        }
-        // MDH@06DEC2019: the trump player is the player that can ask for the partner suite and rank              
-        getTrumpPlayer(){
-            // only when playing a 'rik' game (with trump, played with a partner, but not troela, we have a trump player)
-            return(this._highestBid==BID_RIK||this._highestBid==BID_RIK_BETER?this._highestBidPlayers[0]:-1);
-        }
-        // end PlayerGame implementation
-
-        getPlayerAtIndex(playerIndex){return(playerIndex>=0&&playerIndex<this.numberOfPlayers?this._players[playerIndex]:null);}
-
-        getPlayerName(playerIndex){let player=this.getPlayerAtIndex(playerIndex);return(player?player.name:null);}
-
-        // if asked for the team name adds the name of the partner as well
-        getTeamName(playerIndex){
-            let teamName="";
-            let player=this.getPlayerAtIndex(playerIndex);
-            if(player){teamName=player.name;if(player.partner>=0)teamName+"+"+this.getPlayerName(player.partner);}
-            return(teamName.length>0?teamName:"?");
-        }
-
-        isPlayerPartner(playerIndex,partnerIndex){let player=this.getPlayerAtIndex(playerIndex);return(player?partnerIndex===player.partner:false);}
-
-        getHighestBidders(){return this._highestBidPlayers;} // return all players that play the highest bid (possibly more than one)
-
-        getHighestBid(){return this._highestBid;} // the bid of the game that is being played
-
-        getLastBids(){
-            let lastBids=[];this._highestBidPlayers.forEach((highestBidPlayer)=>{lastBids.push(highestBidPlayer[0]);});return lastBids;
-        }
-
-        getPartner(playerIndex){
-            let player=(playerIndex>=0&&playerIndex<this.numberOfCards?this._players[playerIndex]:null);
-            return(player?player.partner:-1);
-        }
-
-        getPlayerWithCard(suite,rank){
-            for(let playerIndex=0;playerIndex<this.numberOfPlayers;playerIndex++)
-                if(this._players[playerIndex].containsCard(suite,rank))
-                    return playerIndex;
-            alert("BUG BUG BUG: Player with card ("+SUITE_NAMES[suite]+","+RANK_NAMES[rank]+") not found!");
-            return -1;
-        }
-
-        isPartnerCard(card){return(card.suite==this._partnerSuite&&card.rank==this._partnerRank);}
-
-        // expose the current points each player has
-        get points(){return this._points.slice(0);} // returns a copy of the current set of points
-
-        // and the results of the points won/lost in the last game (if any)
-        get deltaPoints(){return(this._deltaPoints?this._deltaPoints.slice(0):null);}
+        // which methods do we need to override?????
+        // those methods that will be sending data over
+        // typically those where properties change, so definitely not those that only return data
+        // so we end up with the PlayerEventListener methods (those called by a player)
+        // but those are typically called on the client which should send the data along here
+        // to listen to
 
         // public methods
-        logBids(){
-            console.log("Bids after the bid by player "+this._players[this._player].name+":");
-            for(let player=0;player<this._playersBids.length;player++){
-                console.log("\t"+this._players[player].name+":");
-                if(this._playersBids&&Array.isArray(this._playersBids)&&this._playersBids.length>player)
-                    console.log("\t\t",this._playersBids[player]);
-                else
-                    console.log("\t\t(invalid)");
-            }
-        }
-
+        
         // PlayerEventListener implementation
         bidMade(bid){
             // 1. register the bid
@@ -534,7 +467,7 @@ module.exports=(io,gamesListener)=>{
         return(l>=0?(remotePlayers.splice(l,1)>0):true);
     }
 
-    io.on('connection', client => {
+    socket_io_server.on('connection', client => {
         if(!registerClient(client)){
             client.send('REJECTED'); // send REJECTED on the message channel
             console.error("Failed to register client as remote player.");
@@ -550,19 +483,28 @@ module.exports=(io,gamesListener)=>{
         });
         // when a client sends in it's ID which it should
         client.on('id',(data)=>{
-            let remotePlayer=getRemotePlayerIndex(client);
-            remotePlayer.userId=data;
+            let remotePlayerIndex=getRemotePlayerIndex(client);
+            remotePlayers[remotePlayerIndex].userId=data;
             console.log("GAME ENGINE >>> User id of remote player set to '"+data+"'.");
         });
-        // responding to any number of client events
-        client.on('three-second counter', (data) => { 
-            // TODO respond to event 'event'
-            console.log("Client: "+client);
-            console.log("\tReceived three-second counter data: ",data);
+        // what's coming back from the players are bids, cards played, trump and/or partner suites choosen
+        client.on('BIDMADE', (data) => { 
+            let remotePlayerIndex=getRemotePlayerIndex(client);
+            remotePlayers[remotePlayerIndex]._setBid(data);
+        });
+        client.on('CARDPLAYED',(data)=>{
+            let remotePlayerIndex=getRemotePlayerIndex(client);
+            remotePlayers[remotePlayerIndex]._setCard(new Card(data[0],data[1]));
+        });
+        client.on('TRUMPSUITE',(data)=>{
+            let remotePlayerIndex=getRemotePlayerIndex(client);
+            remotePlayers[remotePlayerIndex]._setTrumpSuite(data);
+        });
+        client.on('PARTNERSUITE',(data)=>{
+            let remotePlayerIndex=getRemotePlayerIndex(client);
+            remotePlayers[remotePlayerIndex]._setPartnerSuite(data);
         });
     });
-
-    io.connect();
 
     // returning all the functions to interface with the game engine
     // any user that logs in should call canPlay and as soon as logged out cantPlay

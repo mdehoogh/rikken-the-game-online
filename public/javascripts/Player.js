@@ -1,7 +1,7 @@
 /**
  * a placeholder for a player
  */
-const {CardHolder}=require('./CardHolder.js');
+const {CardHolder,HoldableCard}=require('./CardHolder.js');
 
 /**
  * a Player can make a bid, or play a card, choose a trump and partner suite

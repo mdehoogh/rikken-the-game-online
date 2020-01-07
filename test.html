@@ -1,16 +1,21 @@
 <!DOCTYPE html>
 <html>
   <head>
+    <meta charset="UTF-8"><!-- we'll be needing this!! -->
     <title>{{title}}</title>
-    <link rel='stylesheet' href='/stylesheets/style.css' />
+    <link rel='stylesheet' href='./public/stylesheets/style.css' />
   </head>
   <body>
     <div>
       <p id='info'>Informatie wordt hier getoond.</p>
     </div>
-    <script src='/javascripts/info.js'></script>
-    {{{body}}}
-    {{! link socket.io-client script from the server }}
+    <script src='./public/javascripts/info.js'></script>
+    
+    <!-- DEMO VERSION BODY -->
+
+    <!-- END DEMO VERSION BODY -->
+
+    <!-- link socket.io-client script from the server -->
     <script src='/socket.io/socket.io.js'></script>
     <script>
         var intervalId,intervalCount=0;
@@ -40,10 +45,9 @@
             setTimeout(function(){socket.disconnect();},30000);
         }
     </script>
-    <script src="javascripts/Card.js"></script>
-    <script src="javascripts/CardHolder.js"></script>
-    <script src="javascripts/Player.js"></script>
-    <script src="javascripts/RikkenTheGame.js"></script>
-    <script src="javascripts/client.js"></script>  
+    <script type='module' src="./public/javascripts/Card.js"></script>
+    <script type='module' src="./public/javascripts/CardHolder.js"></script>
+    <script type='module' src="./public/javascripts/Player.js"></script>
+    <script type='module' src="./public/javascripts/client.js"></script>  
   </body>
 </html>

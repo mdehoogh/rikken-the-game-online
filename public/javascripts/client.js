@@ -150,41 +150,7 @@ function showTrick(trick,playerIndex){
         showCard(document.getElementById("player-right-card"),trick.getPlayerCard((playerIndex+3)%4),trick.trumpSuite,
                 (trick.winner===(playerIndex+3)%4?(rikkenTheGame.isPlayerPartner(playerIndex,(playerIndex+3)%4)?1:-1):0));
 }
-/* replacing:
-function showTrickObjects(trickObjects,playSuite){
-    console.log("Showing trick objects: "+trickObjects+".");
-    document.getElementById("play-suite").innerHTML=(playSuite>=0?"Er wordt "+SUITE_NAMES[playSuite]+" gespeeld!":"Slag "+String(rikkenTheGame.numberOfTricksPlayed+1));
-    // the trick object contains the cards played by name
-    for(let trickLabel of document.getElementsByClassName('trick')){
-        let trickObjectIndex=parseInt(trickLabel.getAttribute("data-trick-index"));
-        if(trickObjectIndex>=0&&trickObjectIndex<trickObjects.length){
-            let trickObject=trickObjects[trickObjectIndex];
-            trickLabel.classList.add(SUITE_NAMES[trickObject.card.suite]);
-            /// replacing: trickLabel.style.color=SUITE_COLORS[trickObject.card.suite%2]; // in the right color
-            // showing the name is not necessary per se
-            trickLabel.innerHTML=trickObject.card.getTextRepresentation();
-            trickLabel.style.display="initial";
-        }else
-            trickLabel.style.display="none";
-    }
-    console.log("Trick shown!");
-}
-*/
-/* obsolete now:
-function askForCard(){
-    // I guess I should place the cards of the current player on screen
-    for(let cardButton of document.getElementsByClassName('card')){
-        let cardIndex=parseInt(cardButton.getAttribute("data-card-index"));
-        let card=(cardIndex<currentPlayer._cards.length?currentPlayer._cards[cardIndex]:null);
-        cardButton.style.display=(card?"initial":"none");
-        if(card){
-            cardButton.classList.add(SUITE_NAMES[card.suite]);
-            // replacing: cardButton.style.color=SUITE_COLORS[card.suite%2]; // alternating suite colors
-            cardButton.value=card.getTextRepresentation();
-        }
-    }
-}
-*/
+
 function updateSuiteCardRows(rows,suiteCards){
     console.log("Player suite card rows: "+rows.length+".");
     // console.log("Number of rows: ",rows.length);
@@ -385,8 +351,12 @@ function getNumberOfTricksToWinText(numberOfTricksToWin,partnerName,highestBid){
 
 class OnlinePlayer extends Player{
     constructor(name){
-        super(name);
+        super(name,null);
     }
+
+    // a (remote) client needs to override all its actions
+    // BUT we do not do that because all results go into PlayerGameProxy which will send the along!!!!
+
     // make a bid is called with 
     makeABid(playerBidsObjects,possibleBids){
         // debugger
@@ -802,9 +772,9 @@ class PlayerGameProxy extends PlayerGame {
 
 }
 
-// functions to obtain a connection
-function getNewConnection(userIdCookie){
-    let userId=getCookie(userIdCookie);
+// function to obtain a connection to be used to create a game to be used in creating the player
+function getNewConnection(){
+    let userId=getCookie('userId');
     if(!userId)return null; // no user id cookie present, so no go
     var socket=io('http://localhost:3000?user='+userId); // pass the user in every communication automatically
     return socket;
