@@ -1,4 +1,5 @@
 // server-side game engine
+const {CardHolder,HoldableCard}=require('./public/javascripts/CardHolder.js');
 const {PlayerEventListener,PlayerGame,Player}=require('./public/javascripts/Player.js'); // the player class we'll be extending...
 const {RikkenTheGameEventListener,Trick,RikkenTheGame}=require('./public/javascripts/RikkenTheGame.js'); // the (original) RikkenTheGame that we extend here
 
@@ -12,25 +13,27 @@ module.exports=(socket_io_server,gamesListener)=>{
     class RemotePlayer extends Player {
 
         constructor(client){
-            super();
+            super(null); // for now nameless
             this._client=client;
-            this._userId=null;
-            this._wantsToPlay=false; // a flag that determines if a remote player wants to play
+            // this._userId=null;
+            // this._wantsToPlay=false; // a flag that determines if a remote player wants to play
         }
 
+        /*
         get userId(){return this._userId;}
         set userId(userId){
             if(this._userId)return; // can only be set once!!!
             this._userId=userId;
         }
-
+        */
+        /*
         get wantsToPlay(){return this._wantsToPlay;}
         set wantsToPlay(wantsToPlay){
             // if the player is in a game right now the game should be canceled!!!!
             if(!wantsToPlay&&this._game)gameOver(this.tableId,true);
             this._wantsToPlay=wantsToPlay;
         }
-
+        */
         // the tableId is a bit of an issue because the table id should not be set until the player is registered with a game
         // essentially we could get it from the game (if any)
         get tableId(){return (this._game?this._game._tableId:null);}
@@ -58,7 +61,7 @@ module.exports=(socket_io_server,gamesListener)=>{
 
         // copied over from OnlinePlayer() in main.js 
         // METHODS CALLED BY THE GAME
-        makeABid(playerBidsObjects,possibleBids){
+        makeABid(playerBidObjects,possibleBids){
             this._client.emit('MAKE_A_BID',{'playerBidObjects':playerBidObjects,'possibleBids':possibleBids});
         }
         chooseTrumpSuite(suites){
@@ -134,24 +137,33 @@ module.exports=(socket_io_server,gamesListener)=>{
             }else
                 alert("Invalid card suite "+String(suite)+" and suite index "+String(index)+".");
         }
-    
+        /*
         // playing a game means setting this._game (no need to actually know it here), and index which the client should know!!!
         playsTheGameAtIndex(game,index){
-            super.playsTheGameAtIndex(game,index);
+            super.playsTheGameAtIndex(game,index); // will set the game and the index of this player
+            // inform the 'client' i.e. the remote player at the other end the id of the game and the player names            if(!this._gameId)return false;
+            let gameId=(this._game?this._game.tableId:null);
+            console.log("Player '"+this.name+"' will play in game '"+gameId+"' as player #"+(this._index+1)+".");
+            // I suppose that if we move this call to _gameInitialized() in RikkenTheGame it is ok to send both
+            // send the game id and the player names to the remote player!!!
+            this.client.emit('GAME',gameId);
+            this.client.emit('PLAYERS',this._game.getPlayerNames()});
             // we could send the game table id (room over), and the index in playing the game
             // when this happens the client can move over to the game panel showing the name of the game being played
             // here the client can display the state of the game until a bid request is received
             // general game information is send to the client in this room by the game, so should I join here????
             // NOTE technically we could wait for the client requesting to be added to a room but as we already
             //      know the room the client is joining we can do it here!!
-            this._client.join(game._tableId,(err)=>{
-                if(err)
-                    console.log("ERROR: Failed to make player join a game.");
-                else
-                    this._client.emit('GAME',{'id':this.tableId,'index':index});
+        }
+        */
+        joinGame(){
+            this._client.join(this._game.tableId,(err)=>{
+                if(err){
+                    console.log("GAME_ENGINE >>> ERROR: Failed to make player join a game.");
+                    console.error(err);
+                }
             });
         }
-
     }
     
     // we need to RikkenTheGameServer to send certain data to all its player clients e.g. when the state changes
@@ -162,41 +174,37 @@ module.exports=(socket_io_server,gamesListener)=>{
         // MDH@07JAN2020: I've adapted the super constructor in such a way that you need to call start() to make it start
         //                that way we can set the _tableId before the game tries to reach the IDLE state
         //                and initialize the game by telling each player what game it will be playing and at what position
-        constructor(tableId,players,eventListener){
-            super(players,eventListener);
+        constructor(tableId,players){
+            super(players,null);
             this._tableId=tableId;
+            // now we're to wait for somebody to start the game
         }
 
         // here we have all the methods from RikkenTheGame that we override with additional behaviour on top
         // of the original one, so every method calls it's super method
         // called when RikkenTheGame moves into the IDLE state
-        _gameInitialized(){
-            let result=super._gameInitialized();
-            // NOTE if _gameInitialized() succeeding, all players should now have joined the room with id this._tableId
-            // at the point we can already emit to all player clients
-            // if we have a RikkenTheGame at the other end we will need to tell it to initialize itself as well
-            // in which case most it will be the same
-            if(result)socket_io_server.to(this._tableId).emit('DEALER',this.dealer); // sync the dealer to the correct value
-            return result;
-        }
 
         // MDH@07JAN2020: whenever the state changes, we tell the game players
         set state(newstate){
-            let oldstate=super._state;
+            let oldstate=this._state;
             super.state=newstate; // should do what it needs to do
             if(this._state===oldstate)return;
+            console.log("********* STATE CHANGE FROM "+oldstate+" TO "+this._state+" ************");
             // when changing states we should ascertain that certain game information was send to the game players
             switch(this._state){
-                case IDLE:
-                    // how about sending all the names of the players???
-                    let playerNames=[];this._players.forEach((player)=>{playerNames.push(player.name);});
-                    socket_io_server.to(this._tableId).emit("PLAYERS",playerNames);
+                case PlayerGame.IDLE:
+                    // make all players join the game 'room'
+                    this._players.forEach((player)=>{player.joinGame();});
+                    // and now we can emit the game name, the game players and the current dealer index...
+                    socket_io_server.to(this._tableId).emit("GAME",this._tableId);
+                    socket_io_server.to(this._tableId).emit("PLAYERS",this.getPlayerNames());
+                    socket_io_server.to(this._tableId).emit('DEALER',this.dealer); // sync the dealer to the correct value
                     break;
-                case BIDDING:
+                case PlayerGame.BIDDING:
                     // every player should know the cards it's been dealt (before moving to bidding page)
                     this._players.forEach((player)=>{player.sendCards();});
                     break;
-                case PLAYING:
+                case PlayerGame.PLAYING:
                     // every player should know the game that is being played
                     // let's compose the object to send with all the data that is needed over there
                     {
@@ -209,10 +217,12 @@ module.exports=(socket_io_server,gamesListener)=>{
                             'highestBidPlayers':this.highestBidPlayers,
                             'trumpPlayer':this.trumpPlayer,  
                         };
-                        socket_io_server.to(this._tableId).emit('PLAYINFO',playInfo);
+                        socket_io_server.to(this.name).emit('PLAYINFO',playInfo);
                     }
                     break;
-                case FINISHED:
+                case PlayerGame.CANCELING:
+                    break;
+                case PlayerGame.FINISHED:
                     // we should pass the tricks played, and the points and deltaPoints over to each player
                     // we also want to send who won the tricks...
                     {
@@ -222,7 +232,7 @@ module.exports=(socket_io_server,gamesListener)=>{
                     }
                     break;
             }
-            socket_io_server.to(this._tableId).emit('STATECHANGE',{from:oldstate,to:this._state});
+            socket_io_server.to(this.name).emit('STATECHANGE',{from:oldstate,to:this._state});
         }
         
         // which methods do we need to override?????
@@ -391,43 +401,39 @@ module.exports=(socket_io_server,gamesListener)=>{
     let lastTableIndex=0;
     function newTableId(){return "Spel "+(++lastTableIndex);}
     function getGame(tableId){return(tableGames.hasOwnProperty(tableId)?tableGames[tableId]:null);}
-    function willBePlayingAGame(players){
+    function getNewGamePlayedBy(players){
         // ASSERT all players should have tableId equal to ''
+        let rikkenTheGame=null;
         let newGameTableId=newTableId();
         try{
-            let rikkenTheGame=new RikkenTheGameServer(newGameTableId,players,null);
+            rikkenTheGame=new RikkenTheGameServer(newGameTableId,players,null);
             if(!rikkenTheGame){console.log("GAME ENGINE >>> Failed to start a new game.");return false;}
             tableGames[newGameTableId]=rikkenTheGame; // remember the game being played
-            /* no need to do the following because NOW the game itself will do that!!
-            // tell each player what game they are playing in!!
-            players.forEach((player)=>{player.tableId=newGameTableId;});
-            */
-        }catch(err){
-            console.log("GAME ENGINE >>> Failed to register a new game ",err);
-        }
+        }catch(err){console.log("GAME ENGINE >>> Failed to register a new game ",err);}
         // if all the given players are in the same game now, return true, false otherwise
-        return players.every((player)=>{return player.tableId==newGameTableId;});
+        return(rikkenTheGame&&players.every((player)=>{return player.tableId==newGameTableId;})?rikkenTheGame:null);
     }
     // call newGame with the ids of the players when a game starts
-    function newGame(remotePlayers){
-        if(!remotePlayers)return false;
-        if(!willBePlayingAGame(remotePlayers)){ // not all players playing in the new game, or not enough players
-            remotePlayers.forEach((remotePlayer)=>{remotePlayer.tableId='';});
-            return false;
-        }else // a new game being played
-            if(gamesListener)gamesListener.gameStarted(rikkenTheGame);
+    function playGame(remotePlayers){
+        if(!remotePlayers||remotePlayers.length!=4)return false;
+        let newGame=getNewGamePlayedBy(remotePlayers);
+        if(!newGame){console.log("Failed to start a new game!");return false;}
+        newGame.start(); // I need to explicitly do this, otherwise the game will remain in the OUT_OF_ORDER state...
+        if(gamesListener)gamesListener.gameStarted(newGame);
+        return true;
     }
     function gameOver(tableId,canceled){
         if(!tableId)return;
         let game=getGame(tableId);
         if(!game){console.error("Game with id '"+tableId+"' not being played!");return;}
+        console.log((canceled?"Cancelling":"Finishing")+" game '"+tableId+"'.");
         // remove the players from the game (in effect the player should disconnect or send id in again)
         // NOTE I'm not going to disconnect
-        io.to(tableId).emit('gameover'); // send a single game over to each of the players
+        socket_io_server.to(tableId).emit('GAMEOVER'); // send a single game over to each of the players
         // TODO how about keeping the game around until all players abort the game????????
         // so we can wait doing the following until ALL players have canceled playing in the game
         game._players.forEach((remotePlayer)=>{
-            remotePlayer.tableId=''; // clear the table id thus releasing the remote player to play another game
+            remotePlayer.game=null; // clear the table id thus releasing the remote player to play another game
         });
         delete tableGames[tableId]; // guess we can do it this way
         // inform the games listener that the game finished or got canceled!!!
@@ -439,11 +445,17 @@ module.exports=(socket_io_server,gamesListener)=>{
     function checkForStartingNewGames(){
         // all remote players with tableId equal to '' are still logged in but not playing anymore
         // first collect all the players that can play at all (those with a userId and no tableId)
-        let idleRemotePlayers=remotePlayers.filter((remotePlayer)=>{if(remotePlayer.userId&&remotePlayer.tableId&&remotePlayer.tableId.length==0);});
+        let idleRemotePlayers=remotePlayers.filter((remotePlayer)=>{
+            let result=(remotePlayer.name&&!remotePlayer.game);
+            console.log("Checking remote player ",remotePlayer);
+            console.log("\t"+(result?"IDLE":"OCCUPIED"));
+            return result;
+        });
+        console.log("Idle remote players: "+idleRemotePlayers.length+".");
         while(idleRemotePlayers.length>=4){
             let newGamePlayers=[];
-            let l=4;while(--l>=0)newGamePlayers.push(idleRemotePlayers[Math.floor(idleRemotePlayers.length*Math.random())]);
-            if(!newGame(newGamePlayers))return;
+            let l=4;while(--l>=0)newGamePlayers.push(idleRemotePlayers.splice(Math.floor(idleRemotePlayers.length*Math.random()),1)[0]);
+            if(!playGame(newGamePlayers))return;
         }
     }
     function getRemotePlayerIndex(client){
@@ -461,8 +473,7 @@ module.exports=(socket_io_server,gamesListener)=>{
         if(l>=0){
             let remotePlayer=remotePlayers[l];
             // if the remote player left the table the game should be canceled
-            if(remotePlayer.tableId&&remotePlayer.tableId.length>0)
-                gameOver(remotePlayer.tableId,true);
+            if(remotePlayer.tableId)gameOver(remotePlayer.tableId,true);
         }
         return(l>=0?(remotePlayers.splice(l,1)>0):true);
     }
@@ -473,19 +484,26 @@ module.exports=(socket_io_server,gamesListener)=>{
             console.error("Failed to register client as remote player.");
             return;
         }
-        console.log("Client: ",client);
-        console.log("\tConnected!");
+        //console.log("Client: ",client);
+        console.log("\Connecting client registered!");
         // if a client disconnect they cannot play anymore
         client.on('disconnect', () => { 
-            console.log("Client: "+client);
+            // console.log("Client: ",client);
             console.log("\tDisconnecting...");
-            unregisterClient(client);
+            let remotePlayerIndex=getRemotePlayerIndex(client);
+            // if still playing a game might reconnect, otherwise accept
+            if(remotePlayers[remotePlayerIndex].tableId)
+                console.log("WARNING: Disconnecting player still playing! Waiting for reconnect!");
+            else
+                unregisterClient(client);
+                //gameOver(remotePlayers[remotePlayerIndex].tableId,true);
         });
         // when a client sends in it's ID which it should
-        client.on('id',(data)=>{
+        client.on('PLAYER',(data)=>{
             let remotePlayerIndex=getRemotePlayerIndex(client);
-            remotePlayers[remotePlayerIndex].userId=data;
-            console.log("GAME ENGINE >>> User id of remote player set to '"+data+"'.");
+            remotePlayers[remotePlayerIndex].name=data;
+            console.log("GAME ENGINE >>> Name of remote player #"+remotePlayerIndex+" set to '"+remotePlayers[remotePlayerIndex].name+"'.");
+            checkForStartingNewGames();
         });
         // what's coming back from the players are bids, cards played, trump and/or partner suites choosen
         client.on('BIDMADE', (data) => { 

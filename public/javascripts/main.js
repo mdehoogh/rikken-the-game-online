@@ -459,14 +459,14 @@ class OnlinePlayer extends Player{
         for(let suiteButton of document.getElementById("trump-suite-buttons").getElementsByClassName("suite"))
             suiteButton.style.display=(suites.indexOf(parseInt(suiteButton.getAttribute('data-suite')))<0?"none":"inline");
     }
-    choosePartnerSuite(suites,partnerRankName){
+    choosePartnerSuite(suites,partnerRank){
         console.log("Possible partner suites:",suites);
         setPage("page-partner-choosing");
         updateChoosePartnerSuiteCards(this._suiteCards);
         // because the suites in the button array are 0, 1, 2, 3 and suites will contain
         for(let suiteButton of document.getElementById("partner-suite-buttons").getElementsByClassName("suite"))
             suiteButton.style.display=(suites.indexOf(parseInt(suiteButton.getAttribute('data-suite')))<0?"none":"inline");
-        document.getElementById('partner-rank').innerHTML=partnerRankName;
+        document.getElementById('partner-rank').innerHTML=DUTCH_RANK_NAMES[partnerRankName];
     }
     // almost the same as the replaced version except we now want to receive the trick itself
     playACard(trick){

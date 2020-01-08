@@ -1,6 +1,7 @@
 /**
  * 
  */
+const Card=require('./Card.js');
 const {CardHolder,HoldableCard}=require("./CardHolder.js");
 
 class DeckOfCards extends CardHolder{
@@ -27,8 +28,8 @@ class DeckOfCards extends CardHolder{
     constructor(){
         super();
         // tell each card that I'm holding it
-        for(let suiteIndex=0;suiteIndex<SUITE_NAMES.length;suiteIndex++)
-            for(let rankIndex=0;rankIndex<RANK_NAMES.length;rankIndex++)
+        for(let suiteIndex=0;suiteIndex<Card.SUITE_NAMES.length;suiteIndex++)
+            for(let rankIndex=0;rankIndex<Card.RANK_NAMES.length;rankIndex++)
                 new HoldableCard(suiteIndex,rankIndex,this);
         // let's do an initial shuffle
         this._shuffle(); // replacing: this.shuffle(4,13,39);
@@ -37,3 +38,5 @@ class DeckOfCards extends CardHolder{
     toString(){return "Deck of cards";}
 
 }
+
+module.exports=DeckOfCards;

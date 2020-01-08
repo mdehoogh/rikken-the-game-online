@@ -1,6 +1,7 @@
 /**
  * a placeholder for a player
  */
+const Card=require('./Card.js');
 const {CardHolder,HoldableCard}=require('./CardHolder.js');
 
 /**
@@ -16,6 +17,14 @@ class PlayerEventListener{
 // MDH@07DEC2019: PlayerGame extends PlayerEventListener with game data exposed to player
 //                which was earlier stored in each trick
 class PlayerGame extends PlayerEventListener{
+    // the state constants we have
+    static get OUT_OF_ORDER(){return 0;}
+    static get IDLE(){return 1;}
+    static get DEALING(){return 2;}
+    static get BIDDING(){return 3;}
+    static get PLAYING(){return 4;}
+    static get CANCELING(){return 5;}
+    static get FINISHED(){return 6;}
     getTrumpSuite(){}
     getPartnerSuite(){}
     getPartnerRank(){}
@@ -54,7 +63,7 @@ class Player extends CardHolder{
         if(this._index<0||!this._game)
             throw new Error("Player "+this.name+" unable to prepare for playing: not associated with a game yet.");
         if(this.numberOfCards>0){
-            alert("BUG: Player "+this.name+" still has "+this.numberOfCards+" cards.");
+            console.error("BUG: Player "+this.name+" still has "+this.numberOfCards+" cards.");
             this._cards=[];
         }
         // default player remembering its choices
@@ -70,7 +79,7 @@ class Player extends CardHolder{
 
     constructor(name,playerEventListener){
         super();
-        this.name=name;
+        this._name=name;
         if(playerEventListener&&!(playerEventListener instanceof PlayerEventListener))
             throw new Error("Player event listener of wrong type.");
         this._eventListeners=[];
@@ -79,6 +88,9 @@ class Player extends CardHolder{
         this._index=-1;this._game=null; // waiting for the game to be plugged in (once)
         // removed wait until getting called through newGame: this._prepareForPlaying();
     }
+
+    get name(){return this._name;}
+    set name(name){this._name=name;}
 
     // getters exposing information to the made choice
     // NOTE no longer called by the game because the choice is passed as an argument now
@@ -220,7 +232,7 @@ class Player extends CardHolder{
         // also it needs to be an ace of a suite the user has itself (unless you have all other aces)
         this._trumpSuite=-1;
         // any of the suites in the cards can be the trump suite!
-        let possibleTrumpSuiteNames=this.getSuites().map((suite)=>{return CARD_SUITES[suite];});
+        let possibleTrumpSuiteNames=this.getSuites().map((suite)=>{return Card.CARD_SUITES[suite];});
         let trumpSuite=-1;
         while(trumpSuite<0){
             let trumpName=prompt("@"+this.name+" (holding "+this.getTextRepresentation(true)+")\nWhat suite will be trump (options: '"+possibleTrumpSuiteNames.join("', '")+"')?",possibleTrumpSuiteNames[0]);
@@ -237,9 +249,8 @@ class Player extends CardHolder{
     }
     /**
      * asks for the suite of the partner card of the given rank
-     * @param {*} partnerRankName 
      */
-    choosePartnerSuite(partnerRankName){
+    choosePartnerSuite(){
         this._partnerSuite=-1;
         this._partnerRank=RANK_ACE;
         // get all the aceless suites
@@ -261,10 +272,10 @@ class Player extends CardHolder{
                 }
             }
         }
-        let possiblePartnerSuiteNames=possiblePartnerSuites.map((suite)=>{return CARD_SUITES[suite];});
+        let possiblePartnerSuiteNames=possiblePartnerSuites.map((suite)=>{return Card.CARD_SUITES[suite];});
         let partnerSuite=-1;
         while(partnerSuite<0){
-            let partnerSuiteName=prompt("@"+this.name+" (holding "+this.getTextRepresentation(true)+")\nWhat "+CARD_NAMES[this._partnerRank]+" should your partner have (options: '"+possiblePartnerSuiteNames.join("', '")+"')?",possiblePartnerSuiteNames[0]);
+            let partnerSuiteName=prompt("@"+this.name+" (holding "+this.getTextRepresentation(true)+")\nWhat "+Card.CARD_NAMES[this._partnerRank]+" should your partner have (options: '"+possiblePartnerSuiteNames.join("', '")+"')?",possiblePartnerSuiteNames[0]);
             partnerSuite=possiblePartnerSuiteNames.indexOf(partnerSuiteName);
             if(partnerSuite>=0){
                 try{

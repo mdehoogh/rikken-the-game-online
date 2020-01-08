@@ -4,9 +4,9 @@
  */
 class GamesListener {
     
-    gameStarted(game){console.log("GAMES LISTENER >> Game started.");}
-    gameFinished(game){console.log("GAMES LISTENER >>> Game finished.");}
-    gameCanceled(game){console.log("GAMES LISTENER >>> Game canceled.");}
+    gameStarted(game){console.log("GAMES LISTENER >> Game '"+game.name+"' started.");}
+    gameFinished(game){console.log("GAMES LISTENER >>> Game '"+game.name+"' finished.");}
+    gameCanceled(game){console.log("GAMES LISTENER >>> Game '"+game.name+"' canceled.");}
 
 }
 

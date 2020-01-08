@@ -1,11 +1,13 @@
 /**
  * adapted from the demo version of Rikken to export the classes
  */
+const Card=require('./Card.js');
 const {PlayerEventListener,PlayerGame,Player}=require('./Player.js');
 const {CardHolder,HoldableCard}=require('./CardHolder.js');
+const DeckOfCards=require("./DeckOfCards.js"); // OOPS will be needing this!!!
 
 // posssible game states
-const OUT_OF_ORDER=-1,IDLE=0,DEALING=1,BIDDING=2,INITIATE_PLAYING=3,TRUMP_CHOOSING=4,PARTNER_CHOOSING=5,PLAYING=6,CANCELING=7,FINISHED=8;
+/////////const OUT_OF_ORDER=-1,IDLE=0,DEALING=1,BIDDING=2,INITIATE_PLAYING=3,TRUMP_CHOOSING=4,PARTNER_CHOOSING=5,PLAYING=6,CANCELING=7,FINISHED=8;
 
 // possible bids
 // NOTE the highest possible bid (troela) is obligatory!!
@@ -141,7 +143,7 @@ class Trick extends CardHolder{
             // MDH@09DEC2019: when asking for the partner card only the partner card can ever win (even if there's trump!!)
             //                but we need to know whether the partner card was already thrown
             //                SOLUTION: (NEAT) it's easiest to simply ignore trump is the partner card is being asked for!!!!!!
-            if(compareCardsWithPlayAndTrumpSuite(card,this._cards[this._winnerCard],this._playSuite,(this._askingForPartnerCard!=0?-1:this._trumpSuite))>0)
+            if(Cards.WithPlayAndTrumpSuite(card,this._cards[this._winnerCard],this._playSuite,(this._askingForPartnerCard!=0?-1:this._trumpSuite))>0)
                 this._setWinnerCard(numberOfCardsNow);
         }else // after the first card the first player is the winner of course
             this._setWinnerCard(0);
@@ -182,17 +184,6 @@ class RikkenTheGame extends PlayerGame{
         }
         // the successor of the current dealer is to deal next
         this.dealer=(this.dealer+1)%this.numberOfPlayers;
-        // MDH@07JAN2020: moved out of the constructor to be called whenever the game tries to reach the IDLE state
-        let player=this.numberOfPlayers;
-        // technically we only need to do this once but it can't heart I guess to do it again
-        // AND because we update the dealer beforehand
-        while(--player>=0){
-            this._players[player].playsTheGameAtIndex(this,player);
-            if(this._players[player].game!=this){
-                console.log("Failed to register player '"+this._players[player].name+"'.");
-                return false;
-            }
-        }
         // initialize all the lot
         this._trumpSuite=-1; // the trump suite
         this._partnerSuite=-1;this._partnerRank=-1; // the card of the partner (for games with trump and a partner)
@@ -201,7 +192,7 @@ class RikkenTheGame extends PlayerGame{
         this._highestBid=-1; // no highest bid yet
         this._highestBidPlayers=[]; // all the players that made the highest bid (and are playing it)
         this._playersBids=[]; // at most 5 players
-        player=this.numberOfPlayers;while(--player>=0)this._playersBids.push([]);
+        let player=this.numberOfPlayers;while(--player>=0)this._playersBids.push([]);
         // MDH@08DEC2019: keep track of the partner of each player in this.partners
         //                from the start of the game
         this._partners=null;
@@ -236,7 +227,7 @@ class RikkenTheGame extends PlayerGame{
         }
 
         // MDH@07JAN2020: we can move the following to when the game wants to move to the IDLE state
-        /*
+        ///*
         // register the game with each of the players and initialie the player bids as well
         ////this._passBidCount=0; // the number of players that bid 'pass'
         ////this._playersBids=[];
@@ -248,7 +239,7 @@ class RikkenTheGame extends PlayerGame{
             ////this._playersBids.push([]);
         }
         ////if(this._playersBids.length<4)throw new Error("Failed to initialize the player bids.");
-        */
+        //*/
 
         // it's easiest to simply create a new deck of cards each time (instead of repossessing the cards)
         this.deckOfCards=new DeckOfCards();
@@ -261,7 +252,7 @@ class RikkenTheGame extends PlayerGame{
         this._possibleTrumpSuites=[];
         this._possiblePartnerSuites=[];
 
-        this._state=OUT_OF_ORDER;
+        this._state=PlayerGame.OUT_OF_ORDER;
 
         // shuffle parameters
         this._shuffleCount=6;
@@ -324,11 +315,16 @@ class RikkenTheGame extends PlayerGame{
         return(player?player.partner:-1);
     }
 
+    // MDH@08JAN2020: useful to have as well
+    getPlayerNames(){let playerNames=[];this._players.forEach((player)=>{playerNames.push(player.name);});return playerNames;}
+    // MDH@08JAN2020: should be sending this after every trick I suppose????
+    getPartnerIndices(){return this._players.map((player)=>{return player.partner;});}
+
     getPlayerWithCard(suite,rank){
         for(let playerIndex=0;playerIndex<this.numberOfPlayers;playerIndex++)
             if(this._players[playerIndex].containsCard(suite,rank))
                 return playerIndex;
-        alert("BUG BUG BUG: Player with card ("+SUITE_NAMES[suite]+","+RANK_NAMES[rank]+") not found!");
+        alert("BUG BUG BUG: Player with card ("+Card.SUITE_NAMES[suite]+","+Card.RANK_NAMES[rank]+") not found!");
         return -1;
     }
 
@@ -354,7 +350,7 @@ class RikkenTheGame extends PlayerGame{
     }
     _tellPlayersWhoTheirPartnerIs(){
         this._arePartnersKnown=true;
-        this._players.forEach((player)=>{player.partner=this._partners[player._index];});
+        this._players.forEach((player)=>{player.partner=(this._partners?this._partners[player._index]:-1);});
     }
 
     // after dealing the cards, the game can be played
@@ -376,13 +372,13 @@ class RikkenTheGame extends PlayerGame{
             this._setPartnerSuite(this._highestBidPlayers[0],this.getTrumpSuite()); // of course the partner card suite is the trump suite
             if(!this._partners)throw new Error("Partner of 'troela' player unknown!");
             this._tellPlayersWhoTheirPartnerIs(); // we have to do this before playing
-            this._startPlaying(this.fourthAcePlayer);
+            this._startPlaying(this._fourthAcePlayer);
             ////this._trumpSuite=this._players[this.fourthAcePlayer].getSuitesWithRank(RANK_ACE);
             // set the current player to the fourth ace player (which will take care of assigning all other partner properties)
             // no need to choose trump or partner, so we can start playing the game with the fourth ace player to play first!!
             // replacing: this._startPlaying(this.fourthAcePlayer);
         }else
-            this.state=BIDDING;
+            this.state=PlayerGame.BIDDING;
     }
 
     /**
@@ -487,17 +483,17 @@ class RikkenTheGame extends PlayerGame{
         try{
             // if there's a state change listener, play 'online', otherwise play through the console
             switch(this._state){
-                case IDLE:
+                case PlayerGame.IDLE:
                     // if failing to initialize the game I'm out of order!!!
-                    if(!this._gameInitialized())this.state=OUT_OF_ORDER;
+                    if(!this._gameInitialized())this.state=PlayerGame.OUT_OF_ORDER;
                     break;
-                case DEALING:
+                case PlayerGame.DEALING:
                     // let's tell the players that a new game is starting
                     this._players.forEach((player)=>{player.newGame();});
                     this.deckOfCards.shuffle(this._shuffleCount,this._topopMinimum,this._topopMaximum); // shuffle the cards again
                     if(this.dealCards())this._startTheGame();else console.error("Failed to deal the cards.");
                     break;
-                case BIDDING:
+                case PlayerGame.BIDDING:
                     {
                         this._player=(this.dealer+1)%this.numberOfPlayers;
                         console.log("The first player to bid: ",this._player);
@@ -506,7 +502,7 @@ class RikkenTheGame extends PlayerGame{
                         this._players[this._player].makeABid(this._getPlayerBidsObjects(),this._getPossibleBids());
                     }
                     break;
-                case PLAYING:
+                case PlayerGame.PLAYING:
                     {
                         this._setNumberOfTricksToWin();
                         // it's always possible to ask for the partner card blind, when there's trump!!!
@@ -518,14 +514,14 @@ class RikkenTheGame extends PlayerGame{
                         this._players[this._player].playACard(this._trick);
                     }
                     break;
-                case CANCELING:
+                case PlayerGame.CANCELING:
                     // this is a pre-state of FINISHED where not all the player cards are in the tricks
                     // reposses the cards from the players
                     this._players.forEach((player)=>{while(1){let card=player.getFirstCard();if(!card)break;card.holder=this.deckOfCards;}});
                     console.log("Number of cards repossessed from the players: "+this.deckOfCards.numberOfCards+".");
-                    this.state=FINISHED; // to get the event listener informed as well (before tricks are cleared!)
+                    this.state=PlayerGame.FINISHED; // to get the event listener informed as well (before tricks are cleared!)
                     break;
-                case FINISHED:
+                case PlayerGame.FINISHED:
                     if(this._tricks.length==13){
                         // determine the points won and adjust the points
                         let pointsWon=0;
@@ -569,7 +565,7 @@ class RikkenTheGame extends PlayerGame{
                                 // the winner of the 'schoppen vrouw' trick also has to pay the other players
                                 let schoppenVrouwWinner=-1;
                                 for(let trick=0;trick<12;trick++){
-                                    if(this._tricks[trick].containsCard(SUITE_SPADE,RANK_QUEEN)){
+                                    if(this._tricks[trick].containsCard(Card.SUITE_SPADE,Card.RANK_QUEEN)){
                                         schoppenVrouwWinner=this._tricks[trick].winner;
                                         break;
                                     }
@@ -630,7 +626,7 @@ class RikkenTheGame extends PlayerGame{
     */
     _startPlaying(player){
        this._player=player;
-       this.state=PLAYING;
+       this.state=PlayerGame.PLAYING;
     }
     /**
      * determines the rank of the partner card to be asked for
@@ -640,7 +636,7 @@ class RikkenTheGame extends PlayerGame{
         //      it's different for the kings though, as this player could have 3 kings
         // TODO need to check for that as well
         let player=this._players[this._player];
-        let partnerRank=(player?RANK_ACE:-1);
+        let partnerRank=(player?Card.RANK_ACE:-1);
         while(partnerRank>=0){
             let partnerSuites=player.getSuitesWithRank(partnerRank); // all the suites with that rank
             // remove trump suite
@@ -666,15 +662,15 @@ class RikkenTheGame extends PlayerGame{
             return;
         }
         this._partnerRank=-1; // safety measure 
-        console.log(">>> "+capitalize(SUITE_NAMES[this._trumpSuite])+" selected as trump playing '"+BID_NAMES[this._highestBid]+"'.");
+        console.log(">>> "+capitalize(Card.SUITE_NAMES[this._trumpSuite])+" selected as trump playing '"+BID_NAMES[this._highestBid]+"'.");
         // is this a trump game with a partner (ace/king) to ask for?
         // I guess we can pass along the rank, which means we can choose the rank ourselves
         if(this._highestBid==BID_RIK||this._highestBid==BID_RIK_BETER){ // yes, a regular 'rik'
             this._partnerRank=this._getPartnerRank();
-            console.log(">>> Partner card rank: "+RANK_NAMES[this._partnerRank]+".");
+            console.log(">>> Partner card rank: "+Card.RANK_NAMES[this._partnerRank]+".");
             let ranklessSuites=this._players[this._player].getSuitesWithoutRank(this._partnerRank);
             ranklessSuites[this.getTrumpSuite()]=-1; // can't choose trump!!
-            this._players[this._player].choosePartnerSuite(ranklessSuites,DUTCH_RANK_NAMES[this._partnerRank]); // passing along the rank of the card the user can choose
+            this._players[this._player].choosePartnerSuite(ranklessSuites,this._partnerRank); /// replacing: DUTCH_RANK_NAMES[this._partnerRank]); // passing along the rank of the card the user can choose
         }else // a solitary play, so we can start playing immediately
             this._startPlaying((this.dealer+1)%this.numberOfPlayers);
     }
@@ -690,11 +686,11 @@ class RikkenTheGame extends PlayerGame{
         this._partnerSuite=partnerSuite;
         this._partners=null; // precaution
         if(this._partnerSuite>=0){
-            console.log("Selected partner suite: "+SUITE_NAMES[this._partnerSuite]+".");
+            console.log("Selected partner suite: "+Card.SUITE_NAMES[this._partnerSuite]+".");
             // here we can determine who will be the partner and register that!!!
             let partner=this.getPlayerWithCard(this._partnerSuite,this._partnerRank);
             if(partner<0){
-                alert("Programmafout: Partner met "+DUTCH_SUITE_NAMES[this._partnerSuite]+" "+DUTCH_RANK_NAMES[this._partnerRank]+" niet gevonden!");
+                console.log("BUG: Partner with "+Card.SUITE_NAMES[this._partnerSuite]+" "+Card.RANK_NAMES[this._partnerRank]+" not found!");
                 return;
             }
             this._setPartners(trumpPlayer,partner);
@@ -731,7 +727,7 @@ class RikkenTheGame extends PlayerGame{
                     // pass along all the suites the player has (from which to choose from)
                     this._players[this._player].chooseTrumpSuite(this._players[this._player].getSuites());
                 }else // trump is known (which can only be hearts) TODO what if this player does not have any trump cards?????????
-                    this._setTrumpSuite(SUITE_NAMES.indexOf("heart")); // set the trump suite directly!!!
+                    this._setTrumpSuite(Card.SUITE_NAMES.indexOf("heart")); // set the trump suite directly!!!
             }else // not a trump suite
                 // played by the highest bidder(s) on his own
                 this._startPlaying((this.dealer+1)%this.numberOfPlayers);
@@ -747,7 +743,7 @@ class RikkenTheGame extends PlayerGame{
         let oneAceSuite=-1; // if a player has one ace remember which ace
         for(let player=this.numberOfPlayers-1;player>=0;player--){
             // get the aces the player has
-            let aceSuites=this._players[player].getSuitesWithRank(RANK_ACE);
+            let aceSuites=this._players[player].getSuitesWithRank(Card.RANK_ACE);
             let aces=aceSuites.length;
             console.log("Number of aces in "+this._players[player].name+"'s hand: "+aces+".");
             if(aces==0)continue; // (OOPS almost forgot this one) still possible
@@ -756,12 +752,12 @@ class RikkenTheGame extends PlayerGame{
         }
         if(threeAcePlayer>=0){
             this._highestBidPlayers=[threeAcePlayer]; // TODO perhaps this should be done elsewhere?????
-            this.fourthAcePlayer=oneAcePlayer;
+            this._fourthAcePlayer=oneAcePlayer;
             // NOTE with troela do NOT call _setTrumpSuite() as that would start playing immediately (which we don't want to)
             this._trumpSuite=oneAceSuite;
             this._highestBid=BID_TROELA; // OOPS should be _highestBid!!
         }else
-            this.fourthAcePlayer=-1;
+            this._fourthAcePlayer=-1;
     }
 
     // public methods
@@ -810,12 +806,12 @@ class RikkenTheGame extends PlayerGame{
                 this._highestBidPlayers=[this._player]; // the first one to bid this
                 // if this was the highest possible bid we're done
                 if(BID_RANKS[bid]==17){ // highest possible player bid (which is played solitary)
-                    this.state=PLAY_REPORTING;
+                    this.state=PlayerGame.PLAYING; // was PLAY_REPORTING but not used anymore
                 }
             }
         }
         // 3. if still in the bidding state, ask the next player that is still allowed to bid for a bid
-        if(this._state==BIDDING){
+        if(this._state==PlayerGame.BIDDING){
             // count the number of pass bids we have
             let passBidCount=0;
             let player=this.numberOfPlayers;
@@ -939,7 +935,7 @@ class RikkenTheGame extends PlayerGame{
             */
             // game over?????? i.e. all 13 tricks complete
             if(this._tricks.length==13){
-                this.state=FINISHED;
+                this.state=PlayerGame.FINISHED;
                 return;
             }
             // initialize a new trick with the first player to play
@@ -984,7 +980,7 @@ class RikkenTheGame extends PlayerGame{
         // every player is to get 13 cards (first seven than six)
         if(!this.dealBy(7)||!this.dealBy(6))return false;
         // let's sort the hands (for convenience)
-        this._players.forEach((player)=>{player._cards.sort(compareCards);});
+        this._players.forEach((player)=>{player._cards.sort(Card.compareCards);});
         this.logHands();
         return true;
     }
@@ -1027,13 +1023,13 @@ class RikkenTheGame extends PlayerGame{
     get partnerRank(){return this._partnerRank;}
     
     start(){
-        if(this._state!==IDLE)this.state=IDLE; // if not in the IDLE state go there first
-        if(this._state===IDLE)this.state=DEALING; // only from the IDLE state can we start dealing
+        if(this._state!==PlayerGame.IDLE)this.state=PlayerGame.IDLE; // if not in the IDLE state go there first
+        if(this._state===PlayerGame.IDLE)this.state=PlayerGame.DEALING; // only from the IDLE state can we start dealing
     }
 
     cancel(){
-        if(this._state===BIDDING||this._state===PLAYING)
-            this.state=CANCELING;
+        if(this._state===PlayerGame.BIDDING||this._state===PlayerGame.PLAYING)
+            this.state=PlayerGame.CANCELING;
         else
             alert("Unable to cancel the game!");
     }
