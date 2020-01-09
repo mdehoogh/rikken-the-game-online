@@ -2,7 +2,7 @@
 <html>
   <head>
     <meta charset="UTF-8"><!-- we'll be needing this!! -->
-    <title>Test - Rikken Het Spel</title>
+    <title>Rikken - Speler C</title>
     <link rel='stylesheet' href='./public/stylesheets/style.css' />
   </head>
   <body>
@@ -96,7 +96,7 @@
                 <input type='button' id='single-player-game-button' value='Speel'>
             </div>
           </div>
-          <div class='player-name'>Ik speel als&nbsp;<input id='single-player-name' data-player-id='' type='text' size='30' placeholder='Uw spelernaam'></div>
+          <div class='player-name'>Ik speel als&nbsp;<input id='single-player-name' data-player-id='' type='text' size='30' placeholder='Uw spelernaam' value='C'></div>
         </div>
         <div id='page-wait-for-players' class='page'>
           <div class='page-header'>
@@ -665,5 +665,6 @@
     <script type='module' src="./public/javascripts/Player.js"></script>
     <script type='module' src="./public/javascripts/client.js"></script>   -->
     <script src='./public/javascripts/gameplaying.js'></script>
+    <script>window.onload=function(){setPlayerName('C');};</script>
   </body>
 </html>

@@ -138,8 +138,10 @@ class Player extends CardHolder{
         }
     }
 
+    set index(index){this._index=index;} // MDH@09JAN2020: sometimes an index can be set separately
+
     playsTheGameAtIndex(game,index){
-        this._index=index;
+        this.index=index;
         this.game=game;
     }
     /*

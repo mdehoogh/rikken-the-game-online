@@ -76,8 +76,11 @@ function showPlayerNames(){
 function showGamePlayerNames(){
     let rikkenTheGame=(currentPlayer?currentPlayer.game:null);
     let playerNames=rikkenTheGame.getPlayerNames();
-    for(let playerNameSpan of document.getElementsByClassName("game-player-name"))
-        playerNameSpan.innerHTML=playerNames[playerNameSpan.getAttribute("data-player-index")];
+    for(let playerNameSpan of document.getElementsByClassName("game-player-name")){
+        let playerIndex=playerNameSpan.getAttribute("data-player-index");
+        playerNameSpan.innerHTML=playerNames[playerIndex];
+        playerNameSpan.color=(playerIndex==currentPlayer.index?"BLUE":"BLACK");
+    }
 }
 
 /**
@@ -396,6 +399,7 @@ class OnlinePlayer extends Player{
     // make a bid is called with 
     makeABid(playerBidsObjects,possibleBids){
         // debugger
+        showGameState("Bieden"); // defined in info.js
         currentPlayer=this; // remember the current player
         setInfo(this.name+" moet nu bieden!");
         if(currentPage!="page-bidding")setPage("page-bidding"); // JIT to the right page
@@ -409,8 +413,8 @@ class OnlinePlayer extends Player{
         document.getElementById("toggle-bidder-cards").value=this.getTextRepresentation("<br>");
         */
         // either show or hide the bidder cards immediately
-        document.getElementById("bidder-suitecards-table").style.display=(playmode==PLAYMODE_DEMO?"block":"none");
-        if(playmode==PLAYMODE_DEMO^document.getElementById("bidder-suitecards-button").classList.contains("active-bid-button"))
+        document.getElementById("bidder-suitecards-table").style.display=(/*playmode==PLAYMODE_DEMO?"block":*/"none");
+        if(/*playmode==PLAYMODE_DEMO*/0^document.getElementById("bidder-suitecards-button").classList.contains("active-bid-button"))
             document.getElementById("bidder-suitecards-button").classList.toggle("active-bid-button");
         // NOTE because every player gets a turn to bid, this._suiteCards will be available when we ask for trump/partner!!!
         updateBidderSuiteCards(this._suiteCards=this._getSuiteCards());
@@ -432,6 +436,7 @@ class OnlinePlayer extends Player{
         }
     }
     chooseTrumpSuite(suites){
+        showGameState("Troef kiezen");
         console.log("Possible trump suites:",suites);
         setPage("page-trump-choosing");
         updateChooseTrumpSuiteCards(this._suiteCards);
@@ -440,6 +445,7 @@ class OnlinePlayer extends Player{
             suiteButton.style.display=(suites.indexOf(parseInt(suiteButton.getAttribute('data-suite')))<0?"none":"inline");
     }
     choosePartnerSuite(suites,partnerRank){ // partnerRankName changed to partnerRank (because Language should be used at the UI level only!)
+        showGameState("Partner kiezen");
         console.log("Possible partner suites:",suites);
         setPage("page-partner-choosing");
         updateChoosePartnerSuiteCards(this._suiteCards);
@@ -450,7 +456,8 @@ class OnlinePlayer extends Player{
     }
     // almost the same as the replaced version except we now want to receive the trick itself
     playACard(trick){
-        currentPlayer=this;
+        // currentPlayer=this;
+        showGameState("Spelen");
         // if this is a new trick update the tricks played table with the previous trick
         if(trick.numberOfCards==0)updateTricksPlayedTables();
         /* see showTrick()
@@ -590,25 +597,29 @@ function playablecardButtonClicked(event){
 function _gameStateChanged(fromstate,tostate){
     console.log("GAMEPLAYING >>> Toestand verandert van "+fromstate+" naar "+tostate+".");
     switch(tostate){
-        case IDLE:
+        case PlayerGame.IDLE:
             setInfo("Een spel is aangemaakt.");
             break;
-        case DEALING:
+        case PlayerGame.DEALING:
             setInfo("De kaarten worden geschud en gedeeld.");
             break;
-        case BIDDING:
+        case PlayerGame.BIDDING:
             // when moving from the DEALING state to the BIDDING state clear the bid table
             // ALTERNATIVELY this could be done when the game ends
             // BUT this is a bit safer!!!
-            if(fromstate===DEALING)clearBidTable();
-            ////// let's wait until a bid is requested!!!! setPage("page-bidding");
+            setInfo("Het bieden is begonnen!");
+            if(fromstate===PlayerGame.DEALING)clearBidTable();
+            ////// let's wait until a bid is requested!!!! 
+            ///////setPage("page-bidding");
             break;
-        case PLAYING:
+        case PlayerGame.PLAYING:
+            setInfo("Het spelen kan beginnen!");
             clearTricksPlayedTables();
             // initiate-playing will report on the game that is to be played!!!
             setPage("page-playing");
             break;
-        case FINISHED:
+        case PlayerGame.FINISHED:
+            setInfo("Het spel is afgelopen!");
             updateTricksPlayedTables(); // so we get to see the last trick as well!!!
             updatePlayerResultsTable(); // show the player results so far
             setPage("page-finished");
@@ -727,25 +738,30 @@ function cancelGame(){
 // MDH@07JAN2020: additional stuff that we're going to need to make this stuff work
 class PlayerGameProxy extends PlayerGame {
 
+    logSendEvent(event,data){
+        console.log("SENDING EVENT "+event+" with data "+JSON.stringify(data)+".");
+        return [event,data];
+    }
+
     // what the player will be calling when (s)he made a bid, played a card, choose trump or partner suite
     bidMade(bid){
-        if(this._state===OUT_OF_ORDER)return false;
-        this._socket.emit('BID',{'by':this._playerIndex,'bid':bid});
+        if(this._state===PlayerGame.OUT_OF_ORDER)return false;
+        this._socket.emit(...this.logSendEvent('BID',{'by':this._playerIndex,'bid':bid}));
         return true;
     }
     cardPlayed(card){
-        if(this._state===OUT_OF_ORDER)return false;
-        this._socket.emit('CARD',{'player':this._playerIndex,'card':[card.suite,card.rank]});
+        if(this._state===PlayerGame.OUT_OF_ORDER)return false;
+        this._socket.emit(...this.logSendEvent('CARD',{'player':this._playerIndex,'card':[card.suite,card.rank]}));
         return true;
     }
     trumpSuiteChosen(trumpSuite){
-        if(this._state===OUT_OF_ORDER)return false;
-        this._socket.emit('TRUMP',{'player':this._playerIndex,'suite':trumpSuite});
+        if(this._state===PlayerGame.OUT_OF_ORDER)return false;
+        this._socket.emit(...this.logSendEvent('TRUMP',{'player':this._playerIndex,'suite':trumpSuite}));
         return true;
     }
     partnerSuiteChosen(partnerSuite){
-        if(this._state===OUT_OF_ORDER)return false;
-        this._socket.emit('PARTNER',{'player':this._playerIndex,'suite':partnerSuite});
+        if(this._state===PlayerGame.OUT_OF_ORDER)return false;
+        this._socket.emit(...this.logSendEvent('PARTNER',{'player':this._playerIndex,'suite':partnerSuite}));
         return true;
     }
 
@@ -760,18 +776,32 @@ class PlayerGameProxy extends PlayerGame {
         console.log(event,data);
     }
 
+    set name(name){
+        this._name=name;
+        // TODO better moved over to outside!!!
+        document.getElementById("game-id").innerHTML=this._name;
+    }
+
+    getPlayerName(playerIndex){return(this._playerNames&&playerIndex>=0&&playerIndex<this._playerNames.length?this._playerNames[playerIndex]:null);}
+    getPlayerNames(){return this._playerNames;} // overriding getPlayerNames() of the demo version!!
+    set playerNames(playerNames){
+        this._playerNames=playerNames;
+        currentPlayer.index=(!this._playerNames||this._playerNames.length==0?-1:this._playerNames.indexOf(currentPlayer.name));
+        if(this.index<0)console.error("Current player '"+currentPlayer.name+"' not found.");
+        showGamePlayerNames();
+    }
+
     parseTrick(trickInfo){
         let trick=new Trick();
     }
     prepareForCommunication(){
-        debugger
         console.log("PREPARING COMMUNICATION");
         // this._socket.on('connect',()=>{
         //     this._state=IDLE;
         // });
         this._socket.on('disconnect',()=>{
             this.logEvent('disconnect',null);
-            this.state=OUT_OF_ORDER;
+            this.state=PlayerGame.OUT_OF_ORDER;
         });
         // register to receive data on all custom events
         this._socket.on('STATECHANGE',(data)=>{
@@ -780,23 +810,16 @@ class PlayerGameProxy extends PlayerGame {
         });
         // player events (in order of appearance)
         this._socket.on('GAME',(data)=>{
-            debugger
             this.logEvent('GAME',data);
             // console.log("Game information received by '"+currentPlayer.name+"'.",data);
             // we can set the name of the game now
-            this._name=data.id;
-            this._playerNames=data.players;
-            // we can now set the index of the currentPlayer (very important)
-            currentPlayer.playsTheGameAtIndex(this,this._playerNames.indexOf(currentPlayer.name));
+            this.name=data;
+            if(data.hasOwnProperty('players'))this.playerNames=data.players;
         });
         // when the remote game reaches the IDLE state (and the game is on!!!!)
         this._socket.on('PLAYERS',(data)=>{
             this.logEvent('PLAYERS',data);
-            this._playerNames=data;
-            // by locating the current player name in the list of player names we know the player index
-            // we remember it ourselves AND pass it along to the current player, so currentPlayer will know the game AND it's player index
-            this._playerIndex=this._playerNames.indexOf(currentPlayer.name);
-            currentPlayer.playsTheGameAtIndex(this,this._playerIndex);
+            this.playerNames=data;
         });
         this._socket.on('DEALER',(data)=>{
             this.logEvent('DEALER',data);
@@ -850,13 +873,16 @@ class PlayerGameProxy extends PlayerGame {
 
     // MDH@08JAN2020: socket should represent a connected socket.io instance!!!
     constructor(socket){
-        this._state=OUT_OF_ORDER;
+        // OOPS didn't like forgetting this!!! 
+        // but PlayerGame does NOT have an explicit constructor (i.e. no required arguments)
+        super(); 
+        this._state=PlayerGame.OUT_OF_ORDER;
         this._socket=socket;
-        this._dealer=_dealer;
+        this._dealer=-1;
         this._trumpSuite=-1;this._trumpPlayer=-1;
         this._partnerSuite=-1;this._partnerRank=-1;
         this._numberOfTricksWon=[0,0,0,0]; // assume no tricks won by anybody
-        this.highestBid=-1;this._highestBidders=[]; // no highest bidders yet
+        this._highestBid=-1;this._highestBidders=[]; // no highest bidders yet
         this._deltaPoints=null;
         this._points=null;
         this._lastTrickPlayed=null;
@@ -866,7 +892,7 @@ class PlayerGameProxy extends PlayerGame {
         this._name=null; // the name of the game
         this._playerNames=null; // the names of the players
         this._partnerIndices=null; // the partner
-        prepareForCommunication();
+        this.prepareForCommunication();
     }
 
     // information about the game itself organized by state
@@ -931,7 +957,8 @@ function prepareForPlaying(){
         for(let suiteButton of document.querySelectorAll(".suite."+Card.SUITE_NAMES[suite]))
             suiteButton.value=Card.SUITE_CHARACTERS[suite];
 
-    setPage(PAGES[0]);
+    // MDH@09JAN2020: better to skip the first two pages (rules and set up)
+    setPage("page-wait-for-players");
 
 };
 
@@ -939,7 +966,7 @@ function prepareForPlaying(){
 function _setPlayer(player,errorcallback){
     // get rid of the current player (if any), and in effect we'll loose the game as well
     if(currentPlayer){
-        currentPlayer.game=null; // get rid of the game (which will disconnect the socket as well)
+        currentPlayer.game=null; // get rid of the game (which will disconnect the socket as well) WISHFUL THINKING...
         currentPlayer=null;
     }
     if(player){
@@ -949,6 +976,8 @@ function _setPlayer(player,errorcallback){
                 console.log("Connected!!!");
                 clientsocket.emit('PLAYER',player.name); 
                 currentPlayer=player;
+                // unfortunately we can only set the game of the player if _index is non-negative, so we pass in 4
+                currentPlayer.index=4;
                 currentPlayer.game=new PlayerGameProxy(clientsocket);
                 (typeof errorcallback!=='function'||errorcallback(null));            
             }else{
@@ -956,6 +985,7 @@ function _setPlayer(player,errorcallback){
             }
         });
         clientsocket.on('connect_error',(err)=>{
+            console.log("Connect error: ",err);
             (typeof errorcallback!=='function'||errorcallback(err));
         });
         // try to connect to the server catching whatever happens through events
