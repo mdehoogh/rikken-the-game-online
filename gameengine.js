@@ -5,10 +5,21 @@ const {RikkenTheGameEventListener,Trick,RikkenTheGame}=require('./public/javascr
 
 module.exports=(socket_io_server,gamesListener)=>{
 
+    function logEvent(to,event,data){
+        console.log("\nSending event "+event+" with data "+JSON.stringify(data)+" to "+to+".");
+        return [event,data];
+    }
+
     function getCardsInfo(cardHolder){
         let cardsInfo=[];cardHolder._cards.forEach((card)=>{cardsInfo.push([card.suite,card.rank]);});return cardsInfo;
     }
-
+    function getTrickInfo(trick){
+        // TODO we'd probably have to send more information from the trick
+        return {'cards':getCardsInfo(trick),'winner':trick.winner,'first':trick.firstPlayer};
+    }
+    function getTricksInfo(tricks){
+        return tricks.map((trick)=>{return getTrickInfo(trick);});
+    }
     // a RemotePlayer represents a remote player
     class RemotePlayer extends Player {
 
@@ -57,24 +68,25 @@ module.exports=(socket_io_server,gamesListener)=>{
         */
         get client(){return this._client;}
 
-        sendCards(){this._client.emit("CARDS",getCardsInfo(this));}
+        sendCards(){
+            this._client.emit(...logEvent(this.name,'CARDS',getCardsInfo(this)));
+        }
 
         // copied over from OnlinePlayer() in main.js 
         // METHODS CALLED BY THE GAME
         makeABid(playerBidObjects,possibleBids){
-            this._client.emit('MAKE_A_BID',{'playerBidObjects':playerBidObjects,'possibleBids':possibleBids});
+            this._client.emit(...logEvent(this.name,'MAKE_A_BID',{'playerBidObjects':playerBidObjects,'possibleBids':possibleBids}));
         }
         chooseTrumpSuite(suites){
-            this._client.emit('CHOOSE_TRUMP_SUITE',{'suites':suites});
+            this._client.emit(...logEvent(this.name,'CHOOSE_TRUMP_SUITE',this.name,{'suites':suites}));
         }
         choosePartnerSuite(suites,partnerRankName){
-            this._client.emit('CHOOSE_PARTNER_SUITE',{'suites':suites,'partnerRankName':partnerRankName});
+            this._client.emit(...logEvent(this.name,'CHOOSE_PARTNER_SUITE',{'suites':suites,'partnerRankName':partnerRankName}));
         }
         // almost the same as the replaced version except we now want to receive the trick itself
         playACard(trick){
             // can we send all the trick information this way??????? I guess not
-
-            this._client.emit('PLAY_A_CARD',{'trick':trick});
+            this._client.emit(...logEvent(this.name,'PLAY_A_CARD',{'trick':getTrickInfo(trick)}));
         }
         // END METHODS CALLED BY THE GAME
 
@@ -157,18 +169,22 @@ module.exports=(socket_io_server,gamesListener)=>{
         }
         */
         joinGame(){
-            this._client.join(this._game.tableId,(err)=>{
-                if(err){
-                    console.log("GAME_ENGINE >>> ERROR: Failed to make player join a game.");
-                    console.error(err);
-                }
-            });
+            if(this.tableId){
+                console.log("Player "+this.userId+" joining "+this.tableId+".");
+                this._client.join(this.tableId,(err)=>{
+                    if(err){
+                        console.log("GAME_ENGINE >>> ERROR: Failed to make player join a game.");
+                        console.error(err);
+                    }
+                });
+            }else
+                console.error("No game to join!");
         }
     }
     
     // we need to RikkenTheGameServer to send certain data to all its player clients e.g. when the state changes
     // so it subclasses RikkenTheGame 
-
+    // MDH@09JAN2020: let's remove the methods that are already doing there thing in RikkenTheGame!!!
     class RikkenTheGameServer extends RikkenTheGame{
 
         // MDH@07JAN2020: I've adapted the super constructor in such a way that you need to call start() to make it start
@@ -179,6 +195,8 @@ module.exports=(socket_io_server,gamesListener)=>{
             this._tableId=tableId;
             // now we're to wait for somebody to start the game
         }
+
+        get name(){return this._tableId;} // convenience getter
 
         // here we have all the methods from RikkenTheGame that we override with additional behaviour on top
         // of the original one, so every method calls it's super method
@@ -193,12 +211,13 @@ module.exports=(socket_io_server,gamesListener)=>{
             // when changing states we should ascertain that certain game information was send to the game players
             switch(this._state){
                 case PlayerGame.IDLE:
+                    debugger
                     // make all players join the game 'room'
                     this._players.forEach((player)=>{player.joinGame();});
                     // and now we can emit the game name, the game players and the current dealer index...
-                    socket_io_server.to(this._tableId).emit("GAME",this._tableId);
-                    socket_io_server.to(this._tableId).emit("PLAYERS",this.getPlayerNames());
-                    socket_io_server.to(this._tableId).emit('DEALER',this.dealer); // sync the dealer to the correct value
+                    socket_io_server.to(this._tableId).emit(...logEvent("(all)","GAME",this._tableId));
+                    socket_io_server.to(this._tableId).emit(...logEvent("(all)","PLAYERS",this.getPlayerNames()));
+                    socket_io_server.to(this._tableId).emit(...logEvent("(all)",'DEALER',this.dealer)); // sync the dealer to the correct value
                     break;
                 case PlayerGame.BIDDING:
                     // every player should know the cards it's been dealt (before moving to bidding page)
@@ -212,12 +231,12 @@ module.exports=(socket_io_server,gamesListener)=>{
                             'trumpSuite':this.trumpSuite,
                             'partnerSuite':this.partnerSuite,
                             'partnerRank':this.partnerRank,
-                            'fourthAcePlayer':this.fourthAcePlayer,
                             'highestBid':this.highestBid,
-                            'highestBidPlayers':this.highestBidPlayers,
+                            'highestBidders':this.highestBidPlayers,
                             'trumpPlayer':this.trumpPlayer,  
+                            'fourthAcePlayer':this.fourthAcePlayer,
                         };
-                        socket_io_server.to(this.name).emit('PLAYINFO',playInfo);
+                        socket_io_server.to(this._tableId).emit(...logEvent(this._tableId,'GAMEINFO',playInfo));
                     }
                     break;
                 case PlayerGame.CANCELING:
@@ -226,13 +245,13 @@ module.exports=(socket_io_server,gamesListener)=>{
                     // we should pass the tricks played, and the points and deltaPoints over to each player
                     // we also want to send who won the tricks...
                     {
-                        let tricksInfo=[];
-                        this._tricks.forEach((trick)=>{tricksInfo.push({'cards':getCardsInfo(trick),'winner':trick.winner,'firstplayer':trick.firstPlayer});});
-                        socket_io_server.to(this._tableId).emit('RESULTS',{'tricks':tricksInfo,'deltapoints':this.deltaPoints,'points':this.points});
+                        socket_io_server.to(this._tableId).emit(...logEvent(this._tableId,'TRICKS',getTricksInfo(this._tricks)));
+                        // TODO send the number of tricks each player one as well??????
+                        socket_io_server.to(this._tableId).emit(...logEvent(this._tableId,'RESULTS',{'deltapoints':this.deltaPoints}));
                     }
                     break;
             }
-            socket_io_server.to(this.name).emit('STATECHANGE',{from:oldstate,to:this._state});
+            socket_io_server.to(this._tableId).emit(...logEvent(this._tableId,'STATECHANGE',{from:oldstate,to:this._state}));
         }
         
         // which methods do we need to override?????
@@ -246,154 +265,22 @@ module.exports=(socket_io_server,gamesListener)=>{
         
         // PlayerEventListener implementation
         bidMade(bid){
+            super.bidMade(bid);
             // 1. register the bid
             ////////now passed in as argument: let bid=this._players[this._player].bid; // collect the bid made by the current player
             console.log("Bid by "+this._players[this._player].name+": '"+BID_NAMES[bid]+"'.");
-
-            // TODO check whether this bid is actually higher than the highest bid so far (when not a pass bid)
-            if(this._playersBids&&Array.isArray(this._playersBids)&&this._playersBids.length>this._player){
-                this._playersBids[this._player].unshift(bid); // prepend the new bid to the bids of the current player
-                this.logBids(); // show the current bids
-            }else{
-                console.error("BUG: Unable to store the bid!");
-                return;
-            }
-            // 2. check if this bid ends the bidding
-            if(bid!=BID_PAS){
-                ////// WRONG!!!!! this._passBidCount=0; // start counting over
-                // a new accepted bid is always the highest bid
-                if(bid<this._highestBid)
-                    throw new Error("Invalid bid!");
-                if(bid==this._highestBid){ // same as before
-                    if(BIDS_ALL_CAN_PLAY.indexOf(bid)<0)
-                        throw new Error("You cannot make the same bid!");
-                    this._highestBidPlayers.push(this._player);
-                }else{ // a higher bid
-                    this._highestBid=bid; // remember the highest bid so far
-                    console.log("Highest bid so far: "+BID_NAMES[this._highestBid]+".");
-                    this._highestBidPlayers=[this._player]; // the first one to bid this
-                    // if this was the highest possible bid we're done
-                    if(BID_RANKS[bid]==17){ // highest possible player bid (which is played solitary)
-                        this.state=PLAY_REPORTING;
-                    }
-                }
-            }
-            // 3. if still in the bidding state, ask the next player that is still allowed to bid for a bid
-            if(this._state==BIDDING){
-                // count the number of pass bids we have
-                let passBidCount=0;
-                let player=this.numberOfPlayers;
-                while(--player>=0){
-                    //////console.log("Checking player bids: ",this._playersBids[player]);
-                    if(this._playersBids[player].length==0){passBidCount=0;break;} // somebody yet to bid
-                    if(this._playersBids[player][0]===BID_PAS)passBidCount++;
-                }
-                // if we have a total of 3 pass bids, bidding is over
-                if(passBidCount<3){ // there must still be another player that can bid
-                    console.log("Last bid done by player "+this._player+".");
-                    // find the next player that is allowed to bid (should be there)
-                    let player=this._player;
-                    while(1){
-                        player=(player+1)%this.numberOfPlayers;
-                        //////if(player===this._player)break; // nobody was allowed to bid anymore
-                        if(this._playersBids[player].length==0)break; // when no bid so far, this is the one to ask next
-                        if(this._playersBids[player][0]!=BID_PAS)break; // if bid before and not passed this is the one to ask next
-                        console.log("Player '"+this._players[player].name+"' can't bid anymore!");
-                    }
-                    /////if(player!==this._player){ // another player can still bid
-                        this._player=player;
-                        console.log("Player "+this._player+"next to bid!");
-                        // NOTE could have done this by: this.state=BIDDING;
-                        this._players[this._player].makeABid(this._getPlayerBidsObjects(),this._getPossibleBids());
-                    /////}    
-                }else
-                    this._doneBidding();
-            }
         }
-
-        /**
-         * to be called by the player with the highest bid when selecting the trump suite
-         */
-        trumpSuiteChosen(chosenTrumpSuite){this._setTrumpSuite(chosenTrumpSuite);}
-        /**
-         * to be called by the player with the highest bid when selecting the partner suite
-         */
+        trumpSuiteChosen(chosenTrumpSuite){
+            super.trumpSuiteChosen(choseTrumpSuite);
+        }
         partnerSuiteChosen(chosenPartnerSuite){
-            this._setPartnerSuite(this._player,chosenPartnerSuite);
-            // player left from the dealer to start playing the first trick
-            this._startPlaying((this.dealer+1)%this.numberOfPlayers);
+            super.partnerSuiteChosen(chosenPartnerSuite);
         }
-
-        getTrickAtIndex(index){return(index>=0&&index<this._tricks.length?this._tricks[index]:null);}
-
         cardPlayed(card){
-            console.log("Card played");
-            let numberOfPlayerCards=this._players[this._player].numberOfCards;
-            ////////////////// now passed in as argument!!!! let card=this._players[this._player].card;
-            // move the card into the trick (effectively removing it from the player cards)
-            this._trick.addCard(card);
-            if(card._holder!==this._trick)throw new Error("Failed to add the card to the trick!");
-            if(this._players[this._player].numberOfCards>=numberOfPlayerCards)throw new Error("Played card not removed from player hand!");
-            // is the trick complete?
-            if(this._trick.numberOfCards==4){
-                // 1. determine whether this trick contains the partner card of the highest bidder
-                if(this._partners){ // a non-solitary game
-                    let partnerCardPresentInTrick=this._trick.containsCard(this.getPartnerSuite(),this.getPartnerRank());
-                    ////////if(partnerCardPresentInTrick)console.log(">>>> Partner card detected! <<<<");
-                    // serious error if it should have been there and it wasn't!!
-                    if(this._trick.askingForPartnerCard!=0) // it was asked for
-                        if(!partnerCardPresentInTrick)
-                            throw new Error("The partner card was asked for, but was not present in the trick though.");
-                    if(partnerCardPresentInTrick){
-                        // if the partners are now known yet (in a regular rik situation then)
-                        if(!this._arePartnersKnown)this._tellPlayersWhoTheirPartnerIs();
-                    }
-                }
-                // 2. register the trick
-                this._tricks.push(this._trick); // register the trick
-                // MDH@06DEC2019: the trick now itself keeps track of the winner card, so no need to do it here anymore
-                // the player to start the next trick is the winner
-                this._player=this._trick.winner;
-                this._players[this._player].trickWon(this._tricks.length);
-                console.log("The trick was won by player #"+this._player+": '"+this._players[this._player].name+"'.");
-                // game over?????? i.e. all 13 tricks complete
-                if(this._tricks.length==13){
-                    this.state=FINISHED;
-                    return;
-                }
-                // initialize a new trick with the first player to play
-                this._trick=new Trick(this._player,this.getTrumpSuite(),this.getPartnerSuite(),this.getPartnerRank(),this._canAskForPartnerCard()); // replacing: this._trumpSuite,this._partnerSuite,this._partnerRank,this._getTrumpPlayer()); // replacing: this._canAskForPartnerCardBlind());
-            }else // not yet, more cards to play in this trick
-                this._player=(this._player+1)%4;
-            // and ask the new current player to play a card
-            this._players[this._player].playACard(this._trick); // replacing: _getTrickObjects(),this._trick.playSuite,this._trick.canAskForPartnerCardBlind);
+            super.cardPlayed(card);
         }
         // end PlayerEventListener implementation
 
-        // 'private' methods
-        dealBy(numberOfCards){
-            for(let clockwisePlayer=1;clockwisePlayer<=this.numberOfPlayers;clockwisePlayer++){
-                // 'pop' off numberOfCards per player
-                let player=this._players[(clockwisePlayer+this.dealer)%this.numberOfPlayers];
-                let cardsLeftToDeal=numberOfCards;
-                while(--cardsLeftToDeal>=0){
-                    console.log("Deck of cards to deal from: ",this.deckOfCards);
-                    let cardToDeal=this.deckOfCards.getFirstCard();
-                    if(!cardToDeal){console.error("No further cards to deal.");return false;}
-                    if(!(cardToDeal instanceof HoldableCard)){
-                        console.error("Card to deal "+cardToDeal+" (with constructor "+cardToDeal.constructor.name+") not holdable!");return false;
-                    }
-                    console.log("Dealing #"+cardsLeftToDeal+" ("+cardToDeal.toString()+") to "+player.toString()+".");
-                    cardToDeal.holder=player;
-                    if(cardToDeal._holder!==player){
-                        console.error("\tFailed to deal card "+cardToDeal.toString()+".");
-                        return false;
-                    }
-                }
-            }
-            return true;
-        }
-        
     }
 
     // keep track of all the active games

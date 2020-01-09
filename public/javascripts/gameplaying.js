@@ -125,6 +125,10 @@ const Card=require('./Card.js');
 
 class CardHolder{
 
+    log(tolog){
+        // console.log(tolog);
+    }
+    
     // MDH@04DEC2019: allowing now to construct fixed size card holders (like Trick)
     constructor(numberOfCards=0){
         this._cards=[];
@@ -138,7 +142,7 @@ class CardHolder{
         let cardIndex=this._cards.indexOf(card);
         if(cardIndex>=0){
             if(this._cards.splice(cardIndex,1).length==1){
-                console.log("Card "+card+" removed from "+this.toString()+" at index "+cardIndex+".");
+                this.log("Card "+card+" removed from "+this.toString()+" at index "+cardIndex+".");
                 card._holder=null; // when successful apparently no longer available!!!
             }else
                 console.error("Failed to remove card "+card+" at index "+cardIndex+" of "+this.toString()+".");
@@ -148,15 +152,15 @@ class CardHolder{
     _addCard(card){
         if(!card)return;
         if(!(card instanceof HoldableCard))throw new Error("Not a holdable card!");
-        console.log("Adding card "+card.toString()+" to "+this.toString()+".");
+        this.log("Adding card "+card.toString()+" to "+this.toString()+".");
         let numberOfCardsNow=this.numberOfCards;
         this._cards.push(card);
         if(this.numberOfCards>numberOfCardsNow){
             this._sorted=false; // can no longer guarantee that it is sorted...
             card._holder=this;
-            console.log("Card "+this.numberOfCards+" ("+card.toString()+") added to "+this.toString()+".");
+            this.log("Card "+this.numberOfCards+" ("+card.toString()+") added to "+this.toString()+".");
             // how about ordering the cards?????? or storing them by suite????
-            console.log("\tCard collection: "+this.getTextRepresentation()+".");
+            this.log("\tCard collection: "+this.getTextRepresentation()+".");
         }else
             console.error("Failed to add card "+card+" to "+this.toString()+" (delta number of cards: "+(this.numberOfCards-numberOfCardsNow)+").");
     }
@@ -250,7 +254,7 @@ class CardHolder{
      * can expose a text represention
      */
     getTextRepresentation(suiteSeparator){
-        console.log("Number of cards to represent: "+this._cards.length+".");
+        this.log("Number of cards to represent: "+this._cards.length+".");
         // how about sorting???????? that would be nice
         if(suiteSeparator&&typeof suiteSeparator==="string"&&!this._sorted){
             this._cards.sort(compareCards);
@@ -279,8 +283,12 @@ class CardHolder{
  */
 class HoldableCard extends Card{
 
+    log(tolog){
+        // console.log(tolog);
+    }
+
     set holder(holder){
-        console.log("\tChanging the holder of card "+this.toString()+".");
+        this.log("\tChanging the holder of card "+this.toString()+".");
         // remove from the current holder (if any)
         if(this._holder)this._holder._removeCard(this);
         // add (when successfully removed) to the new holder (if any)
@@ -302,6 +310,7 @@ module.exports={CardHolder,HoldableCard};
 /**
  * a placeholder for a player
  */
+const Card=require('./Card.js');
 const {CardHolder,HoldableCard}=require('./CardHolder.js');
 
 /**
@@ -352,10 +361,14 @@ const PLAYERTYPE_FOO=0,PLAYERTYPE_UNKNOWN=1,PLAYERTYPE_FRIEND=2;
 // would be defined abstract in classical OO
 class Player extends CardHolder{
 
+    log(tolog){
+        // console.log(tolog);
+    }
+    
     addEventListener(playerEventListener){
         if(playerEventListener&&playerEventListener instanceof PlayerEventListener)
             this._eventListeners.push(playerEventListener);
-        console.log("Player '"+this.name+"' event listeners: "+this._eventListeners+".");
+        this.log("Player '"+this.name+"' event listeners: "+this._eventListeners+".");
     }
 
     // whenever a game is started, call newGame!!
@@ -363,7 +376,7 @@ class Player extends CardHolder{
         if(this._index<0||!this._game)
             throw new Error("Player "+this.name+" unable to prepare for playing: not associated with a game yet.");
         if(this.numberOfCards>0){
-            alert("BUG: Player "+this.name+" still has "+this.numberOfCards+" cards.");
+            console.error("BUG: Player "+this.name+" still has "+this.numberOfCards+" cards.");
             this._cards=[];
         }
         // default player remembering its choices
@@ -441,7 +454,7 @@ class Player extends CardHolder{
     /*
     addCard(card){
         super.addCard(card);
-        console.log("Player '"+this+"' received card '"+card+"'.");
+        this.log("Player '"+this+"' received card '"+card+"'.");
     }
     */
     _getCardsOfSuite(cardSuite,whenNotFoundCard){
@@ -502,17 +515,17 @@ class Player extends CardHolder{
         // all other available bids should be better than the last bid by any other player
         let highestBidSoFar=BID_PAS;
         if(playerbids){
-            console.log("Player bids:",playerbids);
+            this.log("Player bids:",playerbids);
             for(let player=0;player<playerbids.length;player++)
                 if(playerbids[player].length>0&&playerbids[player][0]>highestBidSoFar)
                     highestBidSoFar=playerbids[player][0];
         }
-        console.log("Highest bid so far: '"+BID_NAMES[highestBidSoFar]+"'.");
+        this.log("Highest bid so far: '"+BID_NAMES[highestBidSoFar]+"'.");
         // if the highest possible bid is not a bid all can play (at the same time), can't be bid again
         if(BIDS_ALL_CAN_PLAY.indexOf(BID_NAMES[highestBidSoFar])<0)highestBidSoFar++;
         let possibleBidNames=BID_NAMES.slice(highestBidSoFar);
         possibleBidNames.unshift(BID_NAMES[BID_PAS]); // user can always 'pas'
-        console.log("Possible bids: ",possibleBidNames);
+        this.log("Possible bids: ",possibleBidNames);
         let bid=-1;
         while(bid<0){
             let bidname=prompt("@"+this.name+" (holding "+this.getTextRepresentation(true)+")\nWhat is your bid (options: '"+possibleBidNames.join("', '")+"')?",possibleBidNames[0]);
@@ -532,7 +545,7 @@ class Player extends CardHolder{
         // also it needs to be an ace of a suite the user has itself (unless you have all other aces)
         this._trumpSuite=-1;
         // any of the suites in the cards can be the trump suite!
-        let possibleTrumpSuiteNames=this.getSuites().map((suite)=>{return CARD_SUITES[suite];});
+        let possibleTrumpSuiteNames=this.getSuites().map((suite)=>{return Card.CARD_SUITES[suite];});
         let trumpSuite=-1;
         while(trumpSuite<0){
             let trumpName=prompt("@"+this.name+" (holding "+this.getTextRepresentation(true)+")\nWhat suite will be trump (options: '"+possibleTrumpSuiteNames.join("', '")+"')?",possibleTrumpSuiteNames[0]);
@@ -549,9 +562,8 @@ class Player extends CardHolder{
     }
     /**
      * asks for the suite of the partner card of the given rank
-     * @param {*} partnerRankName 
      */
-    choosePartnerSuite(partnerRankName){
+    choosePartnerSuite(){
         this._partnerSuite=-1;
         this._partnerRank=RANK_ACE;
         // get all the aceless suites
@@ -573,10 +585,10 @@ class Player extends CardHolder{
                 }
             }
         }
-        let possiblePartnerSuiteNames=possiblePartnerSuites.map((suite)=>{return CARD_SUITES[suite];});
+        let possiblePartnerSuiteNames=possiblePartnerSuites.map((suite)=>{return Card.CARD_SUITES[suite];});
         let partnerSuite=-1;
         while(partnerSuite<0){
-            let partnerSuiteName=prompt("@"+this.name+" (holding "+this.getTextRepresentation(true)+")\nWhat "+CARD_NAMES[this._partnerRank]+" should your partner have (options: '"+possiblePartnerSuiteNames.join("', '")+"')?",possiblePartnerSuiteNames[0]);
+            let partnerSuiteName=prompt("@"+this.name+" (holding "+this.getTextRepresentation(true)+")\nWhat "+Card.CARD_NAMES[this._partnerRank]+" should your partner have (options: '"+possiblePartnerSuiteNames.join("', '")+"')?",possiblePartnerSuiteNames[0]);
             partnerSuite=possiblePartnerSuiteNames.indexOf(partnerSuiteName);
             if(partnerSuite>=0){
                 try{
@@ -594,7 +606,7 @@ class Player extends CardHolder{
     // can be asked to play a card and add it to the given trick
     // NOTE this would be an 'abstract' method in classical OO
     playACard(trick){
-        console.log("Player '"+this.name+"' asked to play a card.");
+        this.log("Player '"+this.name+"' asked to play a card.");
         // how about using the first letters of the alphabet?
         let possibleCardNames=[];
         for(let cardIndex=0;cardIndex<this.numberOfCards;cardIndex++)
@@ -611,7 +623,7 @@ class Player extends CardHolder{
 
     trickWon(trickIndex){
         this._tricksWon.push(trickIndex);
-        console.log("Trick #"+trickIndex+" won by '"+this.name+"': "+this._tricksWon+".");
+        this.log("Trick #"+trickIndex+" won by '"+this.name+"': "+this._tricksWon+".");
     }
 
     get numberOfTricksWon(){return this._tricksWon.length;}
@@ -655,7 +667,116 @@ class Player extends CardHolder{
 
 // export the Player class
 module.exports={PlayerEventListener,PlayerGame,Player};
-},{"./CardHolder.js":2}],4:[function(require,module,exports){
+},{"./Card.js":1,"./CardHolder.js":2}],4:[function(require,module,exports){
+const {CardHolder,HoldableCard}=require('./CardHolder.js');
+
+class Trick extends CardHolder{
+
+    // MDH@07DEC2019: game data moved over to PlayerGame instance (as passed to each player)
+    //                canAskForPartnerCard blind now determined by the game (engine) itself
+
+    // by passing in the trump player (i.e. the person that can ask for the partner card)
+    constructor(firstPlayer,trumpSuite,partnerSuite,partnerRank,canAskForPartnerCard){ // replacing: trumpSuite,partnerSuite,partnerRank,trumpPlayer){
+        super(); // using 4 fixed positions for the trick cards so we will know who played them!!!!
+        console.log(">>> New trick can ask for partner card: "+canAskForPartnerCard+".");
+        this._firstPlayer=firstPlayer;
+        this._trumpSuite=trumpSuite; // for internal use to be able to determine the winner of a trick
+        this._partnerSuite=partnerSuite;this._partnerRank=partnerRank; // need this when it's being asked to determine the winner
+        this._canAskForPartnerCard=canAskForPartnerCard; // -1 blind, 0 not, 1 non-blind
+        this._askingForPartnerCard=0; // the 'flag' set by the trump player when asking for the partner card in a trick
+        this._playSuite=-1; // the suite of the trick (most of the time the suite of the first card)
+        this._winnerCard=-1; // the card of the winner (note: NOT transformed to the actual player index yet)
+        // let's keep track of the highest card
+    }
+
+    get firstPlayer(){return this._firstPlayer;}
+
+    // the winner exposed is the actual player who won
+    get winner(){return(this._winnerCard<0?-1:(this._winnerCard+this._firstPlayer)%4);}
+    
+    // MDH@07DEC2019: moved from here to the game (as a PlayerGame instance)
+    /*
+    get trumpPlayer(){return this._trumpPlayer;} // exposes the current trump player
+    get partnerSuite(){return this._partnerSuite;}
+    get partnerRank(){return this._partnerRank;}
+    */
+    get askingForPartnerCard(){return this._askingForPartnerCard;}
+    // pass in -1 when asking the partner card blind, or +1 when asking for it (non-blind)
+    set askingForPartnerCard(askingForPartnerCard){
+        if(askingForPartnerCard!=0&&this.numberOfCards>0)
+            throw new Error("Opgeven de partner aas/heer (blind) te vragen niet meer toegestaan.");
+        this._askingForPartnerCard=askingForPartnerCard;
+        console.log("Asking for partner card set to "+this._askingForPartnerCard+".");
+    }
+
+    _setWinnerCard(winnerCard){
+        this._winnerCard=winnerCard;
+        console.log("Trick winner card: "+winnerCard+".");
+    }
+
+    /**
+     * returns the card played by (the actual) player (as used for showing the trick cards)
+     * @param {*} player 
+     */
+    getPlayerCard(player){
+        let playerCard=(this._firstPlayer>=0?(player+4-this._firstPlayer)%4:null);
+        return(playerCard>=0&&playerCard<this.numberOfCards?this._cards[playerCard]:null);
+    }
+
+    /*
+    askingForPartnerCard(){
+        if(this._cards.length>0)
+            throw new Error("Only the first player can ask for the partner card blind!");
+        if(!this._canAskForPartnerCardBlind)
+            throw new Error("Cannot ask for the partner card blind (anymore).");
+        this._playSuite=this._trumpSuite; // the play suite becomes the trump suite
+    }
+    */
+    // NOTE addCard is NOT _addCard of the superclass! this is because we should set the holder on the card to add!!!!
+    addCard(card){
+        let numberOfCardsNow=this.numberOfCards;
+         // if the flag of asking for the partner card blind is set, preset the 
+        card.holder=this; // move the card to this trick by setting the holder property (will take care of adding/removing the card)
+        if(this.numberOfCards<=numberOfCardsNow)
+            throw new Error("Failed to add the card to the trick.");
+        // ASSERT card added successfully
+        if(this._askingForPartnerCard!=0&&this._trumpSuite<0)
+            throw new Error("BUG: Asking for the partner card, but playing a game without trump.");
+        // if the partner card is being asked for blind everyone has to play the partner card suite
+        // MDH@09DEC2019: OOPS I was already using this._partnerSuite here BUT still after actually taking it out (now in again)
+        if(this._playSuite<0)this._playSuite=(this._askingForPartnerCard<0?this._partnerSuite:card.suite);
+        // ASSERT this._playSuite now definitely non-negative, so
+        this._canAskForPartnerCard=0; // use the right property bro'
+        // update winner
+        if(numberOfCardsNow>0){
+            // MDH@09DEC2019: when asking for the partner card only the partner card can ever win (even if there's trump!!)
+            //                but we need to know whether the partner card was already thrown
+            //                SOLUTION: (NEAT) it's easiest to simply ignore trump is the partner card is being asked for!!!!!!
+            if(Cards.WithPlayAndTrumpSuite(card,this._cards[this._winnerCard],this._playSuite,(this._askingForPartnerCard!=0?-1:this._trumpSuite))>0)
+                this._setWinnerCard(numberOfCardsNow);
+        }else // after the first card the first player is the winner of course
+            this._setWinnerCard(0);
+    }
+    getCardPlayer(suite,rank){
+        for(let player=0;player<this._cards.length;player++)
+            if(this._cards[player].suite===suite&&this._cards[player].rank===rank)
+                return (this._firstPlayer+player)%4; // TODO can we assume 4 players in total?????
+        return -1;
+    }
+
+    // public getters
+    get playSuite(){return this._playSuite;}
+    get firstPlayer(){return this._firstPlayer;}
+
+    /*
+    get trumpSuite(){return this._trumpSuite;}
+    */
+    get canAskForPartnerCard(){return this._canAskForPartnerCard;}
+}
+
+module.exports=Trick;
+
+},{"./CardHolder.js":2}],5:[function(require,module,exports){
 /**
  * the part that runs in the browser of a single player
  * given that any information to the current player of the game should be available through it's _game property (i.e. a PlayerGame instance)
@@ -666,6 +787,7 @@ module.exports={PlayerEventListener,PlayerGame,Player};
 // NO I need to require them all otherwise browserify won't be able to find Card, etc.
 const Card=require('./Card.js');
 const {CardHolder,HoldableCard}=require('./CardHolder.js');
+const Trick=require('./Trick.js'); // now in separate file
 const {PlayerEventListener,PlayerGame,Player}=require('./Player.js');
 
 class Language{
@@ -1096,14 +1218,14 @@ class OnlinePlayer extends Player{
         for(let suiteButton of document.getElementById("trump-suite-buttons").getElementsByClassName("suite"))
             suiteButton.style.display=(suites.indexOf(parseInt(suiteButton.getAttribute('data-suite')))<0?"none":"inline");
     }
-    choosePartnerSuite(suites,partnerRankName){
+    choosePartnerSuite(suites,partnerRank){ // partnerRankName changed to partnerRank (because Language should be used at the UI level only!)
         console.log("Possible partner suites:",suites);
         setPage("page-partner-choosing");
         updateChoosePartnerSuiteCards(this._suiteCards);
         // because the suites in the button array are 0, 1, 2, 3 and suites will contain
         for(let suiteButton of document.getElementById("partner-suite-buttons").getElementsByClassName("suite"))
             suiteButton.style.display=(suites.indexOf(parseInt(suiteButton.getAttribute('data-suite')))<0?"none":"inline");
-        document.getElementById('partner-rank').innerHTML=partnerRankName;
+        document.getElementById('partner-rank').innerHTML=Language.DUTCH_RANK_NAMES[partnerRank];
     }
     // almost the same as the replaced version except we now want to receive the trick itself
     playACard(trick){
@@ -1413,20 +1535,31 @@ class PlayerGameProxy extends PlayerGame {
         _gameStateChanged(oldstate,this._state);
     }
 
+    logEvent(event,data){
+        console.log(event,data);
+    }
+
+    parseTrick(trickInfo){
+        let trick=new Trick();
+    }
     prepareForCommunication(){
+        console.log("PREPARING COMMUNICATION");
         // this._socket.on('connect',()=>{
         //     this._state=IDLE;
         // });
         this._socket.on('disconnect',()=>{
+            this.logEvent('disconnect',null);
             this.state=OUT_OF_ORDER;
         });
         // register to receive data on all custom events
         this._socket.on('STATECHANGE',(data)=>{
+            this.logEvent('STATECHANGE',data);
             this.state=data.to;
         });
         // player events (in order of appearance)
         this._socket.on('GAME',(data)=>{
-            console.log("Game information received by '"+currentPlayer.name+"'.",data);
+            this.logEvent('GAME',data);
+            // console.log("Game information received by '"+currentPlayer.name+"'.",data);
             // we can set the name of the game now
             this._name=data.id;
             this._playerNames=data.players;
@@ -1435,16 +1568,61 @@ class PlayerGameProxy extends PlayerGame {
         });
         // when the remote game reaches the IDLE state (and the game is on!!!!)
         this._socket.on('PLAYERS',(data)=>{
+            this.logEvent('PLAYERS',data);
             this._playerNames=data;
-            currentPlayer.playsTheGameAtIndex(this,this._playerNames.indexOf(currentPlayer.name));
+            // by locating the current player name in the list of player names we know the player index
+            // we remember it ourselves AND pass it along to the current player, so currentPlayer will know the game AND it's player index
+            this._playerIndex=this._playerNames.indexOf(currentPlayer.name);
+            currentPlayer.playsTheGameAtIndex(this,this._playerIndex);
         });
         this._socket.on('DEALER',(data)=>{
+            this.logEvent('DEALER',data);
             this._dealer=data;
         });
         this._socket.on('TRUMP',(data)=>{
-
+            this.logEvent('TRUMP',data);
         });
-
+        this._socket.on('PARTNER',(data)=>{
+            this.logEvent('PARTNER',data);
+        });
+        this._socket.on('GAMEINFO',(data)=>{
+            this.logEvent('GAMEINFO',data);
+            // typically the game info contains ALL information pertaining the game that is going to be played
+            // i.e. after bidding has finished
+            this._trumpSuite=data.trumpSuite;
+            this._partnerSuite=data.partnerSuite;
+            this._partnerRank=data.partnerRank;
+            this._highestBid=data.highestBid;
+            this._highestBidders=data.highestBidders;
+            this._trumpPlayer=data.trumpPlayer;
+        });
+        this._socket.on('MAKE_A_BID',(data)=>{
+            this.logEvent('MAKE_A_BID',data);
+            currentPlayer.makeABid();
+        });
+        this._socket.on('PLAY_A_CARD',(data)=>{
+            this.logEvent('PLAY_A_CARD',data);
+            currentPlayer.playACard();
+        });
+        this._socket.on('CHOOSE_TRUMP_SUITE',(data)=>{
+            this.logEvent('CHOOSE_TRUM_SUITE',data);
+        });
+        this._socket.on('CHOOSE_PARTNER_SUITE',(data)=>{
+            this.logEvent("CHOOSE_PARTNER_SUITE",data);
+        });
+        this._socket.on('TRICK',(data)=>{
+            this.logEvent('TRICK',data);
+        });
+        this._socket.on('TRICKS',(data)=>{
+            this.logEvent('TRICKS',data);
+            // we can't just simply assign the tricks though
+            this._tricks=[]; // should already be the case?????
+            data.forEach((trickInfo)=>{this._tricks.push(this.parseTrick(trickInfo))});
+        });
+        this._socket.on('RESULTS',(data)=>{
+            this.logEvent('RESULTS',data);
+            this._deltaPoints=data.deltapoints;
+        });
     }
 
     // MDH@08JAN2020: socket should represent a connected socket.io instance!!!
@@ -1600,5 +1778,5 @@ window.onload=prepareForPlaying;
 
 // export the two function that we allow to be called from the outside!!!
 module.exports=setPlayerName;
-},{"./Card.js":1,"./CardHolder.js":2,"./Player.js":3}]},{},[4])(4)
+},{"./Card.js":1,"./CardHolder.js":2,"./Player.js":3,"./Trick.js":4}]},{},[5])(5)
 });

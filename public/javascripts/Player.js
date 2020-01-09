@@ -52,10 +52,14 @@ const PLAYERTYPE_FOO=0,PLAYERTYPE_UNKNOWN=1,PLAYERTYPE_FRIEND=2;
 // would be defined abstract in classical OO
 class Player extends CardHolder{
 
+    log(tolog){
+        // console.log(tolog);
+    }
+    
     addEventListener(playerEventListener){
         if(playerEventListener&&playerEventListener instanceof PlayerEventListener)
             this._eventListeners.push(playerEventListener);
-        console.log("Player '"+this.name+"' event listeners: "+this._eventListeners+".");
+        this.log("Player '"+this.name+"' event listeners: "+this._eventListeners+".");
     }
 
     // whenever a game is started, call newGame!!
@@ -141,7 +145,7 @@ class Player extends CardHolder{
     /*
     addCard(card){
         super.addCard(card);
-        console.log("Player '"+this+"' received card '"+card+"'.");
+        this.log("Player '"+this+"' received card '"+card+"'.");
     }
     */
     _getCardsOfSuite(cardSuite,whenNotFoundCard){
@@ -202,17 +206,17 @@ class Player extends CardHolder{
         // all other available bids should be better than the last bid by any other player
         let highestBidSoFar=BID_PAS;
         if(playerbids){
-            console.log("Player bids:",playerbids);
+            this.log("Player bids:",playerbids);
             for(let player=0;player<playerbids.length;player++)
                 if(playerbids[player].length>0&&playerbids[player][0]>highestBidSoFar)
                     highestBidSoFar=playerbids[player][0];
         }
-        console.log("Highest bid so far: '"+BID_NAMES[highestBidSoFar]+"'.");
+        this.log("Highest bid so far: '"+BID_NAMES[highestBidSoFar]+"'.");
         // if the highest possible bid is not a bid all can play (at the same time), can't be bid again
         if(BIDS_ALL_CAN_PLAY.indexOf(BID_NAMES[highestBidSoFar])<0)highestBidSoFar++;
         let possibleBidNames=BID_NAMES.slice(highestBidSoFar);
         possibleBidNames.unshift(BID_NAMES[BID_PAS]); // user can always 'pas'
-        console.log("Possible bids: ",possibleBidNames);
+        this.log("Possible bids: ",possibleBidNames);
         let bid=-1;
         while(bid<0){
             let bidname=prompt("@"+this.name+" (holding "+this.getTextRepresentation(true)+")\nWhat is your bid (options: '"+possibleBidNames.join("', '")+"')?",possibleBidNames[0]);
@@ -293,7 +297,7 @@ class Player extends CardHolder{
     // can be asked to play a card and add it to the given trick
     // NOTE this would be an 'abstract' method in classical OO
     playACard(trick){
-        console.log("Player '"+this.name+"' asked to play a card.");
+        this.log("Player '"+this.name+"' asked to play a card.");
         // how about using the first letters of the alphabet?
         let possibleCardNames=[];
         for(let cardIndex=0;cardIndex<this.numberOfCards;cardIndex++)
@@ -310,7 +314,7 @@ class Player extends CardHolder{
 
     trickWon(trickIndex){
         this._tricksWon.push(trickIndex);
-        console.log("Trick #"+trickIndex+" won by '"+this.name+"': "+this._tricksWon+".");
+        this.log("Trick #"+trickIndex+" won by '"+this.name+"': "+this._tricksWon+".");
     }
 
     get numberOfTricksWon(){return this._tricksWon.length;}

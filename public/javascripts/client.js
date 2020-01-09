@@ -8,6 +8,7 @@
 // NO I need to require them all otherwise browserify won't be able to find Card, etc.
 const Card=require('./Card.js');
 const {CardHolder,HoldableCard}=require('./CardHolder.js');
+const Trick=require('./Trick.js'); // now in separate file
 const {PlayerEventListener,PlayerGame,Player}=require('./Player.js');
 
 class Language{
@@ -755,20 +756,33 @@ class PlayerGameProxy extends PlayerGame {
         _gameStateChanged(oldstate,this._state);
     }
 
+    logEvent(event,data){
+        console.log(event,data);
+    }
+
+    parseTrick(trickInfo){
+        let trick=new Trick();
+    }
     prepareForCommunication(){
+        debugger
+        console.log("PREPARING COMMUNICATION");
         // this._socket.on('connect',()=>{
         //     this._state=IDLE;
         // });
         this._socket.on('disconnect',()=>{
+            this.logEvent('disconnect',null);
             this.state=OUT_OF_ORDER;
         });
         // register to receive data on all custom events
         this._socket.on('STATECHANGE',(data)=>{
+            this.logEvent('STATECHANGE',data);
             this.state=data.to;
         });
         // player events (in order of appearance)
         this._socket.on('GAME',(data)=>{
-            console.log("Game information received by '"+currentPlayer.name+"'.",data);
+            debugger
+            this.logEvent('GAME',data);
+            // console.log("Game information received by '"+currentPlayer.name+"'.",data);
             // we can set the name of the game now
             this._name=data.id;
             this._playerNames=data.players;
@@ -777,16 +791,61 @@ class PlayerGameProxy extends PlayerGame {
         });
         // when the remote game reaches the IDLE state (and the game is on!!!!)
         this._socket.on('PLAYERS',(data)=>{
+            this.logEvent('PLAYERS',data);
             this._playerNames=data;
-            currentPlayer.playsTheGameAtIndex(this,this._playerNames.indexOf(currentPlayer.name));
+            // by locating the current player name in the list of player names we know the player index
+            // we remember it ourselves AND pass it along to the current player, so currentPlayer will know the game AND it's player index
+            this._playerIndex=this._playerNames.indexOf(currentPlayer.name);
+            currentPlayer.playsTheGameAtIndex(this,this._playerIndex);
         });
         this._socket.on('DEALER',(data)=>{
+            this.logEvent('DEALER',data);
             this._dealer=data;
         });
         this._socket.on('TRUMP',(data)=>{
-
+            this.logEvent('TRUMP',data);
         });
-
+        this._socket.on('PARTNER',(data)=>{
+            this.logEvent('PARTNER',data);
+        });
+        this._socket.on('GAMEINFO',(data)=>{
+            this.logEvent('GAMEINFO',data);
+            // typically the game info contains ALL information pertaining the game that is going to be played
+            // i.e. after bidding has finished
+            this._trumpSuite=data.trumpSuite;
+            this._partnerSuite=data.partnerSuite;
+            this._partnerRank=data.partnerRank;
+            this._highestBid=data.highestBid;
+            this._highestBidders=data.highestBidders;
+            this._trumpPlayer=data.trumpPlayer;
+        });
+        this._socket.on('MAKE_A_BID',(data)=>{
+            this.logEvent('MAKE_A_BID',data);
+            currentPlayer.makeABid();
+        });
+        this._socket.on('PLAY_A_CARD',(data)=>{
+            this.logEvent('PLAY_A_CARD',data);
+            currentPlayer.playACard();
+        });
+        this._socket.on('CHOOSE_TRUMP_SUITE',(data)=>{
+            this.logEvent('CHOOSE_TRUM_SUITE',data);
+        });
+        this._socket.on('CHOOSE_PARTNER_SUITE',(data)=>{
+            this.logEvent("CHOOSE_PARTNER_SUITE",data);
+        });
+        this._socket.on('TRICK',(data)=>{
+            this.logEvent('TRICK',data);
+        });
+        this._socket.on('TRICKS',(data)=>{
+            this.logEvent('TRICKS',data);
+            // we can't just simply assign the tricks though
+            this._tricks=[]; // should already be the case?????
+            data.forEach((trickInfo)=>{this._tricks.push(this.parseTrick(trickInfo))});
+        });
+        this._socket.on('RESULTS',(data)=>{
+            this.logEvent('RESULTS',data);
+            this._deltaPoints=data.deltapoints;
+        });
     }
 
     // MDH@08JAN2020: socket should represent a connected socket.io instance!!!
@@ -890,6 +949,7 @@ function _setPlayer(player,errorcallback){
                 console.log("Connected!!!");
                 clientsocket.emit('PLAYER',player.name); 
                 currentPlayer=player;
+                currentPlayer.game=new PlayerGameProxy(clientsocket);
                 (typeof errorcallback!=='function'||errorcallback(null));            
             }else{
                 (typeof errorcallback!=='function'||errorcallback(new Error("Failed to connect to the server.")));

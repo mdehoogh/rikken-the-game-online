@@ -5,6 +5,10 @@ const Card=require('./Card.js');
 
 class CardHolder{
 
+    log(tolog){
+        // console.log(tolog);
+    }
+    
     // MDH@04DEC2019: allowing now to construct fixed size card holders (like Trick)
     constructor(numberOfCards=0){
         this._cards=[];
@@ -18,7 +22,7 @@ class CardHolder{
         let cardIndex=this._cards.indexOf(card);
         if(cardIndex>=0){
             if(this._cards.splice(cardIndex,1).length==1){
-                console.log("Card "+card+" removed from "+this.toString()+" at index "+cardIndex+".");
+                this.log("Card "+card+" removed from "+this.toString()+" at index "+cardIndex+".");
                 card._holder=null; // when successful apparently no longer available!!!
             }else
                 console.error("Failed to remove card "+card+" at index "+cardIndex+" of "+this.toString()+".");
@@ -28,15 +32,15 @@ class CardHolder{
     _addCard(card){
         if(!card)return;
         if(!(card instanceof HoldableCard))throw new Error("Not a holdable card!");
-        console.log("Adding card "+card.toString()+" to "+this.toString()+".");
+        this.log("Adding card "+card.toString()+" to "+this.toString()+".");
         let numberOfCardsNow=this.numberOfCards;
         this._cards.push(card);
         if(this.numberOfCards>numberOfCardsNow){
             this._sorted=false; // can no longer guarantee that it is sorted...
             card._holder=this;
-            console.log("Card "+this.numberOfCards+" ("+card.toString()+") added to "+this.toString()+".");
+            this.log("Card "+this.numberOfCards+" ("+card.toString()+") added to "+this.toString()+".");
             // how about ordering the cards?????? or storing them by suite????
-            console.log("\tCard collection: "+this.getTextRepresentation()+".");
+            this.log("\tCard collection: "+this.getTextRepresentation()+".");
         }else
             console.error("Failed to add card "+card+" to "+this.toString()+" (delta number of cards: "+(this.numberOfCards-numberOfCardsNow)+").");
     }
@@ -130,7 +134,7 @@ class CardHolder{
      * can expose a text represention
      */
     getTextRepresentation(suiteSeparator){
-        console.log("Number of cards to represent: "+this._cards.length+".");
+        this.log("Number of cards to represent: "+this._cards.length+".");
         // how about sorting???????? that would be nice
         if(suiteSeparator&&typeof suiteSeparator==="string"&&!this._sorted){
             this._cards.sort(compareCards);
@@ -159,8 +163,12 @@ class CardHolder{
  */
 class HoldableCard extends Card{
 
+    log(tolog){
+        // console.log(tolog);
+    }
+
     set holder(holder){
-        console.log("\tChanging the holder of card "+this.toString()+".");
+        this.log("\tChanging the holder of card "+this.toString()+".");
         // remove from the current holder (if any)
         if(this._holder)this._holder._removeCard(this);
         // add (when successfully removed) to the new holder (if any)
