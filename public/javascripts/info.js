@@ -8,9 +8,9 @@ function clearInfo(){if(infoElement)infoElement.innerHTML="";}
 
 function showGameState(state){
     let colonPos=document.title.indexOf(': ');
-    if(state){
+    if(state)
         document.title=(colonPos>=0?document.title.substring(0,colonPos):document.title)+": "+state;
-    }else
+    else
     if(colonPos>=0)
         document.title=document.title.substring(0,colonPos);
 }

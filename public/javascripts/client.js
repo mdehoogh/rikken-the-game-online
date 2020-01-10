@@ -24,11 +24,19 @@ function capitalize(str){return(str?(str.length?str[0].toUpperCase()+str.slice(1
 //                alternatively we can do that on a separate page / page-auth is OK
 //                we go to page-auth when NOT playing the game in demo mode!!!
 //                in non-demo mode you identify yourself, then when setPlayerName is successful go to page-wait-for-players
-const PAGES=["page-rules","page-settings","page-setup-game","page-auth","page-wait-for-players","page-bidding","page-trump-choosing","page-partner-choosing","page-play-reporting","page-playing","page-finished"];
+// MDH@10JAN2020: removing page-settings and page-setup-game, adding page-help
+const PAGES=["page-rules","page-help","page-auth","page-wait-for-players","page-bidding","page-trump-choosing","page-partner-choosing","page-play-reporting","page-playing","page-finished"];
 
-var currentPage; // the current page
+var currentPage=null; // let's assume to be starting at page-rules
+var visitedPages=[]; // no pages visited yet
 
 var currentPlayer=null; // the current game player
+
+// MDH@10JAN2020: newGame() is a bid different than in the demo version in that we return to the waiting-page
+function newGame(){
+    // by call playsTheGameAtIndex(null,?) we force clearing the game information being shown at the wait-for-players page
+    (!currentPlayer||currentPlayer.playsTheGameAtIndex(null,-1));
+}
 
 var bidderCardsElement=document.getElementById("bidder-cards");
 
@@ -41,16 +49,16 @@ function initializeBidderSuitecardsButton(){
     });
 }
 
-function getCookie(name) {
-    var v = document.cookie.match('(^|;) ?' + name + '=([^;]*)(;|$)');
-    return v ? v[2] : null;
-}
-function setCookie(name, value, days) {
-    var d = new Date;
-    d.setTime(d.getTime() + 24*60*60*1000*days);
-    document.cookie = name + "=" + value + ";path=/;expires=" + d.toGMTString();
-}
-function deleteCookie(name) { setCookie(name, '', -1); }
+// function getCookie(name) {
+//     var v = document.cookie.match('(^|;) ?' + name + '=([^;]*)(;|$)');
+//     return v ? v[2] : null;
+// }
+// function setCookie(name, value, days) {
+//     var d = new Date;
+//     d.setTime(d.getTime() + 24*60*60*1000*days);
+//     document.cookie = name + "=" + value + ";path=/;expires=" + d.toGMTString();
+// }
+// function deleteCookie(name) { setCookie(name, '', -1); }
 
 /**
  * shows the current player names at the start of the game
@@ -70,16 +78,23 @@ function showPlayerNames(){
     }
 }
 
+// whenever the player changes, show the player name
+function showCurrentPlayerName(){
+    document.getElementById("player-name").innerHTML=(currentPlayer?currentPlayer.name:"?");
+}
+
 /**
- * shows the current player names in the waiting-for-players page
+ * updates the waiting-for-players page
+ * depending on whether or not a game is being played (yet), we show the game id and the player names
  */
-function showGamePlayerNames(){
+function updateGamePlayerNames(){
     let rikkenTheGame=(currentPlayer?currentPlayer.game:null);
-    let playerNames=rikkenTheGame.getPlayerNames();
+    document.getElementById("game-name").innerHTML=(rikkenTheGame?rikkenTheGame.name:"");
+    let playerNames=(rikkenTheGame?rikkenTheGame.getPlayerNames():null);
     for(let playerNameSpan of document.getElementsByClassName("game-player-name")){
         let playerIndex=playerNameSpan.getAttribute("data-player-index");
         playerNameSpan.innerHTML=playerNames[playerIndex];
-        playerNameSpan.color=(playerIndex==currentPlayer.index?"BLUE":"BLACK");
+        playerNameSpan.color=(playerIndex==rikkenTheGame._playerIndex?"BLUE":"BLACK");
     }
 }
 
@@ -313,7 +328,8 @@ function singlePlayerGameButtonClicked(){
     let singlePlayerName=document.getElementById('single-player-name').value.trim();
     if(singlePlayerName.length>0)
         setPlayerName(singlePlayerName,(err)=>{
-            if(err)setInfo(err);else nextPage();
+            // MDH@10JAN2020: _setPlayer takes care of switching to the right initial page!!!
+            if(err)setInfo(err);// else nextPage();
         });
     else
         alert("Geef eerst een (geldige) naam op!");
@@ -399,14 +415,16 @@ class OnlinePlayer extends Player{
     // make a bid is called with 
     makeABid(playerBidsObjects,possibleBids){
         // debugger
-        showGameState("Bieden"); // defined in info.js
-        currentPlayer=this; // remember the current player
-        setInfo(this.name+" moet nu bieden!");
+        showGameState("Bied!"); // defined in info.js
+        document.getElementById("wait-for-bid").style.visibility="hidden"; // show the bidding element
+        document.getElementById("bidding").style.visibility="visible"; // show the bidding element
+        // currentPlayer=this; // remember the current player
+        setInfo("Doe een bod.");
         if(currentPage!="page-bidding")setPage("page-bidding"); // JIT to the right page
         console.log("Possible bids player '"+this.name+"' could make: ",possibleBids);
 
         //setInfo("Maak een keuze uit een van de mogelijke biedingen.");
-        document.getElementById("bidder").innerHTML=this.name;
+        // it's always you!!!! document.getElementById("bidder").innerHTML=this.name;
         /* replacing:
         document.getElementById("toggle-bidder-cards").innerHTML="Toon kaarten";
         bidderCardsElement.innerHTML="";
@@ -457,7 +475,11 @@ class OnlinePlayer extends Player{
     // almost the same as the replaced version except we now want to receive the trick itself
     playACard(trick){
         // currentPlayer=this;
-        showGameState("Spelen");
+        showGameState("Speel!"); // defined in info.js
+        document.getElementById("wait-for-play").style.visibility="hidden"; // hide the wait-for-play element
+        document.getElementById("playing").style.visibility="visible"; // show the play element
+        // currentPlayer=this; // remember the current player
+        setInfo("Doe een bod.");
         // if this is a new trick update the tricks played table with the previous trick
         if(trick.numberOfCards==0)updateTricksPlayedTables();
         /* see showTrick()
@@ -542,8 +564,9 @@ class OnlinePlayer extends Player{
     }
     playsTheGameAtIndex(game,index){
         super.playsTheGameAtIndex(game,index);
-        // we can now show the player names?????
-        showGamePlayerNames();
+        if(this.game)this.game._playerIndex=this._index; // remember the player index BEFORE calling updateGamePlayerNames()
+        updateGamePlayerNames();
+        setPage("page-wait-for-players"); // ascertain to be on the wait for players page
     }
 }
 
@@ -610,7 +633,8 @@ function _gameStateChanged(fromstate,tostate){
             setInfo("Het bieden is begonnen!");
             if(fromstate===PlayerGame.DEALING)clearBidTable();
             ////// let's wait until a bid is requested!!!! 
-            ///////setPage("page-bidding");
+            // MDH@09JAN2020: NO, we want to indicate that the bidding is going on
+            setPage("page-bidding");
             break;
         case PlayerGame.PLAYING:
             setInfo("Het spelen kan beginnen!");
@@ -633,8 +657,12 @@ function _gameErrorOccurred(error){
 }
 
 function setPage(newPage){
+    // remember the page we came from (not the new page!!!!)
+    console.log("GAMEPLAYING >>> Page to show: '"+newPage+"'.");
+    // if this is a page refresh, no need to repush the page!!!
+    if(currentPage)if(currentPage!=newPage)visitedPages.unshift(currentPage);
     currentPage=newPage;
-    console.log("Current page: '"+currentPage+"' - Requested page: '"+newPage+"'.");
+    updateHelpButtons();
     // NOTE not changing currentPage to page until we have done what we needed to do
     PAGES.forEach(function(_page){
         let showPage=(_page===currentPage);
@@ -643,28 +671,31 @@ function setPage(newPage){
         if(pageElement){
             pageElement.style.visibility=(showPage?"visible":"hidden");
             if(showPage){
-                switch(PAGES.indexOf(_page)){
-                    case 0:setInfo("Stel de spelregels in.");break;
-                    case 1:setInfo("Kies de speelwijze.");break;
-                    case 2: // when playing in demo mode, the user should enter four player names
+                // cut off the page- prefix
+                switch(_page.substring(5)){
+                    case "rules":setInfo("De regels van het online spel.");break;
+                    case "settings":setInfo("Kies de speelwijze.");break;
+                    case "setup-game": // when playing in demo mode, the user should enter four player names
                         {
                             showDefaultPlayerNames();
                             setInfo("Vul de namen van de spelers in. Een spelernaam is voldoende.");
                         }
                         break;
-                    case 3: // page-auth
+                    case "auth": // page-auth
                         setInfo("Geef de naam op waaronder U wilt spelen!");
                         break;
-                    case 4: // page-wait-for-players
+                    case "wait-for-players": // page-wait-for-players
                         setInfo("Even geduld aub. We wachten tot er genoeg medespelers zijn!");
                         break;
-                    case 5: // page-bidding
+                    case "bidding": // page-bidding
                         setInfo("Wacht om de beurt op een verzoek tot het doen van een bod.");
                         break;
-                    case 6:
+                    case "play-reporting":
+                        break;
+                    case "playing": // ????
                         setInfo("Wacht op het verzoek tot het opgeven van de troefkleur en/of de mee te vragen aas/heer.");
                         break;
-                    case 9:
+                    case "finished":
                         {
                             clearTricksPlayedTables();
                             showPlayerNames();
@@ -684,7 +715,7 @@ function nextPage(event){
     //                in demo mode skip the auth and wait for players button
     switch(pageIndex){
         case 1:
-            setPage(document.getElementById("demo-playmode-checkbox").checked?"page-setup-game":"page-auth");
+            setPage("page-auth");
             break;
         case 2: // should we check the user names??????
             setPage("page-bidding");
@@ -700,6 +731,20 @@ function cancelPage(event){
     let pageIndex=PAGES.indexOf(currentPage);
     setPage(PAGES[(pageIndex+PAGES.length-1)%PAGES.length]);
 }
+function returnToPreviousPage(){
+    // pop off the page we are going to visit, preventing to push the currentPage again
+    if(visitedPages.length>0){currentPage=null;setPage(visitedPages.shift());}
+}
+function showHelp(){
+    console.log("Showing the help!");
+    setPage('page-rules');
+}
+// ascertain to disable the Help button when viewing it!!!
+function updateHelpButtons(){
+    let enableHelpButton=(currentPage!=='page-help');
+    for(let helpButton of document.getElementsByClassName('help'))helpButton.disabled=!enableHelpButton;
+}
+
 /**
  * to be called when the new-players button is clicked, to start a new game with a new set of players
  */
@@ -738,7 +783,7 @@ function cancelGame(){
 // MDH@07JAN2020: additional stuff that we're going to need to make this stuff work
 class PlayerGameProxy extends PlayerGame {
 
-    logSendEvent(event,data){
+    getSendEvent(event,data){
         console.log("SENDING EVENT "+event+" with data "+JSON.stringify(data)+".");
         return [event,data];
     }
@@ -746,22 +791,28 @@ class PlayerGameProxy extends PlayerGame {
     // what the player will be calling when (s)he made a bid, played a card, choose trump or partner suite
     bidMade(bid){
         if(this._state===PlayerGame.OUT_OF_ORDER)return false;
-        this._socket.emit(...this.logSendEvent('BID',{'by':this._playerIndex,'bid':bid}));
+        this._socket.emit(...this.getSendEvent('BID',{'by':this._playerIndex,'bid':bid}));
+        document.getElementById("bidding").style.visibility="hidden"; // hide the bidding element again
+        showGameState(null); // a bit crude to get rid of the Bieden page name though
         return true;
     }
     cardPlayed(card){
         if(this._state===PlayerGame.OUT_OF_ORDER)return false;
-        this._socket.emit(...this.logSendEvent('CARD',{'player':this._playerIndex,'card':[card.suite,card.rank]}));
+        this._socket.emit(...this.getSendEvent('CARD',{'player':this._playerIndex,'card':[card.suite,card.rank]}));
+        document.getElementById("playing").style.visibility="hidden"; // hide the bidding element again
+        showGameState(null);
         return true;
     }
     trumpSuiteChosen(trumpSuite){
         if(this._state===PlayerGame.OUT_OF_ORDER)return false;
-        this._socket.emit(...this.logSendEvent('TRUMP',{'player':this._playerIndex,'suite':trumpSuite}));
+        this._socket.emit(...this.getSendEvent('TRUMP',{'player':this._playerIndex,'suite':trumpSuite}));
+        showGameState(null);
         return true;
     }
     partnerSuiteChosen(partnerSuite){
         if(this._state===PlayerGame.OUT_OF_ORDER)return false;
-        this._socket.emit(...this.logSendEvent('PARTNER',{'player':this._playerIndex,'suite':partnerSuite}));
+        this._socket.emit(...this.getSendEvent('PARTNER',{'player':this._playerIndex,'suite':partnerSuite}));
+        showGameState(null);
         return true;
     }
 
@@ -776,11 +827,8 @@ class PlayerGameProxy extends PlayerGame {
         console.log(event,data);
     }
 
-    set name(name){
-        this._name=name;
-        // TODO better moved over to outside!!!
-        document.getElementById("game-id").innerHTML=this._name;
-    }
+    get name(){return this._name;}
+    set name(name){this._name=name;}
 
     getPlayerName(playerIndex){return(this._playerNames&&playerIndex>=0&&playerIndex<this._playerNames.length?this._playerNames[playerIndex]:null);}
     getPlayerNames(){return this._playerNames;} // overriding getPlayerNames() of the demo version!!
@@ -788,7 +836,7 @@ class PlayerGameProxy extends PlayerGame {
         this._playerNames=playerNames;
         currentPlayer.index=(!this._playerNames||this._playerNames.length==0?-1:this._playerNames.indexOf(currentPlayer.name));
         if(this.index<0)console.error("Current player '"+currentPlayer.name+"' not found.");
-        showGamePlayerNames();
+        updateGamePlayerNames();
     }
 
     parseTrick(trickInfo){
@@ -842,9 +890,17 @@ class PlayerGameProxy extends PlayerGame {
             this._highestBidders=data.highestBidders;
             this._trumpPlayer=data.trumpPlayer;
         });
+        this._socket.on("TO_BID",(data)=>{
+            this.logEvent('TO_BID',data);
+            document.getElementById('to-bid').innerHTML=data;
+        });
         this._socket.on('MAKE_A_BID',(data)=>{
             this.logEvent('MAKE_A_BID',data);
             currentPlayer.makeABid();
+        });
+        this._socket.on("TO_PLAY",(data)=>{
+            this.logEvent('TO_PLAY',data);
+            document.getElementById('to-bid').innerHTML=data;
         });
         this._socket.on('PLAY_A_CARD',(data)=>{
             this.logEvent('PLAY_A_CARD',data);
@@ -924,16 +980,43 @@ function prepareForPlaying(){
 
     preparedForPlaying=true;
 
+    // MDH@10JAN2020: we want to know when the user is trying to move away from the page
+    window.onbeforeunload=function(){
+        // how about prompting the user?????
+        if(!currentPlayer||!currentPlayer.game)return; // do not ask the user whether they want to stay or not (as they cannot stay)
+        // if the user is viewing the results page we may assume that the game is actually over
+        return(currentPage==='page-results'?"Bedankt voor het spelen. Tot de volgende keer!"
+                                           :"Het spel is nog niet ten einde. Blijf op de pagina om toch verder te spelen.");
+    };
+    // if we actually end up in leaving this URL, we definitely want to kill the connection to the server for good
+    window.onpopstate=function(){
+        if(currentPlayer&&currentPlayer.game&&currentPlayer.game.state!==PlayerGame.FINISHED)
+            console.log("WARNING: Player '"+currentPlayer.name+"' has stopped playing the game any further, effectively canceling it.");
+        setPlayerName(null,null); // without callback no page should be shown anymore...
+    }
+
+    // MDH@09JAN2020: hide the bidding and playing elements
+    document.getElementById("bidding").style.visibility="hidden";
+    // document.getElementById("wait-for-bid").style.visibility="visible";
+    document.getElementById("playing").style.visibility="hidden";
+    // document.getElementById("wait-for-play").style.visibility="visible";
+
     document.getElementById('single-player-game-button').onclick=singlePlayerGameButtonClicked;
+    
+    for(let backButton of document.getElementsByClassName('back'))backButton.onclick=returnToPreviousPage;
+    // show the page-rules page when the user requests help
+    for(let helpButton of document.getElementsByClassName('help'))helpButton.onclick=showHelp;
+    // MDH@10JAN2020: END
 
     // event handlers for next, cancel, and newPlayers buttons
     for(let nextButton of document.getElementsByClassName('next'))nextButton.onclick=nextPage;
     for(let cancelButton of document.getElementsByClassName('cancel'))cancelButton.onclick=cancelPage;
     
-    /*
-    // whenever we have new game (with the same players)
+    // let's assume that the game is over when new-game buttons are showing
+    // we're not to kill the connection, we'll just keep using the same connection
     for(let newGameButton of document.getElementsByClassName("new-game"))newGameButton.onclick=newGame;
-     // whenever we have new player(name)s
+    /*
+    // whenever we have new player(name)s
     for(let newGamePlayersButton of document.getElementsByClassName('new-game-players'))newGamePlayersButton.onclick=newGamePlayers;
     // whenever the game is canceled
     for(let cancelGameButton of document.getElementsByClassName('cancel-game'))cancelGameButton.onclick=cancelGame;
@@ -957,29 +1040,43 @@ function prepareForPlaying(){
         for(let suiteButton of document.querySelectorAll(".suite."+Card.SUITE_NAMES[suite]))
             suiteButton.value=Card.SUITE_CHARACTERS[suite];
 
-    // MDH@09JAN2020: better to skip the first two pages (rules and set up)
-    setPage("page-wait-for-players");
+    // MDH@09JAN2020: check for a user name
+    var urlParams = new URLSearchParams(window.location.search);
+    let initialPlayerName=(urlParams.has("user")?urlParams.get("user").trim():null);
+    setPlayerName(initialPlayerName,(err)=>{});
 
 };
 
 // MDH@08JAN2020: great idea to make everything work by allowing to set the player name
 function _setPlayer(player,errorcallback){
+    visitedPages=[]; // forget visited pages
+    currentPage=null; // ascertain to not have a page to store
     // get rid of the current player (if any), and in effect we'll loose the game as well
     if(currentPlayer){
-        currentPlayer.game=null; // get rid of the game (which will disconnect the socket as well) WISHFUL THINKING...
+        // no need to change currentPlayer because it's gonna be replaced anyway
+        // but will disconnect from the server anyway
+        let clientsocket=currentPlayer._client;
+        // disconnect if need be
+        (!clientsocket||!clientsocket.connected||clientsocket.disconnect());
+        // replacing: currentPlayer.game=null; // get rid of the game (which will disconnect the socket as well) WISHFUL THINKING...
         currentPlayer=null;
+        showCurrentPlayerName();
+        if(errorcallback)setPage("page-rules"); // MDH@10JAN2020: whenever the currentPlayer is NOT available go to "page-rules"
     }
+    // if(errorcallback)setPage("page-rules"); // the page we can show if there's no player!!!! (TODO or page-auth?????)
     if(player){
         let clientsocket=io('http://localhost:3000');
         clientsocket.on('connect',()=>{
             if(clientsocket.connected){
                 console.log("Connected!!!");
-                clientsocket.emit('PLAYER',player.name); 
+                clientsocket.emit('PLAYER',player.name);
                 currentPlayer=player;
+                showCurrentPlayerName();
                 // unfortunately we can only set the game of the player if _index is non-negative, so we pass in 4
                 currentPlayer.index=4;
                 currentPlayer.game=new PlayerGameProxy(clientsocket);
-                (typeof errorcallback!=='function'||errorcallback(null));            
+                if(errorcallback){errorcallback(null);setPage("page-wait-for-players");}
+                // replacing: (typeof errorcallback!=='function'||errorcallback(null));            
             }else{
                 (typeof errorcallback!=='function'||errorcallback(new Error("Failed to connect to the server.")));
             }
@@ -1018,13 +1115,14 @@ function _setPlayer(player,errorcallback){
 // to make it callable from anywhere we attach setPlayerName to window (because client.js will be browserified!!!)
 function setPlayerName(playerName,errorCallback){
     (preparedForPlaying||prepareForPlaying()); // prepare for playing once
+    // if(errorCallback)setPage("page-rules"); // ascertain to not be in a non-player page
     // playerName needs to be a string (if it is defined)
     if(playerName&&!(typeof playerName==="string"))
         return(typeof errorCallback!=='function'||errorCallback(new Error("Invalid player name.")));
     // if playerName matches the current player's name, nothing to do
-    if(playerName&&currentPlayer&&currentPlayer.name===playerName){
+    if(playerName&&currentPlayer&&currentPlayer.name===playerName)
         (typeof errorCallback!=='function'||errorCallback(null));
-    }else
+    else
         _setPlayer(playerName&&playerName.length>0?new OnlinePlayer(playerName):null,errorCallback);
 }
 

@@ -182,8 +182,16 @@ input[type=button] {
     color: white;
     float: right;
     margin-left: 5px;
-  }
+}
   
-  .active-bid-button:after {
-    content: "\2796"; /* Unicode character for "minus" sign (-) */
-  }
+.active-bid-button:after {
+content: "\2796"; /* Unicode character for "minus" sign (-) */
+}
+
+/* #bid-input,#play-input{
+    position:static;
+}
+#wait-for-bid,#bidding,#wait-for-play,#playing{
+    position:relative;
+    top:0px;
+} */

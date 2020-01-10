@@ -2,15 +2,26 @@
 <html>
   <head>
     <meta charset="UTF-8"><!-- we'll be needing this!! -->
-    <title>Test - Rikken Het Spel</title>
-    <link rel='stylesheet' href='./public/stylesheets/style.css' />
+    <title>Rikken</title>
+    <link rel='stylesheet' href='./public/stylesheets/gameplaying.css' />
   </head>
   <body>
     <div>
       <p id='info'>Informatie wordt hier getoond.</p>
     </div>
     <script src='./public/javascripts/info.js'></script>
-    
+
+    <!-- will this work?????? -->
+    <div>
+        <div class='page-header'>
+            <!-- don't make it a title because that would increase the font -->
+            <p>U speelt <span id='game-name'>?</span> als <span id='player-name'>?</span>.</p>
+            <div class="page-button-group">
+                <!-- changed from a next to a back button -->
+                <input type='button' class="help" value='Help'>
+            </div>
+        </div>
+    </div>
     <!-- DEMO VERSION BODY -->
     <!-- these are the pages from index.hbs (and from the original index.html) -->
     <div class='pages'>
@@ -19,7 +30,8 @@
             <div class='page-header'>
                 <p class='page-title'>Spelregels</p>
                 <div class="page-button-group">
-                    <input type='button' class="next" value='Verder'>
+                    <!-- changed from a next to a back button -->
+                    <input type='button' class="back" value='Klaar'>
                 </div>
             </div>
             <div>
@@ -60,31 +72,17 @@
             </div>
           </p>
         </div>
-        <div id='page-settings' class='page'>
+        <!-- page-settings replaced by page-help -->
+        <div id='page-help' class='page'>
             <div class='page-header'>
-                <p class='page-title'>Instellingen</p>
+                <p class='page-title'>Help</p>
                 <div class="page-button-group">
-                    <input type='button' class="next" value='Verder'>
+                    <input type='button' class="back" value='Terug'>
                 </div>
             </div>
             <div>
-                <!-- whether or not to run in demo mode -->
-                <input type='checkbox' id='demo-playmode-checkbox'><span>Met open kaarten spelen</span>
+                <!-- TODO what are we going to show here????? -->
             </div>
-        </div>
-        <div id='page-setup-game' class='page'>
-            <div class='page-header'>
-                <p class='page-title'>Spelers</p>
-                <div class="page-button-group">
-                    <input type='button' class="new-game-players" value='Rikken maar'>
-                </div>
-            </div>
-            <!-- a total of five players can be choosen -->
-            <div class='player-name'>Speler 1:&nbsp;<input class='player-name player-name-input' data-player-id='0' type='text' size='30' placeholder='Naam van speler 1'></div>
-            <div class='player-name'>Speler 2:&nbsp;<input class='player-name player-name-input' data-player-id='1' type='text' size='30' placeholder='Naam van speler 2'></div>
-            <div class='player-name'>Speler 3:&nbsp;<input class='player-name player-name-input' data-player-id='2' type='text' size='30' placeholder='Naam van speler 3'></div>
-            <div class='player-name'>Speler 4:&nbsp;<input class='player-name player-name-input' data-player-id='3' type='text' size='30' placeholder='Naam van speler 4'></div>
-            <div class='player-name'>Speler 5:&nbsp;<input class='player-name player-name-input' data-player-id='4' type='text' size='30' placeholder='Naam van de extra speler'></div>
         </div>
         <!-- on page-auth a standalone player (non-demo mode) enters his/her name (like logging in) -->
         <!-- which is identifiable with the undefined data-player-id -->
@@ -105,7 +103,7 @@
                 <input type='button' class="cancel" value='Afbreken'>
             </div>
           </div>
-          <div>Spel id: <span id='game-id'></span></div>
+          <!-- now in header... <div>Spel id: <span id='game-id'></span></div> -->
           <div class='player-name'>Speler 1:&nbsp;<span class='game-player-name' data-player-index='0'>Naam van speler 1</span></div>
           <div class='player-name'>Speler 2:&nbsp;<span class='game-player-name' data-player-index='1'>Naam van speler 2</span></div>
           <div class='player-name'>Speler 3:&nbsp;<span class='game-player-name' data-player-index='2'>Naam van speler 3</span></div>
@@ -120,28 +118,32 @@
                 </div>
             </div>
             <!-- current player -->
-            <div class='prompt'><span id='bidder'></span>, wat wil je spelen?</div>
-                <!-- all the possible bids will be buttons one can click -->
-            <div class='bid-buttons'>
-                <input type='button' data-bid='0' class='bid pas' value='Pas'>
-                <input type='button' data-bid='1' class='bid rik' value='Rik'>
-                <input type='button' data-bid='2' class='bid rik' value='Rik (beter)'>
-                <input type='button' data-bid='3' class='bid solitary' value='Negen alleen'>
-                <input type='button' data-bid='4' class='bid solitary' value='Negen alleen (beter)'>
-                <input type='button' data-bid='5' class='bid solitary' value='Pico'>
-                <input type='button' data-bid='6' class='bid solitary' value='Tien alleen'>
-                <input type='button' data-bid='7' class='bid solitary' value='Tien alleen (beter)'>
-                <input type='button' data-bid='8' class='bid solitary' value='Elf alleen'>
-                <input type='button' data-bid='9' class='bid solitary' value='Elf alleen (beter)'>
-                <input type='button' data-bid='10' class='bid solitary' value='Mis&egrave;re'>
-                <input type='button' data-bid='11' class='bid solitary' value='Twaalf alleen'>
-                <input type='button' data-bid='12' class='bid solitary' value='Twaalf alleen (beter)'>
-                <input type='button' data-bid='13' class='bid solitary' value='Open mis&egrave;re'>
-                <input type='button' data-bid='14' class='bid solitary' value='Dertien alleen'>
-                <input type='button' data-bid='15' class='bid solitary' value='Dertien alleen (beter)'>
-                <input type='button' data-bid='16' class='bid solitary' value='Open mis&egrave;re met een praatje'>
+            <div id='bid-input'>
+                <div id='wait-for-bid'>Het wachten is op het bod van <span id='to-bid'></span></div>
+                <div id='bidding'>
+                    <div class='prompt'><span id='bidder'></span>, wat wil je spelen?</div>
+                    <!-- all the possible bids will be buttons one can click -->
+                    <div class='bid-buttons'>
+                        <input type='button' data-bid='0' class='bid pas' value='Pas'>
+                        <input type='button' data-bid='1' class='bid rik' value='Rik'>
+                        <input type='button' data-bid='2' class='bid rik' value='Rik (beter)'>
+                        <input type='button' data-bid='3' class='bid solitary' value='Negen alleen'>
+                        <input type='button' data-bid='4' class='bid solitary' value='Negen alleen (beter)'>
+                        <input type='button' data-bid='5' class='bid solitary' value='Pico'>
+                        <input type='button' data-bid='6' class='bid solitary' value='Tien alleen'>
+                        <input type='button' data-bid='7' class='bid solitary' value='Tien alleen (beter)'>
+                        <input type='button' data-bid='8' class='bid solitary' value='Elf alleen'>
+                        <input type='button' data-bid='9' class='bid solitary' value='Elf alleen (beter)'>
+                        <input type='button' data-bid='10' class='bid solitary' value='Mis&egrave;re'>
+                        <input type='button' data-bid='11' class='bid solitary' value='Twaalf alleen'>
+                        <input type='button' data-bid='12' class='bid solitary' value='Twaalf alleen (beter)'>
+                        <input type='button' data-bid='13' class='bid solitary' value='Open mis&egrave;re'>
+                        <input type='button' data-bid='14' class='bid solitary' value='Dertien alleen'>
+                        <input type='button' data-bid='15' class='bid solitary' value='Dertien alleen (beter)'>
+                        <input type='button' data-bid='16' class='bid solitary' value='Open mis&egrave;re met een praatje'>
+                    </div>
+                </div>
             </div>
-    
             <!-- the cards of the current player (made visible on request) -->
             <!-- now turned into a 'collapsable' (see w3schools) -->
             <button type="button" id="bidder-suitecards-button" value="0" class='collapsible-button'>Kaarten</button>
@@ -452,83 +454,88 @@
                 </div>
             </div>
             <p id='game-info'></p>
-            <div id='asking-for-partner-card-info'>De&nbsp;<span class='partner-suite'></span>&nbsp;<span class='partner-rank'></span>&nbsp;wordt gevraagd.</div>
-            <!-- current player -->
-            <div class='prompt'><span id='card-player'></span>, welke <span id='trick-playsuite'></span> wil je spelen?</div>
             <!-- number of tricks won so far -->
             <div>Aantal gehaalde slagen: <span id='tricks-won-so-far'>?</span>.</div>
             <div>Aantal te halen slagen: <span id='tricks-to-win'>?</span>.</div>
-            <div id='ask-partner-card'>
-                <!-- a player can ask for the ace blind -->
-                <input type="checkbox" id='ask-partner-card-checkbox'><span>De&nbsp;<span class='partner-suite'></span>&nbsp;<span class='partner-rank'></span>&nbsp;<span id='ask-partner-card-blind'></span>vragen</span>
-            </div>
             <!-- showing the current trick (so far) -->
             <div id='trick-info'>
                 <!-- information on the suite being played in the current trick -->
                 <div id='play-suite'></div>
             </div>
-            <!-- showing the cards of the current player as buttons-->
-            <div id='player-suitecards-table'>
-                <div class='diamond suite-cards'>
-                    <span class='playable card-text' data-suite-id='0' data-suite-index='0'></span>
-                    <span class='playable card-text' data-suite-id='0' data-suite-index='1'></span>
-                    <span class='playable card-text' data-suite-id='0' data-suite-index='2'></span>
-                    <span class='playable card-text' data-suite-id='0' data-suite-index='3'></span>
-                    <span class='playable card-text' data-suite-id='0' data-suite-index='4'></span>
-                    <span class='playable card-text' data-suite-id='0' data-suite-index='5'></span>
-                    <span class='playable card-text' data-suite-id='0' data-suite-index='6'></span>
-                    <span class='playable card-text' data-suite-id='0' data-suite-index='7'></span>
-                    <span class='playable card-text' data-suite-id='0' data-suite-index='8'></span>
-                    <span class='playable card-text' data-suite-id='0' data-suite-index='9'></span>
-                    <span class='playable card-text' data-suite-id='0' data-suite-index='10'></span>
-                    <span class='playable card-text' data-suite-id='0' data-suite-index='11'></span>
-                    <span class='playable card-text' data-suite-id='0' data-suite-index='12'></span>
+            <!-- current player -->
+            <div id='play-input'>
+                <div id='wait-for-play'>Het wachten is op de kaart van <span id='to-play'></span></div>
+                <div id='playing'>
+                    <div id='asking-for-partner-card-info'>De&nbsp;<span class='partner-suite'></span>&nbsp;<span class='partner-rank'></span>&nbsp;wordt gevraagd.</div>
+                    <div class='prompt'><span id='card-player'></span>, welke <span id='trick-playsuite'></span> wil je spelen?</div>
+                    <div id='ask-partner-card'>
+                        <!-- a player can ask for the ace blind -->
+                        <input type="checkbox" id='ask-partner-card-checkbox'><span>De&nbsp;<span class='partner-suite'></span>&nbsp;<span class='partner-rank'></span>&nbsp;<span id='ask-partner-card-blind'></span>vragen</span>
+                    </div>
+                    <!-- showing the cards of the current player as buttons-->
+                    <div id='player-suitecards-table'>
+                        <div class='diamond suite-cards'>
+                            <span class='playable card-text' data-suite-id='0' data-suite-index='0'></span>
+                            <span class='playable card-text' data-suite-id='0' data-suite-index='1'></span>
+                            <span class='playable card-text' data-suite-id='0' data-suite-index='2'></span>
+                            <span class='playable card-text' data-suite-id='0' data-suite-index='3'></span>
+                            <span class='playable card-text' data-suite-id='0' data-suite-index='4'></span>
+                            <span class='playable card-text' data-suite-id='0' data-suite-index='5'></span>
+                            <span class='playable card-text' data-suite-id='0' data-suite-index='6'></span>
+                            <span class='playable card-text' data-suite-id='0' data-suite-index='7'></span>
+                            <span class='playable card-text' data-suite-id='0' data-suite-index='8'></span>
+                            <span class='playable card-text' data-suite-id='0' data-suite-index='9'></span>
+                            <span class='playable card-text' data-suite-id='0' data-suite-index='10'></span>
+                            <span class='playable card-text' data-suite-id='0' data-suite-index='11'></span>
+                            <span class='playable card-text' data-suite-id='0' data-suite-index='12'></span>
+                        </div>
+                        <div class='club suite-cards'>
+                            <span class='playable card-text' data-suite-id='1' data-suite-index='0'></span>
+                            <span class='playable card-text' data-suite-id='1' data-suite-index='1'></span>
+                            <span class='playable card-text' data-suite-id='1' data-suite-index='2'></span>
+                            <span class='playable card-text' data-suite-id='1' data-suite-index='3'></span>
+                            <span class='playable card-text' data-suite-id='1' data-suite-index='4'></span>
+                            <span class='playable card-text' data-suite-id='1' data-suite-index='5'></span>
+                            <span class='playable card-text' data-suite-id='1' data-suite-index='6'></span>
+                            <span class='playable card-text' data-suite-id='1' data-suite-index='7'></span>
+                            <span class='playable card-text' data-suite-id='1' data-suite-index='8'></span>
+                            <span class='playable card-text' data-suite-id='1' data-suite-index='9'></span>
+                            <span class='playable card-text' data-suite-id='1' data-suite-index='10'></span>
+                            <span class='playable card-text' data-suite-id='1' data-suite-index='11'></span>
+                            <span class='playable card-text' data-suite-id='1' data-suite-index='12'></span>
+                        </div>
+                        <div class='heart suite-cards'>
+                            <span class='playable card-text' data-suite-id='2' data-suite-index='0'></span>
+                            <span class='playable card-text' data-suite-id='2' data-suite-index='1'></span>
+                            <span class='playable card-text' data-suite-id='2' data-suite-index='2'></span>
+                            <span class='playable card-text' data-suite-id='2' data-suite-index='3'></span>
+                            <span class='playable card-text' data-suite-id='2' data-suite-index='4'></span>
+                            <span class='playable card-text' data-suite-id='2' data-suite-index='5'></span>
+                            <span class='playable card-text' data-suite-id='2' data-suite-index='6'></span>
+                            <span class='playable card-text' data-suite-id='2' data-suite-index='7'></span>
+                            <span class='playable card-text' data-suite-id='2' data-suite-index='8'></span>
+                            <span class='playable card-text' data-suite-id='2' data-suite-index='9'></span>
+                            <span class='playable card-text' data-suite-id='2' data-suite-index='10'></span>
+                            <span class='playable card-text' data-suite-id='2' data-suite-index='11'></span>
+                            <span class='playable card-text' data-suite-id='2' data-suite-index='12'></span>
+                        </div>
+                        <div class='spade suite-cards'>
+                            <span class='playable card-text' data-suite-id='3' data-suite-index='0'></span>
+                            <span class='playable card-text' data-suite-id='3' data-suite-index='1'></span>
+                            <span class='playable card-text' data-suite-id='3' data-suite-index='2'></span>
+                            <span class='playable card-text' data-suite-id='3' data-suite-index='3'></span>
+                            <span class='playable card-text' data-suite-id='3' data-suite-index='4'></span>
+                            <span class='playable card-text' data-suite-id='3' data-suite-index='5'></span>
+                            <span class='playable card-text' data-suite-id='3' data-suite-index='6'></span>
+                            <span class='playable card-text' data-suite-id='3' data-suite-index='7'></span>
+                            <span class='playable card-text' data-suite-id='3' data-suite-index='8'></span>
+                            <span class='playable card-text' data-suite-id='3' data-suite-index='9'></span>
+                            <span class='playable card-text' data-suite-id='3' data-suite-index='10'></span>
+                            <span class='playable card-text' data-suite-id='3' data-suite-index='11'></span>
+                            <span class='playable card-text' data-suite-id='3' data-suite-index='12'></span>
+                        </div>            
+                    </div>
                 </div>
-                <div class='club suite-cards'>
-                    <span class='playable card-text' data-suite-id='1' data-suite-index='0'></span>
-                    <span class='playable card-text' data-suite-id='1' data-suite-index='1'></span>
-                    <span class='playable card-text' data-suite-id='1' data-suite-index='2'></span>
-                    <span class='playable card-text' data-suite-id='1' data-suite-index='3'></span>
-                    <span class='playable card-text' data-suite-id='1' data-suite-index='4'></span>
-                    <span class='playable card-text' data-suite-id='1' data-suite-index='5'></span>
-                    <span class='playable card-text' data-suite-id='1' data-suite-index='6'></span>
-                    <span class='playable card-text' data-suite-id='1' data-suite-index='7'></span>
-                    <span class='playable card-text' data-suite-id='1' data-suite-index='8'></span>
-                    <span class='playable card-text' data-suite-id='1' data-suite-index='9'></span>
-                    <span class='playable card-text' data-suite-id='1' data-suite-index='10'></span>
-                    <span class='playable card-text' data-suite-id='1' data-suite-index='11'></span>
-                    <span class='playable card-text' data-suite-id='1' data-suite-index='12'></span>
-                </div>
-                <div class='heart suite-cards'>
-                    <span class='playable card-text' data-suite-id='2' data-suite-index='0'></span>
-                    <span class='playable card-text' data-suite-id='2' data-suite-index='1'></span>
-                    <span class='playable card-text' data-suite-id='2' data-suite-index='2'></span>
-                    <span class='playable card-text' data-suite-id='2' data-suite-index='3'></span>
-                    <span class='playable card-text' data-suite-id='2' data-suite-index='4'></span>
-                    <span class='playable card-text' data-suite-id='2' data-suite-index='5'></span>
-                    <span class='playable card-text' data-suite-id='2' data-suite-index='6'></span>
-                    <span class='playable card-text' data-suite-id='2' data-suite-index='7'></span>
-                    <span class='playable card-text' data-suite-id='2' data-suite-index='8'></span>
-                    <span class='playable card-text' data-suite-id='2' data-suite-index='9'></span>
-                    <span class='playable card-text' data-suite-id='2' data-suite-index='10'></span>
-                    <span class='playable card-text' data-suite-id='2' data-suite-index='11'></span>
-                    <span class='playable card-text' data-suite-id='2' data-suite-index='12'></span>
-                </div>
-                <div class='spade suite-cards'>
-                    <span class='playable card-text' data-suite-id='3' data-suite-index='0'></span>
-                    <span class='playable card-text' data-suite-id='3' data-suite-index='1'></span>
-                    <span class='playable card-text' data-suite-id='3' data-suite-index='2'></span>
-                    <span class='playable card-text' data-suite-id='3' data-suite-index='3'></span>
-                    <span class='playable card-text' data-suite-id='3' data-suite-index='4'></span>
-                    <span class='playable card-text' data-suite-id='3' data-suite-index='5'></span>
-                    <span class='playable card-text' data-suite-id='3' data-suite-index='6'></span>
-                    <span class='playable card-text' data-suite-id='3' data-suite-index='7'></span>
-                    <span class='playable card-text' data-suite-id='3' data-suite-index='8'></span>
-                    <span class='playable card-text' data-suite-id='3' data-suite-index='9'></span>
-                    <span class='playable card-text' data-suite-id='3' data-suite-index='10'></span>
-                    <span class='playable card-text' data-suite-id='3' data-suite-index='11'></span>
-                    <span class='playable card-text' data-suite-id='3' data-suite-index='12'></span>
-                </div>            
             </div>
             <div class="separator"></div>
             <div class='trick-cards'>
@@ -627,43 +634,11 @@
                 </table>
             </div>
         </div>
-    </div>    
+    </div>
     <!-- END DEMO VERSION BODY -->
 
     <!-- link socket.io-client script from the server -->
     <script src='/socket.io/socket.io.js'></script>
-    <script>
-        // var intervalId,intervalCount=0;
-        // function setInfo(info){document.getElementById('info').innerHTML=info;}
-        // var socket=io('http://localhost:3000');
-        // socket.on('three-second counter', function (data) {
-        //     console.log("Three-second counter: ",data);
-        //     // socket.emit('my other event', { my: 'data' });
-        // });
-        // socket.on('connect',function(){
-        //     setInfo("Connected!");
-        // });
-        // socket.on('disconnect',function(){
-        //     setInfo("Disconnected!");
-        //     if(intervalId)clearInterval(intervalId); // stop sending counter
-        // });
-        // window.onload=()=>{
-        //     // connect immediately
-        //     console.log("Connecting...");
-        //     socket.connect();
-        //     intervalId=setInterval(function(){
-        //         intervalCount++;
-        //         setInfo("Sending three-second counter "+intervalCount+".")
-        //         socket.emit("three-second counter",{count:intervalCount});
-        //     },3000);
-        //     // disconnect after 30 seconds
-        //     setTimeout(function(){socket.disconnect();},30000);
-        // }
-    </script>
-    <!-- <script type='module' src="./public/javascripts/Card.js"></script>
-    <script type='module' src="./public/javascripts/CardHolder.js"></script>
-    <script type='module' src="./public/javascripts/Player.js"></script>
-    <script type='module' src="./public/javascripts/client.js"></script>   -->
-    <script src='./public/javascripts/gameplaying.js'></script>
+    <script src='/public/javascripts/gameplaying.js'></script>
   </body>
 </html>

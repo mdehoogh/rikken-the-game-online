@@ -379,6 +379,11 @@ class RikkenTheGame extends PlayerGame{
         }
     }
 
+    // a separate method now so we can override it to do some more
+    askPlayerForBid(){
+        this._players[this._player].makeABid(this._getPlayerBidsObjects(),this._getPossibleBids());
+    }
+
     set state(newstate){
         let oldstate=this._state;
         this._state=newstate;
@@ -402,7 +407,7 @@ class RikkenTheGame extends PlayerGame{
                         this.log("The first player to bid: ",this._player);
                         this._highestBid=0;
                         this._highestBidPlayers=[]; // no highest bid players yet
-                        this._players[this._player].makeABid(this._getPlayerBidsObjects(),this._getPossibleBids());
+                        this.askPlayerForBid();
                     }
                     break;
                 case PlayerGame.PLAYING:
@@ -739,7 +744,7 @@ class RikkenTheGame extends PlayerGame{
                     this._player=player;
                     this.log("Player "+this._player+"next to bid!");
                     // NOTE could have done this by: this.state=BIDDING;
-                    this._players[this._player].makeABid(this._getPlayerBidsObjects(),this._getPossibleBids());
+                    this.askPlayerForBid();
                 /////}    
             }else
                 this._doneBidding();

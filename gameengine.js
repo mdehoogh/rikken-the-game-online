@@ -5,8 +5,10 @@ const {RikkenTheGameEventListener,Trick,RikkenTheGame}=require('./public/javascr
 
 module.exports=(socket_io_server,gamesListener)=>{
 
-    function logEvent(to,event,data){
-        console.log("\nSending event "+event+" with data "+JSON.stringify(data)+" to "+to+".");
+    function gameEngineLog(tolog){console.log("GAME ENGINE >>> "+tolog);}
+    
+    function logEvent(from,to,event,data){
+        gameEngineLog(from+" sending event "+event+" with data "+JSON.stringify(data)+" to "+to+".");
         return [event,data];
     }
 
@@ -28,6 +30,17 @@ module.exports=(socket_io_server,gamesListener)=>{
             this._client=client;
             // this._userId=null;
             // this._wantsToPlay=false; // a flag that determines if a remote player wants to play
+        }
+
+        get client(){return this._client;}
+        set client(client){this._client=client;}
+
+        get status(){
+            return this.client?(this.game?"PLAYING":"IDLE"):(this.game?"*** BROKEN LINK ***":"DISCONNECTED");
+        }
+
+        getInfo(defaultName){
+            return (this.name||defaultName)+":"+this.status;
         }
 
         /*
@@ -55,38 +68,38 @@ module.exports=(socket_io_server,gamesListener)=>{
             // distinguish between leaving or joining a table
             if(tableId){
                 if(tableId.length>0){ 
-                    if(this._tableId&&this.tableId.length>0){console.log("GAME ENGINE >>> Can only play in one game at a time!");return;}
+                    if(this._tableId&&this.tableId.length>0){gameEngineLog(Can only play in one game at a time!");return;}
                     this._tableId=tableId;
                     this._client.send('TABLE='+this._tableId); // send the table id on the general channel
                 }else{ // leaving
-                    if(!this._tableId||this._tableId.length==0){console.log("GAME ENGINE >>> Can't leave a game I'm not playing!");return;} // 
+                    if(!this._tableId||this._tableId.length==0){gameEngineLog(Can't leave a game I'm not playing!");return;} // 
                     this._tableId=tableId;
                     this._client.send("NOTABLE");
                 }
             }
         }
         */
-        get client(){return this._client;}
 
         sendCards(){
-            this._client.emit(...logEvent(this.name,'CARDS',getCardsInfo(this)));
+            gameEngineLog("Sending cards to client of remote player "+(this.name?this.name:"?")+".");
+            this._client.emit(...logEvent(this.name,'client','CARDS',getCardsInfo(this)));
         }
 
         // copied over from OnlinePlayer() in main.js 
         // METHODS CALLED BY THE GAME
         makeABid(playerBidObjects,possibleBids){
-            this._client.emit(...logEvent(this.name,'MAKE_A_BID',{'playerBidObjects':playerBidObjects,'possibleBids':possibleBids}));
+            this._client.emit(...logEvent(this.name,'client','MAKE_A_BID',{'playerBidObjects':playerBidObjects,'possibleBids':possibleBids}));
         }
         chooseTrumpSuite(suites){
-            this._client.emit(...logEvent(this.name,'CHOOSE_TRUMP_SUITE',this.name,{'suites':suites}));
+            this._client.emit(...logEvent(this.name,'client','CHOOSE_TRUMP_SUITE',this.name,{'suites':suites}));
         }
         choosePartnerSuite(suites,partnerRankName){
-            this._client.emit(...logEvent(this.name,'CHOOSE_PARTNER_SUITE',{'suites':suites,'partnerRankName':partnerRankName}));
+            this._client.emit(...logEvent(this.name,'client','CHOOSE_PARTNER_SUITE',{'suites':suites,'partnerRankName':partnerRankName}));
         }
         // almost the same as the replaced version except we now want to receive the trick itself
         playACard(trick){
             // can we send all the trick information this way??????? I guess not
-            this._client.emit(...logEvent(this.name,'PLAY_A_CARD',{'trick':getTrickInfo(trick)}));
+            this._client.emit(...logEvent(this.name,'client','PLAY_A_CARD',{'trick':getTrickInfo(trick)}));
         }
         // END METHODS CALLED BY THE GAME
 
@@ -106,8 +119,8 @@ module.exports=(socket_io_server,gamesListener)=>{
                     // is this a game where there's a partner card that hasn't been played yet
                     // alternatively put: should there be a partner and there isn't one yet?????
                     if(this._game.getTrumpPlayer()==this._index){ // this is trump player playing the first card
-                        console.log("******************************************************");
-                        console.log(">>>> CHECKING WHETHER ASKING FOR THE PARTNER CARD <<<<");
+                        gameEngineLog("******************************************************");
+                        gameEngineLog(">>>> CHECKING WHETHER ASKING FOR THE PARTNER CARD <<<<");
                         // can the trump player ask for the partner card blind
                         // which means that the trump player does not have 
                         if(this._trick.canAskForPartnerCard>0){ // non-blind
@@ -170,15 +183,13 @@ module.exports=(socket_io_server,gamesListener)=>{
         */
         joinGame(){
             if(this.tableId){
-                console.log("Player "+this.userId+" joining "+this.tableId+".");
+                gameEngineLog("Player "+this.userId+" joining "+this.tableId+".");
                 this._client.join(this.tableId,(err)=>{
-                    if(err){
-                        console.log("GAME_ENGINE >>> ERROR: Failed to make player join a game.");
-                        console.error(err);
-                    }
+                    if(err)
+                        gameEngineLog("ERROR: Failed to make player join a game: "+err.toString()+".");
                 });
             }else
-                console.error("No game to join!");
+                gameEngineLog("ERROR: No game to join!");
         }
     }
     
@@ -202,22 +213,32 @@ module.exports=(socket_io_server,gamesListener)=>{
         // of the original one, so every method calls it's super method
         // called when RikkenTheGame moves into the IDLE state
 
+        sendToAllPlayers(event,data){
+            socket_io_server.to(this._tableId).emit(...logEvent(this._tableId,"players",event,data));
+        }
+
+        // MDH@10JAN2020: overriding to be able to send this information to all players
+        askPlayerForBid(){
+            super.askPlayerForBid();
+            // tell all players who's bidding right now
+            this.sendToAllPlayers('TO_BID',this.getPlayerName(this._player));
+        }
+
         // MDH@07JAN2020: whenever the state changes, we tell the game players
         set state(newstate){
             let oldstate=this._state;
             super.state=newstate; // should do what it needs to do
             if(this._state===oldstate)return;
-            console.log("********* STATE CHANGE FROM "+oldstate+" TO "+this._state+" ************");
+            gameEngineLog("********* STATE CHANGE FROM "+oldstate+" TO "+this._state+" ************");
             // when changing states we should ascertain that certain game information was send to the game players
             switch(this._state){
                 case PlayerGame.IDLE:
-                    debugger
                     // make all players join the game 'room'
                     this._players.forEach((player)=>{player.joinGame();});
                     // and now we can emit the game name, the game players and the current dealer index...
-                    socket_io_server.to(this._tableId).emit(...logEvent("(all)","GAME",this._tableId));
-                    socket_io_server.to(this._tableId).emit(...logEvent("(all)","PLAYERS",this.getPlayerNames()));
-                    socket_io_server.to(this._tableId).emit(...logEvent("(all)",'DEALER',this.dealer)); // sync the dealer to the correct value
+                    this.sendToAllPlayers("GAME",this._tableId);
+                    this.sendToAllPlayers("PLAYERS",this.getPlayerNames());
+                    this.sendToAllPlayers('DEALER',this.dealer); // sync the dealer to the correct value
                     break;
                 case PlayerGame.BIDDING:
                     // every player should know the cards it's been dealt (before moving to bidding page)
@@ -236,7 +257,7 @@ module.exports=(socket_io_server,gamesListener)=>{
                             'trumpPlayer':this.trumpPlayer,  
                             'fourthAcePlayer':this.fourthAcePlayer,
                         };
-                        socket_io_server.to(this._tableId).emit(...logEvent(this._tableId,'GAMEINFO',playInfo));
+                        this.sendToAllPlayers('GAMEINFO',playInfo);
                     }
                     break;
                 case PlayerGame.CANCELING:
@@ -245,13 +266,13 @@ module.exports=(socket_io_server,gamesListener)=>{
                     // we should pass the tricks played, and the points and deltaPoints over to each player
                     // we also want to send who won the tricks...
                     {
-                        socket_io_server.to(this._tableId).emit(...logEvent(this._tableId,'TRICKS',getTricksInfo(this._tricks)));
+                        this.sendToAllPlayers('TRICKS',getTricksInfo(this._tricks));
                         // TODO send the number of tricks each player one as well??????
-                        socket_io_server.to(this._tableId).emit(...logEvent(this._tableId,'RESULTS',{'deltapoints':this.deltaPoints}));
+                        this.sendToAllPlayers('RESULTS',{'deltapoints':this.deltaPoints});
                     }
                     break;
             }
-            socket_io_server.to(this._tableId).emit(...logEvent(this._tableId,'STATECHANGE',{from:oldstate,to:this._state}));
+            this.sendToAllPlayers('STATECHANGE',{from:oldstate,to:this._state});
         }
         
         // which methods do we need to override?????
@@ -268,7 +289,7 @@ module.exports=(socket_io_server,gamesListener)=>{
             super.bidMade(bid);
             // 1. register the bid
             ////////now passed in as argument: let bid=this._players[this._player].bid; // collect the bid made by the current player
-            console.log("Bid by "+this._players[this._player].name+": '"+BID_NAMES[bid]+"'.");
+            gameEngineLog("Bid by "+this._players[this._player].name+": '"+BID_NAMES[bid]+"'.");
         }
         trumpSuiteChosen(chosenTrumpSuite){
             super.trumpSuiteChosen(choseTrumpSuite);
@@ -294,9 +315,9 @@ module.exports=(socket_io_server,gamesListener)=>{
         let newGameTableId=newTableId();
         try{
             rikkenTheGame=new RikkenTheGameServer(newGameTableId,players,null);
-            if(!rikkenTheGame){console.log("GAME ENGINE >>> Failed to start a new game.");return false;}
+            if(!rikkenTheGame){gameEngineLog("ERROR: Failed to start a new game.");return false;}
             tableGames[newGameTableId]=rikkenTheGame; // remember the game being played
-        }catch(err){console.log("GAME ENGINE >>> Failed to register a new game ",err);}
+        }catch(err){gameEngineLog("ERROR: Failed to register a new game (due to "+JSON.stringify(err)+").");}
         // if all the given players are in the same game now, return true, false otherwise
         return(rikkenTheGame&&players.every((player)=>{return player.tableId==newGameTableId;})?rikkenTheGame:null);
     }
@@ -304,7 +325,7 @@ module.exports=(socket_io_server,gamesListener)=>{
     function playGame(remotePlayers){
         if(!remotePlayers||remotePlayers.length!=4)return false;
         let newGame=getNewGamePlayedBy(remotePlayers);
-        if(!newGame){console.log("Failed to start a new game!");return false;}
+        if(!newGame){gameEngineLog("ERROR: Failed to start a new game!");return false;}
         newGame.start(); // I need to explicitly do this, otherwise the game will remain in the OUT_OF_ORDER state...
         if(gamesListener)gamesListener.gameStarted(newGame);
         return true;
@@ -312,8 +333,8 @@ module.exports=(socket_io_server,gamesListener)=>{
     function gameOver(tableId,canceled){
         if(!tableId)return;
         let game=getGame(tableId);
-        if(!game){console.error("Game with id '"+tableId+"' not being played!");return;}
-        console.log((canceled?"Cancelling":"Finishing")+" game '"+tableId+"'.");
+        if(!game){gameEngineLog("ERROR: Game with id '"+tableId+"' not being played!");return;}
+        gameEngineLog((canceled?"Cancelling":"Finishing")+" game '"+tableId+"'.");
         // remove the players from the game (in effect the player should disconnect or send id in again)
         // NOTE I'm not going to disconnect
         socket_io_server.to(tableId).emit('GAMEOVER'); // send a single game over to each of the players
@@ -327,36 +348,40 @@ module.exports=(socket_io_server,gamesListener)=>{
         if(gamesListener)if(canceled)gamesListener.gameCanceled(game);else gamesListeners.gameFinished(game);
     }
 
+    function showRemotePlayersInfo(info){
+        let remotePlayersInfo=remotePlayers.map((remotePlayer,remotePlayerIndex)=>{return remotePlayer.getInfo("#"+(remotePlayerIndex+1));});
+        gameEngineLog("Players after event "+info+": "+remotePlayersInfo.join(" - "));
+    }
+
     // keep track of all (connected) remote players
     let remotePlayers=[];
     function checkForStartingNewGames(){
         // all remote players with tableId equal to '' are still logged in but not playing anymore
         // first collect all the players that can play at all (those with a userId and no tableId)
-        let idleRemotePlayers=remotePlayers.filter((remotePlayer)=>{
-            let result=(remotePlayer.name&&!remotePlayer.game);
-            console.log("Checking remote player ",remotePlayer);
-            console.log("\t"+(result?"IDLE":"OCCUPIED"));
-            return result;
-        });
-        console.log("Idle remote players: "+idleRemotePlayers.length+".");
+        showRemotePlayersInfo("Checking for new game players");
+        let idleRemotePlayers=remotePlayers.filter((remotePlayer,remotePlayerIndex)=>{return(remotePlayer.status==="IDLE");});
+        gameEngineLog("Idle remote players: "+idleRemotePlayers.length+".");
         while(idleRemotePlayers.length>=4){
             let newGamePlayers=[];
             let l=4;while(--l>=0)newGamePlayers.push(idleRemotePlayers.splice(Math.floor(idleRemotePlayers.length*Math.random()),1)[0]);
             if(!playGame(newGamePlayers))return;
         }
     }
-    function getRemotePlayerIndex(client){
+    function getIndexOfRemotePlayerOfClient(client){
         let l=remotePlayers.length;while(--l>=0&&remotePlayers[l].client!==client);return l;
     }
+    function getIndexOfRemotePlayerWithName(playerName){
+        let l=remotePlayers.length;while(--l>=0&&remotePlayers[l].name!==playerName);return l;
+    }
     function registerClient(client){
-        let remotePlayerIndex=getRemotePlayerIndex(client); // do not register again!!!
+        let remotePlayerIndex=getIndexOfRemotePlayerOfClient(client); // do not register again!!!
         if(remotePlayerIndex>=0)return true;
         let l=remotePlayers.length;
         remotePlayers.push(new RemotePlayer(client));
         return(remotePlayers.length>l);
     }
     function unregisterClient(client){
-        let l=getRemotePlayerIndex(client);
+        let l=getIndexOfRemotePlayerOfClient(client);
         if(l>=0){
             let remotePlayer=remotePlayers[l];
             // if the remote player left the table the game should be canceled
@@ -366,47 +391,80 @@ module.exports=(socket_io_server,gamesListener)=>{
     }
 
     socket_io_server.on('connection', client => {
+        // MDH@10JAN2020: this could be a reconnect, in which case we should NOT register the client again
         if(!registerClient(client)){
             client.send('REJECTED'); // send REJECTED on the message channel
             console.error("Failed to register client as remote player.");
             return;
         }
         //console.log("Client: ",client);
-        console.log("\Connecting client registered!");
+        showRemotePlayersInfo("Connect");
         // if a client disconnect they cannot play anymore
-        client.on('disconnect', () => { 
-            // console.log("Client: ",client);
-            console.log("\tDisconnecting...");
-            let remotePlayerIndex=getRemotePlayerIndex(client);
+        client.on('disconnect', () => {
+            let remotePlayerIndex=getIndexOfRemotePlayerOfClient(client);
+            if(remotePlayerIndex>=0){
+                let remotePlayer=remotePlayers[remotePlayerIndex];
+                gameEngineLog("Remote player "+(remotePlayer.name||"?")+" disconnecting...");
+                // we could remove the client?????? yes, good idea as we're NOT expecting any data from this client anymore
+                remotePlayer.client=null;
+            }else
+                gameEngineLog("ERROR: Unknown remote player client disconnecting!");
+            showRemotePlayersInfo("Disconnect");
+            /* replacing:
             // if still playing a game might reconnect, otherwise accept
             if(remotePlayers[remotePlayerIndex].tableId)
                 console.log("WARNING: Disconnecting player still playing! Waiting for reconnect!");
             else
                 unregisterClient(client);
                 //gameOver(remotePlayers[remotePlayerIndex].tableId,true);
+            */
         });
         // when a client sends in it's ID which it should
         client.on('PLAYER',(data)=>{
-            let remotePlayerIndex=getRemotePlayerIndex(client);
-            remotePlayers[remotePlayerIndex].name=data;
-            console.log("GAME ENGINE >>> Name of remote player #"+remotePlayerIndex+" set to '"+remotePlayers[remotePlayerIndex].name+"'.");
-            checkForStartingNewGames();
+            // MDH@10JAN2020: this client could be a player we already know about (when a reconnect occurred)
+            //                it's easier to remove the other client instead of 
+            let indexOfRemotePlayerOfClient=getIndexOfRemotePlayerOfClient(client);
+            if(indexOfRemotePlayerOfClient>=0){ // we should have this client registered (of course)
+                let remotePlayer=remotePlayers[indexOfRemotePlayerOfClient]; // the associated player
+                let indexOfRemotePlayerWithName=getIndexOfRemotePlayerWithName(data);
+                if(indexOfRemotePlayerWithName<0){ // haven't got a player with the same name
+                    remotePlayer.name=data;
+                    gameEngineLog("Name of remote player #"+(indexOfRemotePlayerOfClient+1)+"identified as '"+remotePlayer.name+"'.");
+                    checkForStartingNewGames();
+                    return;
+                }else{ // there's already a registered player with that name
+                    // it's possible we received the name twice??????
+                    if(indexOfRemotePlayerOfClient!==indexOfRemotePlayerWithName){
+                        remotePlayer.name=data;
+                        // now we have two remote players with the same name
+                        // delete the OLD one, and get it's game instance so we can assign that to the new one
+                        let removedRemotePlayer=remotePlayers.splice(indexOfRemotePlayerWithName,1)[0];
+                        if(removedRemotePlayer&&removedRemotePlayer.game){
+                            remotePlayer.index=removedRemotePlayer.index;
+                            remotePlayer.game=removedRemotePlayer.game;
+                        }
+                    }else
+                        gameEngineLog("WARNING: Player name '"+data+"' received again!");
+                }
+            }else
+                gameEngineLog("ERROR: Name of unregistered player ("+data+") received!");
+            showRemotePlayersInfo("Player ID");
         });
         // what's coming back from the players are bids, cards played, trump and/or partner suites choosen
         client.on('BIDMADE', (data) => { 
-            let remotePlayerIndex=getRemotePlayerIndex(client);
+            let remotePlayerIndex=getIndexOfRemotePlayerOfClient(client);
             remotePlayers[remotePlayerIndex]._setBid(data);
         });
         client.on('CARDPLAYED',(data)=>{
-            let remotePlayerIndex=getRemotePlayerIndex(client);
+            let remotePlayerIndex=getIndexOfRemotePlayerOfClient(client);
             remotePlayers[remotePlayerIndex]._setCard(new Card(data[0],data[1]));
         });
         client.on('TRUMPSUITE',(data)=>{
-            let remotePlayerIndex=getRemotePlayerIndex(client);
+            let remotePlayerIndex=getIndexOfRemotePlayerOfClient(client);
             remotePlayers[remotePlayerIndex]._setTrumpSuite(data);
         });
         client.on('PARTNERSUITE',(data)=>{
-            let remotePlayerIndex=getRemotePlayerIndex(client);
+            let remotePlayerIndex=getIndexOfRemotePlayerOfClient(client);
             remotePlayers[remotePlayerIndex]._setPartnerSuite(data);
         });
     });

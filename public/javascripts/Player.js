@@ -126,9 +126,8 @@ class Player extends CardHolder{
     get game(){return this._game;}
     set game(game){
         if(game&&!(game instanceof PlayerGame))
-            throw new Error("Game instance supplied to player "+this.name+" not of type PlayerGame.");
-        if(this._index<0)
-            throw new Error("Position index of player "+this.name+" unknown!");
+            throw new Error("Game instance supplied to player "+(this.name||"?")+" not of type PlayerGame.");
+        if(this._index<0)throw new Error("Position index of player "+(this.name||"?")+" unknown!");
         this._game=game;
         // sync _index
         if(this._game){
