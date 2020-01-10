@@ -16,22 +16,24 @@ function capitalize(str){return(str?(str.length?str[0].toUpperCase()+str.slice(1
 const PAGES=["page-rules","page-settings","page-setup-game","page-bidding","page-trump-choosing","page-partner-choosing","page-play-reporting","page-playing","page-finished"];
 
 ///// moved to CSS: const SUITE_COLORS=["red","black"];
+// starting from here =======
+var currentPage; // the current page it's pretty obvious from the name that it's the current page. ;)
 
-var currentPage; // the current page
-
-var rikkenTheGame=null; // the game (engine) in charge of managing playing the game
+var rikkenTheGame=null; // the game (engine) in charge of managing playing the game. So why not call it rikkenTheGameEngine?
 
 var currentPlayer=null;
 
 const PLAYMODE_SERIOUS=0,PLAYMODE_DEMO=1;
 
-var playmode=1;
+var CURRENT_PLAYMODE=PLAYMODE_DEMO; // are the above constants related? I think so?
+// In case they are, use them! This var name change leads to breaking changes but a simple find all and replace would do the trick. ;)
 
 // demo mode we use predefined player names
 var DEFAULT_PLAYERS=[["","","","",""],["Marc","Jurgen","Monika","Anna",""]];
 
 var bidderCardsElement=document.getElementById("bidder-cards");
-
+// until here ====
+// it seems your're keeping track of the state of your game 
 function initializeBidderSuitecardsButton(){
     let button=document.getElementById("bidder-suitecards-button");
     button.addEventListener("click",function(){
@@ -70,6 +72,7 @@ function showPlayerNames(){
         }
     }
 }
+/* function is dependend on a global variable. Either make this a method or pass the dependency as an argument. */
 
 /**
  * clears the bid table
@@ -88,6 +91,7 @@ function setSuiteClass(element,suite){
     element.setAttribute("data-suite-id",String(suite));
     element.classList.add(SUITE_NAMES[parseInt(element.getAttribute("data-suite-id"))]);
 }
+
 function showCard(element,card,trumpSuite,winnerSign){
     if(card){
         setSuiteClass(element,card.suite); // we want to see the right color
@@ -140,6 +144,8 @@ function showTrick(trick,playerIndex){
     let partnerIndex=rikkenTheGame.getPartner(playerIndex);
     console.log(">>> Partner of "+rikkenTheGame.getPlayerName(playerIndex)+": "+rikkenTheGame.getPlayerName(partnerIndex)+".");
     */
+    // looks like your logic is dependend on data that is stored in the DOM. It would be nicer if it's the other way around. The DOM is just a view/visual representation of the state of the data.
+    // so showplayer should render the player based on player object or class
     showPlayerName(document.getElementById("player-name"),rikkenTheGame.getPlayerName(playerIndex),-2);
     showPlayerName(document.getElementById("player-left-name"),rikkenTheGame.getPlayerName((playerIndex+1)%4),currentPlayer.isFriendly((playerIndex+1)%4));
     showPlayerName(document.getElementById("player-opposite-name"),rikkenTheGame.getPlayerName((playerIndex+2)%4),currentPlayer.isFriendly((playerIndex+2)%4));
@@ -329,6 +335,10 @@ function showDefaultPlayerNames(){
             playerNameInputElement.value=playerNames[parseInt(playerNameInputElement.getAttribute("data-player-id"))];
     }
 }
+
+// you got a lot of dom manipulation functions at the same place. Nice! Why not go a step further and give them all similar names like: showTricks, showDefaultPlayerNames or renderTricks or renderDefaultPlayerNames, renderTricksPlayedTables, renderPlayerSuiteCards
+// how they are named the same is not really the point. The point is that similar things should be named the same. Like that, you're communicating your logic clearer.
+// Now the reader is left in doubt if and how these functions are related. They also seem to all work on similar data so why not make them methods?
 
 /**
  * prepares the GUI for playing the game
@@ -655,14 +665,15 @@ function playablecardButtonClicked(event){
     ////////if(playablecardCell.style.border="0px")return; // empty 'unclickable' cell
     currentPlayer._cardPlayedWithSuiteAndIndex(parseInt(playablecardCell.getAttribute("data-suite-id")),parseInt(playablecardCell.getAttribute("data-suite-index")));
 }
-
+/* why is this global? it could be part of newGame or rikkeTheGame. Globals are baaad. Only use them when you really don't have other options */
 var players=null;
 
+/* this is actually your main */
 function newGame(){
 
     console.log("Rikken - het spel >>> Nieuw spel beginnen!");
     if(!players&&rikkenTheGame)players=rikkenTheGame._players; // take players from the last game (to continue with)
-    
+    /* comments like this are a sign of sloppy naming. rikkenTheGame could have a getPlayersFromPreviousGame method */
     if(!players){rikkenTheGame=null;newPlayers();} // game is no use (to get players)
 
     if(!players){alert("Aanmaken nieuwe spelers mislukt!");return;}
@@ -714,7 +725,7 @@ class OnlineRikkenTheGameEventListener extends RikkenTheGameEventListener{
         alert("Fout: "+error);
     }
 }
-var onlineRikkenTheGameEventListener=new OnlineRikkenTheGameEventListener();
+var onlineRikkenTheGameEventListener = new OnlineRikkenTheGameEventListener();
 
 function setPage(newPage){
     currentPage=newPage;
@@ -769,7 +780,7 @@ function cancelPage(event){
  */
 function newPlayers(){
     console.log("Rikken - het spel >>> Nieuwe spelers aanmaken.");
-    players=[];
+    players=[]; // he goes a global again
     let noPlayerNames=true;
     // iterate over all player input fields
     for(playerNameInput of document.getElementsByClassName("player-name-input")){
@@ -803,7 +814,8 @@ function cancelGame(){
 }
 
 window.onload=function(){
-    // allow clearing the info by clicking it!!
+    // comment not really needed, it's already clear from the naming, which is good :)
+    // maybe you could have renamed it to gameInstructions, because info is a bit too broad
     document.getElementById('info').onclick=clearInfo;
     // attach nextPage and cancelPage to any of the buttons in page-button-groups
     ///let pageButtonGroups=document.getElementsByClassName("page-button-group");
@@ -816,22 +828,25 @@ window.onload=function(){
             if(pageButton.classList.contains("new-players"))pageButton.onclick=newPlayers;
         };
     };
+    // it's better to wrap all these event bindings into a function called something like 
+    // setUpGameControlsBindings
     */
     // event handlers for next, cancel, and newPlayers buttons
     for(let nextButton of document.getElementsByClassName('next'))nextButton.onclick=nextPage;
-    for(let cancelButton of document.getElementsByClassName('cancel'))cancelButton.onclick=cancelPage;
-    // whenever we have new game (with the same players)
+    for(let cancelButton of document.getElementsByClassName('cancel'))cancelButton.onclick=cancelPage; 
+    // whenever we have new game (with the same players) In that case, is restartGame not a better name for the eventhandler?
     for(let newGameButton of document.getElementsByClassName("new-game"))newGameButton.onclick=newGame;
     // whenever we have new player(name)s
     for(let newGamePlayersButton of document.getElementsByClassName('new-game-players'))newGamePlayersButton.onclick=newGamePlayers;
     // whenever the game is canceled
     for(let cancelGameButton of document.getElementsByClassName('cancel-game'))cancelGameButton.onclick=cancelGame;
-
-    // attach an onclick event handler for all bid buttons
+    // onclear what the difference is between cancelling a page and canceling a game
+    // this comment was not conveining more information than the code itself neither does it has to be. The code is clear enough
     for(let bidButton of document.getElementsByClassName("bid"))bidButton.onclick=bidButtonClicked;
     
     // prepare for showing/hiding the cards of the current bidder
-    initializeBidderSuitecardsButton();
+    initializeBidderSuitecardsButton(); //why are you deviating from the pattern? Is there a good reason you are doing this event binding differently from everything above? If not, you are adding unnecessary complexity to your code. 
+    // Also, I had to look inside the function to see that this initialization is just also doing event binding. More speficic naming would have helped
     // replacing: document.getElementById("toggle-bidder-cards").onclick=toggleBidderCards;
 
     // event handler for selecting a suite
@@ -840,7 +855,11 @@ window.onload=function(){
     // clicking card 'buttons' (now cells in table), we can get rid of the button itself!!!
     for(let playablecardButton of document.querySelectorAll(".playable.card-text"))playablecardButton.onclick=playablecardButtonClicked;
     
+    // this is doing something really different than the code above. Why is it at the same place?
+    // you could wrap it inside a function called something like renderSuiteConten 
     // make the suite elements of a specific type show the right text!!!!
+    // try to prevent 'magic' numbers. Alright, a suite is 4 so it's not that mind boggling but neither is much of an effort
+    // to do: const CARDS_IN_SUITE = 4
     for(let suite=0;suite<4;suite++)
         for(let suiteButton of document.querySelectorAll(".suite."+SUITE_NAMES[suite]))
             suiteButton.value=SUITE_CHARACTERS[suite];

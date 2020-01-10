@@ -9,7 +9,6 @@ const DeckOfCards=require("./DeckOfCards.js"); // OOPS will be needing this!!!
 
 // posssible game states
 /////////const OUT_OF_ORDER=-1,IDLE=0,DEALING=1,BIDDING=2,INITIATE_PLAYING=3,TRUMP_CHOOSING=4,PARTNER_CHOOSING=5,PLAYING=6,CANCELING=7,FINISHED=8;
-
 // possible bids
 // NOTE the highest possible bid (troela) is obligatory!!
 const BID_NAMES=["pas","rik","rik (beter)","negen alleen","negen alleen (beter)","pico","tien alleen","tien alleen (beter)","11 alleen","11 alleen (beter)","misere","12 alleen","12 alleen (beter)","open misere","13 alleen","13 alleen (beter)","open misere met een praatje","troela","schoppen vrouw en laatste slag"];
@@ -102,7 +101,7 @@ class RikkenTheGame extends PlayerGame{
         this._arePartnersKnown=false; // should be set to true as soon the partner card was played!!
         return true;
     }
-
+    /* onconventional place for the constructor */
     constructor(players,eventListener){
 
         super();
@@ -856,6 +855,9 @@ class RikkenTheGame extends PlayerGame{
     // end PlayerEventListener implementation
 
     // 'private' methods
+    /* there are no 'real' private methods in javascript but the convention is that private methods are prepended with an underscore '_'
+     * this communicates that the method is not supposed to be used outside of this class
+    */ 
     dealBy(numberOfCards){
         for(let clockwisePlayer=1;clockwisePlayer<=this.numberOfPlayers;clockwisePlayer++){
             // 'pop' off numberOfCards per player
