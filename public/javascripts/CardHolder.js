@@ -164,15 +164,15 @@ class CardHolder{
 class HoldableCard extends Card{
 
     log(tolog){
-        // console.log(tolog);
+        // console.log("HOLDABLECARD >>> "+tolog);
     }
 
     set holder(holder){
-        this.log("\tChanging the holder of card "+this.toString()+".");
+        this.log("Changing the holder of card "+this.toString()+".");
         // remove from the current holder (if any)
         if(this._holder)this._holder._removeCard(this);
         // add (when successfully removed) to the new holder (if any)
-        if(!this._holder&&holder)holder._addCard(this);else console.error("Unable to change the holder!");
+        if(!this._holder&&holder)holder._addCard(this);else this.log("ERROR: Unable to change the holder!");
     }
 
     constructor(cardSuiteIndex,cardNameIndex,holder){

@@ -145,8 +145,9 @@ function showPlayerName(element,name,playerType){
  * shows the given trick
  * @param {*} trick 
  */
-function showTrick(trick,playerIndex){
+function showTrick(trick/*,playerIndex*/){
     let rikkenTheGame=currentPlayer.game;if(!rikkenTheGame)throw new Error("No game being played!"); // MDH@03JAN2020: rikkenTheGame should now point to the _game property of the current player
+    let playerIndex=rikkenTheGame._playerIndex;
     console.log("Showing trick ",trick);
     if(trick.numberOfCards==0&&rikkenTheGame.getPartnerRank()>=0){ // once suffices
         for(let partnerSuiteElement of document.getElementsByClassName('partner-suite'))partnerSuiteElement.innerHTML=DUTCH_SUITE_NAMES[rikkenTheGame.getPartnerSuite()];
@@ -347,7 +348,7 @@ function getGameInfo(){
         let highestBidders=rikkenTheGame.getHighestBidders(); // those bidding
         console.log("\tHighest bidders: "+highestBidders.join(", ")+".");
         let highestBid=rikkenTheGame.getHighestBid();
-        console.log("\tHighest bid: "+BID_NAMES[highestBid]+".");
+        console.log("\tHighest bid: "+PlayerGame.BID_NAMES[highestBid]+".");
         let trumpSuite=rikkenTheGame.getTrumpSuite();
         console.log("\tTrump suite: "+trumpSuite+".");
         let partnerSuite=rikkenTheGame.getPartnerSuite();
@@ -355,22 +356,22 @@ function getGameInfo(){
         // playing with trump is easiest
         if(trumpSuite>=0){ // only a single highest bidder!!!
            let highestBidder=highestBidders[0];
-            if(highestBid==BID_TROELA){
+            if(highestBid==PlayerGame.BID_TROELA){
                 let troelaPlayerName=rikkenTheGame.getPlayerName(highestBidder);
                 gameInfo=troelaPlayerName+" heeft troela, en ";
                 gameInfo+=rikkenTheGame.getPlayerName(rikkenTheGame.fourthAcePlayer)+" is mee.";
             }else{
-                if(highestBid==BID_RIK||highestBid==BID_RIK_BETER){
+                if(highestBid==PlayerGame.BID_RIK||highestBid==PlayerGame.BID_RIK_BETER){
                     gameInfo=rikkenTheGame.getPlayerName(highestBidder)+" rikt in de "+DUTCH_SUITE_NAMES[trumpSuite];
                     gameInfo+=", en vraagt de "+DUTCH_SUITE_NAMES[partnerSuite]+" "+DUTCH_RANK_NAMES[partnerRank]+" mee.";    
                 }else // without a partner
-                    gameInfo=rikkenTheGame.getPlayerName(highestBidder)+" speelt "+BID_NAMES[trumpSuite]+" met "+DUTCH_SUITE_NAMES[trumpSuite]+" als troef.";
+                    gameInfo=rikkenTheGame.getPlayerName(highestBidder)+" speelt "+PlayerGame.BID_NAMES[trumpSuite]+" met "+DUTCH_SUITE_NAMES[trumpSuite]+" als troef.";
             }
         }else{ // there's no trump, everyone is playing for him/herself
             let highestBidderPlayerNames=[];
             highestBidders.forEach((highestBidder)=>{highestBidderPlayerNames.push(rikkenTheGame.getPlayerName(highestBidder));});
             if(highestBidderPlayerNames.length>0){
-                gameInfo=highestBidderPlayerNames.join(", ")+(highestBidderPlayerNames.length>1?" spelen ":" speelt ")+BID_NAMES[highestBid]+".";
+                gameInfo=highestBidderPlayerNames.join(", ")+(highestBidderPlayerNames.length>1?" spelen ":" speelt ")+PlayerGame.BID_NAMES[highestBid]+".";
             }else
                 gameInfo="Iedereen heeft gepast. We spelen om de schoppen vrouw en de laatste slag!";
         }
@@ -385,9 +386,9 @@ function getNumberOfTricksToWinText(numberOfTricksToWin,partnerName,highestBid){
         case 1:
             return "Precies een";
         case 6:
-            return "Zes samen met "+(partnerName?partnerName:"je partner")+" om de tegenspelers de "+(highestBid==BID_TROELA?"troela":"rik")+" te laten verliezen";
+            return "Zes samen met "+(partnerName?partnerName:"je partner")+" om de tegenspelers de "+(highestBid==PlayerGame.BID_TROELA?"troela":"rik")+" te laten verliezen";
         case 8:
-            return "Acht samen met "+(partnerName?partnerName:"je partner")+" om de "+(highestBid==BID_TROELA?"troela":"rik")+" te winnen";
+            return "Acht samen met "+(partnerName?partnerName:"je partner")+" om de "+(highestBid==PlayerGame.BID_TROELA?"troela":"rik")+" te winnen";
         case 9:
             return "Negen alleen";
         case 10:
@@ -431,12 +432,13 @@ class OnlinePlayer extends Player{
         document.getElementById("toggle-bidder-cards").value=this.getTextRepresentation("<br>");
         */
         // either show or hide the bidder cards immediately
-        document.getElementById("bidder-suitecards-table").style.display=(/*playmode==PLAYMODE_DEMO?"block":*/"none");
+        document.getElementById("bidder-suitecards-table").style.display="block";
         if(/*playmode==PLAYMODE_DEMO*/0^document.getElementById("bidder-suitecards-button").classList.contains("active-bid-button"))
             document.getElementById("bidder-suitecards-button").classList.toggle("active-bid-button");
+        /* MDH@11JAN2020: moved over to when the player cards are received!!!
         // NOTE because every player gets a turn to bid, this._suiteCards will be available when we ask for trump/partner!!!
         updateBidderSuiteCards(this._suiteCards=this._getSuiteCards());
-
+        */
         // only show the buttons
         for(let bidButton of document.getElementsByClassName("bid"))
             bidButton.style.display=(possibleBids.indexOf(parseInt(bidButton.getAttribute('data-bid')))>=0?"initial":"none");
@@ -457,6 +459,7 @@ class OnlinePlayer extends Player{
         showGameState("Troef kiezen");
         console.log("Possible trump suites:",suites);
         setPage("page-trump-choosing");
+        document.getElementById("trump-suite-input").style.visibility="visible"; // ascertain to allow choosing the trump suite
         updateChooseTrumpSuiteCards(this._suiteCards);
         // iterate over the trump suite buttons
         for(let suiteButton of document.getElementById("trump-suite-buttons").getElementsByClassName("suite"))
@@ -466,6 +469,7 @@ class OnlinePlayer extends Player{
         showGameState("Partner kiezen");
         console.log("Possible partner suites:",suites);
         setPage("page-partner-choosing");
+        document.getElementById("partner-suite-input").style.visibility="visible"; // ascertain to allow choosing the trump suite
         updateChoosePartnerSuiteCards(this._suiteCards);
         // because the suites in the button array are 0, 1, 2, 3 and suites will contain
         for(let suiteButton of document.getElementById("partner-suite-buttons").getElementsByClassName("suite"))
@@ -502,7 +506,7 @@ class OnlinePlayer extends Player{
         setInfo(this.name+", welke "+(trick.playSuite>=0?DUTCH_SUITE_NAMES[trick.playSuite]:"kaart")+" wil je "+(trick.numberOfCards>0?"bij":"")+"spelen?");
         updatePlayerSuiteCards(this._suiteCards=this._getSuiteCards()); // remember the suite cards!!!!
         // show the trick (remembered in the process for use in cardPlayed below) from the viewpoint of the current player
-        showTrick(this._trick=trick,this._index);
+        showTrick(this._trick=trick); // MDH@11JAN2020: no need to pass the player index (as it is always the same)
     }
     // not to be confused with _cardPlayed() defined in the base class Player which informs the game
     // NOTE cardPlayed is a good point for checking the validity of the card played
@@ -564,9 +568,18 @@ class OnlinePlayer extends Player{
     }
     playsTheGameAtIndex(game,index){
         super.playsTheGameAtIndex(game,index);
-        if(this.game)this.game._playerIndex=this._index; // remember the player index BEFORE calling updateGamePlayerNames()
-        updateGamePlayerNames();
-        setPage("page-wait-for-players"); // ascertain to be on the wait for players page
+        // TODO should we do this here??
+        if(this._index>=0)setPage("page-wait-for-players");else setPage("page-rules");
+    }
+    // call renderCards just after the set of cards change
+    renderCards(){
+        this._suiteCards=this._getSuiteCards();
+        switch(currentPage){
+            case "page-bidding":updateBidderSuiteCards(this._suiteCards);break; // typically only once
+            case "page-playing":updatePlayerSuiteCards(this._suiteCards);break; // typically after playing a card!!
+            case "page-trump-choosing":updateChooseTrumpSuiteCards(this._suiteCards);break;
+            case "page-partner-choosing":updateChoosePartnerSuiteCards(this._suiteCards);break;
+        }
     }
 }
 
@@ -784,34 +797,36 @@ function cancelGame(){
 class PlayerGameProxy extends PlayerGame {
 
     getSendEvent(event,data){
-        console.log("SENDING EVENT "+event+" with data "+JSON.stringify(data)+".");
+        console.log("Sending event "+event+" with data "+JSON.stringify(data)+".");
         return [event,data];
     }
 
     // what the player will be calling when (s)he made a bid, played a card, choose trump or partner suite
     bidMade(bid){
         if(this._state===PlayerGame.OUT_OF_ORDER)return false;
-        this._socket.emit(...this.getSendEvent('BID',{'by':this._playerIndex,'bid':bid}));
+        this._socket.emit(...this.getSendEvent('BID',bid)); // no need to send the player id I think... {'by':this._playerIndex,'bid':bid}));
         document.getElementById("bidding").style.visibility="hidden"; // hide the bidding element again
         showGameState(null); // a bit crude to get rid of the Bieden page name though
         return true;
     }
     cardPlayed(card){
         if(this._state===PlayerGame.OUT_OF_ORDER)return false;
-        this._socket.emit(...this.getSendEvent('CARD',{'player':this._playerIndex,'card':[card.suite,card.rank]}));
+        this._socket.emit(...this.getSendEvent('CARD',[card.suite,card.rank])); // replacing: {'player':this._playerIndex,'card':[card.suite,card.rank]}));
         document.getElementById("playing").style.visibility="hidden"; // hide the bidding element again
         showGameState(null);
         return true;
     }
     trumpSuiteChosen(trumpSuite){
         if(this._state===PlayerGame.OUT_OF_ORDER)return false;
-        this._socket.emit(...this.getSendEvent('TRUMP',{'player':this._playerIndex,'suite':trumpSuite}));
+        this._socket.emit(...this.getSendEvent('TRUMPSUITE',trumpSuite)); // same here: {'player':this._playerIndex,'suite':trumpSuite}));
         showGameState(null);
+        document.getElementById("trump-suite-input").style.visibility="hidden"; // ascertain to hide the trump suite input element
         return true;
     }
     partnerSuiteChosen(partnerSuite){
         if(this._state===PlayerGame.OUT_OF_ORDER)return false;
-        this._socket.emit(...this.getSendEvent('PARTNER',{'player':this._playerIndex,'suite':partnerSuite}));
+        this._socket.emit(...this.getSendEvent('PARTNERSUITE',partnerSuite)); // replacing: {'player':this._playerIndex,'suite':partnerSuite}));
+        document.getElementById("partner-suite-input").style.visibility="hidden"; // ascertain to hide the partner suite input element
         showGameState(null);
         return true;
     }
@@ -824,7 +839,7 @@ class PlayerGameProxy extends PlayerGame {
     }
 
     logEvent(event,data){
-        console.log(event,data);
+        console.log("GAMEPLAYING >>> Received event "+event+" with data "+JSON.stringify(data));
     }
 
     get name(){return this._name;}
@@ -834,16 +849,19 @@ class PlayerGameProxy extends PlayerGame {
     getPlayerNames(){return this._playerNames;} // overriding getPlayerNames() of the demo version!!
     set playerNames(playerNames){
         this._playerNames=playerNames;
-        currentPlayer.index=(!this._playerNames||this._playerNames.length==0?-1:this._playerNames.indexOf(currentPlayer.name));
-        if(this.index<0)console.error("Current player '"+currentPlayer.name+"' not found.");
-        updateGamePlayerNames();
+        this._playerIndex=(!this._playerNames||this._playerNames.length==0?-1:this._playerNames.indexOf(currentPlayer.name));
+        currentPlayer.index=this._playerIndex;
+        if(this._playerIndex<0)
+            console.log("ERROR: Current player '"+currentPlayer.name+"' not found.");
+        else
+            updateGamePlayerNames();
     }
 
     parseTrick(trickInfo){
         let trick=new Trick();
     }
     prepareForCommunication(){
-        console.log("PREPARING COMMUNICATION");
+        console.log("Preparing for communication");
         // this._socket.on('connect',()=>{
         //     this._state=IDLE;
         // });
@@ -873,6 +891,13 @@ class PlayerGameProxy extends PlayerGame {
             this.logEvent('DEALER',data);
             this._dealer=data;
         });
+        this._socket.on('CARDS',(data)=>{
+            this.logEvent('CARDS',data);
+            // create holdable card from cardInfo passing in the current player as card holder
+            currentPlayer._removeCards(); // TODO find a way NOT to have to do this!!!
+            data.forEach((cardInfo)=>{new HoldableCard(cardInfo[0],cardInfo[1],currentPlayer);});
+            currentPlayer.renderCards();
+        });
         this._socket.on('TRUMP',(data)=>{
             this.logEvent('TRUMP',data);
         });
@@ -896,7 +921,7 @@ class PlayerGameProxy extends PlayerGame {
         });
         this._socket.on('MAKE_A_BID',(data)=>{
             this.logEvent('MAKE_A_BID',data);
-            currentPlayer.makeABid();
+            currentPlayer.makeABid(data.playerBidsObjects,data.possibleBids);
         });
         this._socket.on("TO_PLAY",(data)=>{
             this.logEvent('TO_PLAY',data);
@@ -904,22 +929,27 @@ class PlayerGameProxy extends PlayerGame {
         });
         this._socket.on('PLAY_A_CARD',(data)=>{
             this.logEvent('PLAY_A_CARD',data);
-            currentPlayer.playACard();
+            // we're receiving trick info in data
+            currentPlayer.playACard(parseTrick(data));
         });
         this._socket.on('CHOOSE_TRUMP_SUITE',(data)=>{
-            this.logEvent('CHOOSE_TRUM_SUITE',data);
+            this.logEvent('CHOOSE_TRUMP_SUITE',data);
+            currentPlayer.chooseTrumpSuite(data);
         });
         this._socket.on('CHOOSE_PARTNER_SUITE',(data)=>{
             this.logEvent("CHOOSE_PARTNER_SUITE",data);
+            currentPlayer.choosePartnerSuite(data.suites,data.partnerRankName);
         });
         this._socket.on('TRICK',(data)=>{
-            this.logEvent('TRICK',data);
+            this.logEvent('TRICK',parseTrick(data));
+            updateTricks(parseTrick())
         });
         this._socket.on('TRICKS',(data)=>{
             this.logEvent('TRICKS',data);
             // we can't just simply assign the tricks though
             this._tricks=[]; // should already be the case?????
             data.forEach((trickInfo)=>{this._tricks.push(this.parseTrick(trickInfo))});
+            updateTricks();
         });
         this._socket.on('RESULTS',(data)=>{
             this.logEvent('RESULTS',data);

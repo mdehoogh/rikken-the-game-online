@@ -8,8 +8,12 @@ module.exports=(socket_io_server,gamesListener)=>{
     function gameEngineLog(tolog){console.log("GAME ENGINE >>> "+tolog);}
     
     function logEvent(from,to,event,data){
-        gameEngineLog(from+" sending event "+event+" with data "+JSON.stringify(data)+" to "+to+".");
+        gameEngineLog(from+" sending event "+event+" with data "+JSON.stringify(data)+to+".");
         return [event,data];
+    }
+    function logReceivedEvent(from,event,data){
+        gameEngineLog("Received event "+event+" with data "+JSON.stringify(data)+" from "+from+".");
+        return data;
     }
 
     function getCardsInfo(cardHolder){
@@ -82,24 +86,24 @@ module.exports=(socket_io_server,gamesListener)=>{
 
         sendCards(){
             gameEngineLog("Sending cards to client of remote player "+(this.name?this.name:"?")+".");
-            this._client.emit(...logEvent(this.name,'client','CARDS',getCardsInfo(this)));
+            this._client.emit(...logEvent(this.name,'over','CARDS',getCardsInfo(this)));
         }
 
         // copied over from OnlinePlayer() in main.js 
         // METHODS CALLED BY THE GAME
         makeABid(playerBidObjects,possibleBids){
-            this._client.emit(...logEvent(this.name,'client','MAKE_A_BID',{'playerBidObjects':playerBidObjects,'possibleBids':possibleBids}));
+            this._client.emit(...logEvent(this.name,'over','MAKE_A_BID',{'playerBidObjects':playerBidObjects,'possibleBids':possibleBids}));
         }
         chooseTrumpSuite(suites){
-            this._client.emit(...logEvent(this.name,'client','CHOOSE_TRUMP_SUITE',this.name,{'suites':suites}));
+            this._client.emit(...logEvent(this.name,'over','CHOOSE_TRUMP_SUITE',suites));
         }
         choosePartnerSuite(suites,partnerRankName){
-            this._client.emit(...logEvent(this.name,'client','CHOOSE_PARTNER_SUITE',{'suites':suites,'partnerRankName':partnerRankName}));
+            this._client.emit(...logEvent(this.name,'over','CHOOSE_PARTNER_SUITE',{'suites':suites,'partnerRankName':partnerRankName}));
         }
         // almost the same as the replaced version except we now want to receive the trick itself
         playACard(trick){
             // can we send all the trick information this way??????? I guess not
-            this._client.emit(...logEvent(this.name,'client','PLAY_A_CARD',{'trick':getTrickInfo(trick)}));
+            this._client.emit(...logEvent(this.name,'over','PLAY_A_CARD',getTrickInfo(trick)));
         }
         // END METHODS CALLED BY THE GAME
 
@@ -214,7 +218,7 @@ module.exports=(socket_io_server,gamesListener)=>{
         // called when RikkenTheGame moves into the IDLE state
 
         sendToAllPlayers(event,data){
-            socket_io_server.to(this._tableId).emit(...logEvent(this._tableId,"players",event,data));
+            socket_io_server.to(this._tableId).emit(...logEvent(this._tableId,"to all players",event,data));
         }
 
         // MDH@10JAN2020: overriding to be able to send this information to all players
@@ -289,16 +293,19 @@ module.exports=(socket_io_server,gamesListener)=>{
             super.bidMade(bid);
             // 1. register the bid
             ////////now passed in as argument: let bid=this._players[this._player].bid; // collect the bid made by the current player
-            gameEngineLog("Bid by "+this._players[this._player].name+": '"+BID_NAMES[bid]+"'.");
+            gameEngineLog("Bid by "+this._players[this._player].name+": '"+PlayerGame.BID_NAMES[bid]+"'.");
         }
         trumpSuiteChosen(chosenTrumpSuite){
-            super.trumpSuiteChosen(choseTrumpSuite);
+            super.trumpSuiteChosen(chosenTrumpSuite);
+            gameEngineLog("Trump suite chosen by "+this._players[this._player].name+": '"+Card.SUITE_NAMES[chosenTrumpSuite]+"'.");
         }
         partnerSuiteChosen(chosenPartnerSuite){
             super.partnerSuiteChosen(chosenPartnerSuite);
+            gameEngineLog("Partner card suite chosen by "+this._players[this._player].name+": '"+Card.SUITE_NAMES[chosenPartnerSuite]+"'.");
         }
         cardPlayed(card){
             super.cardPlayed(card);
+            gameEngineLog("Card played by "+this._players[this._player].name+": '"+card.getTextRepresentation()+"'.");
         }
         // end PlayerEventListener implementation
 
@@ -429,7 +436,7 @@ module.exports=(socket_io_server,gamesListener)=>{
                 let indexOfRemotePlayerWithName=getIndexOfRemotePlayerWithName(data);
                 if(indexOfRemotePlayerWithName<0){ // haven't got a player with the same name
                     remotePlayer.name=data;
-                    gameEngineLog("Name of remote player #"+(indexOfRemotePlayerOfClient+1)+"identified as '"+remotePlayer.name+"'.");
+                    gameEngineLog("Name of remote player #"+(indexOfRemotePlayerOfClient+1)+" set to '"+remotePlayer.name+"'.");
                     checkForStartingNewGames();
                     return;
                 }else{ // there's already a registered player with that name
@@ -451,21 +458,21 @@ module.exports=(socket_io_server,gamesListener)=>{
             showRemotePlayersInfo("Player ID");
         });
         // what's coming back from the players are bids, cards played, trump and/or partner suites choosen
-        client.on('BIDMADE', (data) => { 
+        client.on('BID', (data) => { 
             let remotePlayerIndex=getIndexOfRemotePlayerOfClient(client);
-            remotePlayers[remotePlayerIndex]._setBid(data);
+            remotePlayers[remotePlayerIndex]._setBid(logReceivedEvent(remotePlayers[remotePlayerIndex].name,'BID',data));
         });
-        client.on('CARDPLAYED',(data)=>{
+        client.on('CARD',(data)=>{
             let remotePlayerIndex=getIndexOfRemotePlayerOfClient(client);
-            remotePlayers[remotePlayerIndex]._setCard(new Card(data[0],data[1]));
+            remotePlayers[remotePlayerIndex]._setCard(new Card(...logReceivedEvent(remotePlayers[remotePlayerIndex].name,'CARD',data)));
         });
         client.on('TRUMPSUITE',(data)=>{
             let remotePlayerIndex=getIndexOfRemotePlayerOfClient(client);
-            remotePlayers[remotePlayerIndex]._setTrumpSuite(data);
+            remotePlayers[remotePlayerIndex]._setTrumpSuite(logReceivedEvent(remotePlayers[remotePlayerIndex].name,'TRUMPSUITE',data));
         });
         client.on('PARTNERSUITE',(data)=>{
             let remotePlayerIndex=getIndexOfRemotePlayerOfClient(client);
-            remotePlayers[remotePlayerIndex]._setPartnerSuite(data);
+            remotePlayers[remotePlayerIndex]._setPartnerSuite(logReceivedEvent(remotePlayers[remotePlayerIndex].name,'PARTNERSUITE',data));
         });
     });
 
@@ -490,9 +497,7 @@ module.exports=(socket_io_server,gamesListener)=>{
             return true;
         },
         getGameIds:function(){return Object.keys(tableGames); }, // exposes all game ids
-        getRemotePlayers:function(){
-            return remotePlayers;
-        },
+        getRemotePlayers:function(){return remotePlayers;},
     };
 
 }

@@ -12,14 +12,6 @@ const DeckOfCards=require("./DeckOfCards.js"); // OOPS will be needing this!!!
 
 // possible bids
 // NOTE the highest possible bid (troela) is obligatory!!
-const BID_NAMES=["pas","rik","rik (beter)","negen alleen","negen alleen (beter)","pico","tien alleen","tien alleen (beter)","11 alleen","11 alleen (beter)","misere","12 alleen","12 alleen (beter)","open misere","13 alleen","13 alleen (beter)","open misere met een praatje","troela","schoppen vrouw en laatste slag"];
-const BID_PAS=0,BID_RIK=1,BID_RIK_BETER=2,BID_NEGEN_ALLEEN=3,BID_NEGEN_ALLEEN_BETER=4,BID_PICO=5,BID_TIEN_ALLEEN=6,BID_TIEN_ALLEEN_BETER=7,BID_ELF_ALLEEN=8,BID_ELF_ALLEEN_BETER=9,BID_MISERE=10,BID_TWAALF_ALLEEN=11,BID_TWAALF_ALLEEN_BETER=12,BID_OPEN_MISERE=13,BID_DERTIEN_ALLEEN=14,BID_DERTIEN_ALLEEN_BETER=15,BID_OPEN_MISERE_MET_EEN_PRAATJE=16,BID_TROELA=17,BID_LAATSTE_SLAG_EN_SCHOPPEN_VROUW=18;
-const BIDS_ALL_CAN_PLAY=[BID_PICO,BID_OPEN_MISERE,BID_OPEN_MISERE_MET_EEN_PRAATJE]; // trumpless games
-const BIDS_WITH_PARTNER_IN_HEARTS=[BID_RIK_BETER,BID_TIEN_ALLEEN_BETER,BID_ELF_ALLEEN_BETER,BID_TWAALF_ALLEEN_BETER,BID_DERTIEN_ALLEEN_BETER]; // games with trump played with a partner
-const BID_RANKS=[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,0,-1]; // how I played it (bid pass excluded (always rank 0))
-
-// each bid has a certain amount of points to receive when winning the game
-const BID_POINTS=[0,1,1,2,2,4,3,3,4,4,5,5,5,6,10,2,2];
 
 /**
  * to be registered as event listener with a single RikkenTheGame instance (in the constructor)
@@ -187,7 +179,7 @@ class RikkenTheGame extends PlayerGame{
     // MDH@06DEC2019: the trump player is the player that can ask for the partner suite and rank              
     getTrumpPlayer(){
         // only when playing a 'rik' game (with trump, played with a partner, but not troela, we have a trump player)
-        return(this._highestBid==BID_RIK||this._highestBid==BID_RIK_BETER?this._highestBidPlayers[0]:-1);
+        return(this._highestBid==PlayerGame.BID_RIK||this._highestBid==PlayerGame.BID_RIK_BETER?this._highestBidPlayers[0]:-1);
     }
     // end PlayerGame implementation
 
@@ -259,11 +251,11 @@ class RikkenTheGame extends PlayerGame{
     // after dealing the cards, the game can be played
     _startTheGame(){
         this._highestBidPlayers=[];
-        this._highestBid=BID_PAS;
+        this._highestBid=PlayerGame.BID_PAS;
         //this._highestBid=-1;this._trumpSuite=-1;this._partnerSuite=-1;this._partnerRank=-1;
         this._checkForTroela(); // will if detected register the highest bidder!!!!
         // if a player has 3 aces the play to play is 'troela' and therefore the accepted bid
-        if(this._highestBid===BID_TROELA){ // we will be playing 'troela'
+        if(this._highestBid===PlayerGame.BID_TROELA){ // we will be playing 'troela'
             // better to go through the _setPartnerSuite()
             // NOTE the trump suite has been set, as well as the player with the fourth ace
             // NOTE we're skipping the entire process of asking for the partner card as we know all that already
@@ -288,10 +280,10 @@ class RikkenTheGame extends PlayerGame{
      * returns an array with possible bid numbers
      */
     _getPossibleBids(){
-        let possibleBids=[BID_PAS]; // player can always pass!!
+        let possibleBids=[PlayerGame.BID_PAS]; // player can always pass!!
         // this._highestBid contains the highest bid so far
-        let possibleBid=this._highestBid+(BIDS_ALL_CAN_PLAY.indexOf(this._highestBid)<0);
-        while(possibleBid<BID_TROELA){possibleBids.push(possibleBid);possibleBid++;}
+        let possibleBid=this._highestBid+(PlayerGame.BIDS_ALL_CAN_PLAY.indexOf(this._highestBid)<0);
+        while(possibleBid<PlayerGame.BID_TROELA){possibleBids.push(possibleBid);possibleBid++;}
         this.log("Possible bids equal to or higher than "+this._highestBid+": ",possibleBids);
         return possibleBids;
     }
@@ -319,7 +311,7 @@ class RikkenTheGame extends PlayerGame{
         this._playersBids.forEach((playerBids)=>{
             let playerBidsObject={name:this._players[playerBidsObjects.length].name,bids:[]};
             // use unshift NOT push as the bids are stored reverse order 
-            playerBids.forEach((playerBid)=>{playerBidsObject.bids.unshift(BID_NAMES[playerBid])});
+            playerBids.forEach((playerBid)=>{playerBidsObject.bids.unshift(PlayerGame.BID_NAMES[playerBid])});
             playerBidsObjects.push(playerBidsObject);
         });
         return playerBidsObjects;
@@ -345,31 +337,31 @@ class RikkenTheGame extends PlayerGame{
         for(let playerIndex=0;playerIndex<this.numberOfPlayers;playerIndex++){
             let player=this._players[playerIndex];
             player.setNumberOfTricksToWin(-1); // don't care how many
-            if(this._highestBid!==BID_LAATSTE_SLAG_EN_SCHOPPEN_VROUW){ // at least one person is 'playing' something
+            if(this._highestBid!==PlayerGame.BID_LAATSTE_SLAG_EN_SCHOPPEN_VROUW){ // at least one person is 'playing' something
                 if(this._partnerSuite>=0){ // some game that involves working together
                     player.setNumberOfTricksToWin(player.isFriendly(this.getTrumpPlayer())>0?8:6);
                 }else // a solitary game
                 if(this._highestBidPlayers.indexOf(playerIndex)>=0){ // one of the 'players'
                     switch(this._highestBid){
-                        case BID_MISERE:case BID_OPEN_MISERE:case BID_OPEN_MISERE_MET_EEN_PRAATJE: // zero trick game
+                        case PlayerGame.BID_MISERE:case PlayerGame.BID_OPEN_MISERE:case PlayerGame.BID_OPEN_MISERE_MET_EEN_PRAATJE: // zero trick game
                             player.setNumberOfTricksToWin(0);
                             break;
-                        case BID_PICO: // one trick game
+                        case PlayerGame.BID_PICO: // one trick game
                             player.setNumberOfTricksToWin(1);
                             break;                           
-                        case BID_NEGEN_ALLEEN:case BID_NEGEN_ALLEEN_BETER: // nine trick gam
+                        case PlayerGame.BID_NEGEN_ALLEEN:case PlayerGame.BID_NEGEN_ALLEEN_BETER: // nine trick gam
                             player.setNumberOfTricksToWin(9);
                             break;
-                        case BID_TIEN_ALLEEN:case BID_TIEN_ALLEEN_BETER: // ten trick game
+                        case PlayerGame.BID_TIEN_ALLEEN:case PlayerGame.BID_TIEN_ALLEEN_BETER: // ten trick game
                             player.setNumberOfTricksToWin(10);
                             break;
-                        case BID_ELF_ALLEEN:case BID_ELF_ALLEEN_BETER: // eleven trick game
+                        case PlayerGame.BID_ELF_ALLEEN:case PlayerGame.BID_ELF_ALLEEN_BETER: // eleven trick game
                             player.setNumberOfTricksToWin(11);
                             break;
-                        case BID_TWAALF_ALLEEN:case BID_TWAALF_ALLEEN_BETER: // twelve trick game
+                        case PlayerGame.BID_TWAALF_ALLEEN:case PlayerGame.BID_TWAALF_ALLEEN_BETER: // twelve trick game
                             player.setNumberOfTricksToWin(12);
                             break;
-                        case BID_DERTIEN_ALLEEN:case BID_DERTIEN_ALLEEN_BETER: // thirteen trick game
+                        case PlayerGame.BID_DERTIEN_ALLEEN:case PlayerGame.BID_DERTIEN_ALLEEN_BETER: // thirteen trick game
                             player.setNumberOfTricksToWin(10);
                             break;
                     }
@@ -433,19 +425,19 @@ class RikkenTheGame extends PlayerGame{
                     if(this._tricks.length==13){
                         // determine the points won and adjust the points
                         let pointsWon=0;
-                        let pointsToWinOffset=BID_POINTS[this._highestBid];
+                        let pointsToWinOffset=PlayerGame.BID_POINTS[this._highestBid];
                         let tricksToWin=(this._highestBidPlayers.length>0?this._players[this._highestBidPlayers[0]].numberOfTricksToWin:0);
                         // we're going to compute the delta points i.e. what each player will win (or loose)
                         this._deltaPoints=[0,0,0,0];
                         let aSolitaryGame=true;
                         switch(this._highestBid){
-                            case BID_TROELA:case BID_RIK:case BID_RIK_BETER: // single highest bidder
+                            case PlayerGame.BID_TROELA:case PlayerGame.BID_RIK:case PlayerGame.BID_RIK_BETER: // single highest bidder
                                 aSolitaryGame=false; // not played alone
-                            case BID_NEGEN_ALLEEN:case BID_NEGEN_ALLEEN_BETER:
-                            case BID_TIEN_ALLEEN:case BID_TIEN_ALLEEN_BETER:
-                            case BID_ELF_ALLEEN:case BID_ELF_ALLEEN_BETER:
-                            case BID_TWAALF_ALLEEN:case BID_TWAALF_ALLEEN_BETER:
-                            case BID_DERTIEN_ALLEEN:case BID_DERTIEN_ALLEEN_BETER:
+                            case PlayerGame.BID_NEGEN_ALLEEN:case PlayerGame.BID_NEGEN_ALLEEN_BETER:
+                            case PlayerGame.BID_TIEN_ALLEEN:case PlayerGame.BID_TIEN_ALLEEN_BETER:
+                            case PlayerGame.BID_ELF_ALLEEN:case PlayerGame.BID_ELF_ALLEEN_BETER:
+                            case PlayerGame.BID_TWAALF_ALLEEN:case PlayerGame.BID_TWAALF_ALLEEN_BETER:
+                            case PlayerGame.BID_DERTIEN_ALLEEN:case PlayerGame.BID_DERTIEN_ALLEEN_BETER:
                                 let numberOfTricksWonByHighestBidder=this._players[this._highestBidPlayers[0]].getNumberOfTricksWon();
                                 pointsWon=(numberOfTricksWonByHighestBidder>=tricksToWin?pointsToWinOffset+numberOfTricksWonByHighestBidder-tricksToWin:numberOfTricksWonByHighestBidder-tricksToWin-pointsToWinOffset);
                                 if(aSolitaryGame){
@@ -462,7 +454,7 @@ class RikkenTheGame extends PlayerGame{
                                             this._deltaPoints[player]-=pointsWon;
                                 }
                                 break;
-                            case BID_LAATSTE_SLAG_EN_SCHOPPEN_VROUW:
+                            case PlayerGame.BID_LAATSTE_SLAG_EN_SCHOPPEN_VROUW:
                                 // the last trick winner has to pay the other players
                                 let lastTrickWinner=this._tricks[12].winner;
                                 for(let player=0;player<4;player++)
@@ -486,7 +478,7 @@ class RikkenTheGame extends PlayerGame{
                                 break;
                             // the rest of the games (without trump) can be played by multiple players at the same time
                             // with points won by any of the highest bid players
-                            case BID_PICO:
+                            case PlayerGame.BID_PICO:
                                 for(let highestBidPlayer=0;highestBidPlayer<this._highestBidPlayers.length;highestBidPlayer++){
                                     let deltaWon=Math.abs(this._players[this._highestBidPlayers[highestBidPlayer]].getNumberOfTricksWon()-1);
                                     pointsWon=(deltaWon?1-pointsToWinOffset-deltaWon:pointsToWinOffset);
@@ -497,7 +489,7 @@ class RikkenTheGame extends PlayerGame{
                                             this._deltaPoints[player]-=pointsWon;
                                 }
                                 break;
-                            case BID_MISERE:case BID_OPEN_MISERE:case BID_OPEN_MISERE_MET_EEN_PRAATJE:
+                            case PlayerGame.BID_MISERE:case PlayerGame.BID_OPEN_MISERE:case PlayerGame.BID_OPEN_MISERE_MET_EEN_PRAATJE:
                                 for(let highestBidPlayer=0;highestBidPlayer<this._highestBidPlayers.length;highestBidPlayer++){
                                     // every trick one is one too many
                                     let deltaWon=this._players[this._highestBidPlayers[highestBidPlayer]].getNumberOfTricksWon();
@@ -563,17 +555,17 @@ class RikkenTheGame extends PlayerGame{
      */
     _setTrumpSuite(trumpSuite){
         // ASSERT shouldn't be called when the bid is 'troela'
-        if(this._highestBid===BID_TROELA)throw new Error("Setting the trump suite this way not allowed when playing 'troela'!");
+        if(this._highestBid===PlayerGame.BID_TROELA)throw new Error("Setting the trump suite this way not allowed when playing 'troela'!");
         this._trumpSuite=trumpSuite;
         if(this._trumpSuite<0){
             console.error("Cannot remove the trump suite this way!");
             return;
         }
         this._partnerRank=-1; // safety measure 
-        this.log(">>> "+capitalize(Card.SUITE_NAMES[this._trumpSuite])+" selected as trump playing '"+BID_NAMES[this._highestBid]+"'.");
+        this.log(">>> "+capitalize(Card.SUITE_NAMES[this._trumpSuite])+" selected as trump playing '"+PlayerGame.BID_NAMES[this._highestBid]+"'.");
         // is this a trump game with a partner (ace/king) to ask for?
         // I guess we can pass along the rank, which means we can choose the rank ourselves
-        if(this._highestBid==BID_RIK||this._highestBid==BID_RIK_BETER){ // yes, a regular 'rik'
+        if(this._highestBid==PlayerGame.BID_RIK||this._highestBid==PlayerGame.BID_RIK_BETER){ // yes, a regular 'rik'
             this._partnerRank=this._getPartnerRank();
             this.log(">>> Partner card rank: "+Card.RANK_NAMES[this._partnerRank]+".");
             let ranklessSuites=this._players[this._player].getSuitesWithoutRank(this._partnerRank);
@@ -626,12 +618,12 @@ class RikkenTheGame extends PlayerGame{
         // ASSERT should not be called when playing 'troela'
         this.log("Bidding is over, determine whether to ask for trump or the partner card...");
         // the player next to the dealer is always the player to start playing
-        if(this._highestBid!=BID_PAS){
+        if(this._highestBid!=PlayerGame.BID_PAS){
             // is it a trump game?
-            if(BIDS_ALL_CAN_PLAY.indexOf(this._highestBid)<0){ // yes
+            if(PlayerGame.BIDS_ALL_CAN_PLAY.indexOf(this._highestBid)<0){ // yes
                 // if the trump is not known we have to ask for the trump suite (color) first
                 this._player=this._highestBidPlayers[0]; // required by _setTrumpSuite as well
-                if(BIDS_WITH_PARTNER_IN_HEARTS.indexOf(this._highestBid)<0){
+                if(PlayerGame.BIDS_WITH_PARTNER_IN_HEARTS.indexOf(this._highestBid)<0){
                     // pass along all the suites the player has (from which to choose from)
                     this._players[this._player].chooseTrumpSuite(this._players[this._player].getSuites());
                 }else // trump is known (which can only be hearts) TODO what if this player does not have any trump cards?????????
@@ -640,7 +632,7 @@ class RikkenTheGame extends PlayerGame{
                 // played by the highest bidder(s) on his own
                 this._startPlaying((this.dealer+1)%this.numberOfPlayers);
         }else{ // everybody passed, so also not a trump suite
-            this._highestBid=BID_LAATSTE_SLAG_EN_SCHOPPEN_VROUW;
+            this._highestBid=PlayerGame.BID_LAATSTE_SLAG_EN_SCHOPPEN_VROUW;
             // everybody is playing for him/herself i.e. nobody has a partner
             this._startPlaying((this.dealer+1)%this.numberOfPlayers);
         }
@@ -663,7 +655,7 @@ class RikkenTheGame extends PlayerGame{
             this._fourthAcePlayer=oneAcePlayer;
             // NOTE with troela do NOT call _setTrumpSuite() as that would start playing immediately (which we don't want to)
             this._trumpSuite=oneAceSuite;
-            this._highestBid=BID_TROELA; // OOPS should be _highestBid!!
+            this._highestBid=PlayerGame.BID_TROELA; // OOPS should be _highestBid!!
         }else
             this._fourthAcePlayer=-1;
     }
@@ -688,7 +680,7 @@ class RikkenTheGame extends PlayerGame{
     bidMade(bid){
         // 1. register the bid
         ////////now passed in as argument: let bid=this._players[this._player].bid; // collect the bid made by the current player
-        this.log("Bid by "+this._players[this._player].name+": '"+BID_NAMES[bid]+"'.");
+        this.log("Bid by "+this._players[this._player].name+": '"+PlayerGame.BID_NAMES[bid]+"'.");
 
         // TODO check whether this bid is actually higher than the highest bid so far (when not a pass bid)
         if(this._playersBids&&Array.isArray(this._playersBids)&&this._playersBids.length>this._player){
@@ -699,21 +691,19 @@ class RikkenTheGame extends PlayerGame{
             return;
         }
         // 2. check if this bid ends the bidding
-        if(bid!=BID_PAS){
+        if(bid!=PlayerGame.BID_PAS){
             ////// WRONG!!!!! this._passBidCount=0; // start counting over
             // a new accepted bid is always the highest bid
-            if(bid<this._highestBid)
-                throw new Error("Invalid bid!");
+            if(bid<this._highestBid)throw new Error("Invalid bid!");
             if(bid==this._highestBid){ // same as before
-                if(BIDS_ALL_CAN_PLAY.indexOf(bid)<0)
-                    throw new Error("You cannot make the same bid!");
+                if(PlayerGame.BIDS_ALL_CAN_PLAY.indexOf(bid)<0)throw new Error("You cannot make the same bid!");
                 this._highestBidPlayers.push(this._player);
             }else{ // a higher bid
                 this._highestBid=bid; // remember the highest bid so far
-                this.log("Highest bid so far: "+BID_NAMES[this._highestBid]+".");
+                this.log("Highest bid so far: "+PlayerGame.BID_NAMES[this._highestBid]+".");
                 this._highestBidPlayers=[this._player]; // the first one to bid this
                 // if this was the highest possible bid we're done
-                if(BID_RANKS[bid]==17){ // highest possible player bid (which is played solitary)
+                if(PlayerGame.BID_RANKS[bid]==PlayerGame.BID_TROELA){ // highest possible player bid (which is played solitary)
                     this.state=PlayerGame.PLAYING; // was PLAY_REPORTING but not used anymore
                 }
             }
@@ -726,7 +716,7 @@ class RikkenTheGame extends PlayerGame{
             while(--player>=0){
                 //////this.log("Checking player bids: ",this._playersBids[player]);
                 if(this._playersBids[player].length==0){passBidCount=0;break;} // somebody yet to bid
-                if(this._playersBids[player][0]===BID_PAS)passBidCount++;
+                if(this._playersBids[player][0]===PlayerGame.BID_PAS)passBidCount++;
             }
             // if we have a total of 3 pass bids, bidding is over
             if(passBidCount<3){ // there must still be another player that can bid
@@ -737,7 +727,7 @@ class RikkenTheGame extends PlayerGame{
                     player=(player+1)%this.numberOfPlayers;
                     //////if(player===this._player)break; // nobody was allowed to bid anymore
                     if(this._playersBids[player].length==0)break; // when no bid so far, this is the one to ask next
-                    if(this._playersBids[player][0]!=BID_PAS)break; // if bid before and not passed this is the one to ask next
+                    if(this._playersBids[player][0]!=PlayerGame.BID_PAS)break; // if bid before and not passed this is the one to ask next
                     this.log("Player '"+this._players[player].name+"' can't bid anymore!");
                 }
                 /////if(player!==this._player){ // another player can still bid

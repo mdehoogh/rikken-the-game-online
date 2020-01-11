@@ -524,7 +524,7 @@ class Player extends CardHolder{
         }
         this.log("Highest bid so far: '"+BID_NAMES[highestBidSoFar]+"'.");
         // if the highest possible bid is not a bid all can play (at the same time), can't be bid again
-        if(BIDS_ALL_CAN_PLAY.indexOf(BID_NAMES[highestBidSoFar])<0)highestBidSoFar++;
+        if(PlayerGame.BIDS_ALL_CAN_PLAY.indexOf(BID_NAMES[highestBidSoFar])<0)highestBidSoFar++;
         let possibleBidNames=BID_NAMES.slice(highestBidSoFar);
         possibleBidNames.unshift(BID_NAMES[BID_PAS]); // user can always 'pas'
         this.log("Possible bids: ",possibleBidNames);

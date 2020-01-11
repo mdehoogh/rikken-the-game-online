@@ -17,6 +17,33 @@ class PlayerEventListener{
 // MDH@07DEC2019: PlayerGame extends PlayerEventListener with game data exposed to player
 //                which was earlier stored in each trick
 class PlayerGame extends PlayerEventListener{
+    static get BID_NAMES(){return ["pas","rik","rik (beter)","negen alleen","negen alleen (beter)","pico","tien alleen","tien alleen (beter)","11 alleen","11 alleen (beter)","misere","12 alleen","12 alleen (beter)","open misere","13 alleen","13 alleen (beter)","open misere met een praatje","troela","schoppen vrouw en laatste slag"];};
+    static get BID_PAS(){return 0;};
+    static get BID_RIK(){return 1;};
+    static get BID_RIK_BETER(){return 2;};
+    static get BID_NEGEN_ALLEEN(){return 3;};
+    static get BID_NEGEN_ALLEEN_BETER(){return 4;};
+    static get BID_PICO(){return 5;};
+    static get BID_TIEN_ALLEEN(){return 6;};
+    static get BID_TIEN_ALLEEN_BETER(){return 7;};
+    static get BID_ELF_ALLEEN(){return 8;};
+    static get BID_ELF_ALLEEN_BETER(){return 9;};
+    static get BID_MISERE(){return 10;};
+    static get BID_TWAALF_ALLEEN(){return 11;};
+    static get BID_TWAALF_ALLEEN_BETER(){return 12;};
+    static get BID_OPEN_MISERE(){return 13;};
+    static get BID_DERTIEN_ALLEEN(){return 14;};
+    static get BID_DERTIEN_ALLEEN_BETER(){return 15;};
+    static get BID_OPEN_MISERE_MET_EEN_PRAATJE(){return 16;};
+    static get BID_TROELA(){return 17;};
+    static get BID_LAATSTE_SLAG_EN_SCHOPPEN_VROUW(){return 18;};
+    static get BIDS_ALL_CAN_PLAY(){return [PlayerGame.BID_PICO,PlayerGame.BID_OPEN_MISERE,PlayerGame.BID_OPEN_MISERE_MET_EEN_PRAATJE];}; // trumpless games
+    static get BIDS_WITH_PARTNER_IN_HEARTS(){return [PlayerGame.BID_RIK_BETER,PlayerGame.BID_TIEN_ALLEEN_BETER,PlayerGame.BID_ELF_ALLEEN_BETER,PlayerGame.BID_TWAALF_ALLEEN_BETER,PlayerGame.BID_DERTIEN_ALLEEN_BETER];}; // games with trump played with a partner
+    static get BID_RANKS(){return [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,0,-1];}; // how I played it (bid pass excluded (always rank 0))
+    
+    // each bid has a certain amount of points to receive when winning the game
+    static get BID_POINTS(){return [0,1,1,2,2,4,3,3,4,4,5,5,5,6,10,2,2];}
+
     // the state constants we have
     static get OUT_OF_ORDER(){return 0;}
     static get IDLE(){return 1;}
@@ -53,7 +80,7 @@ const PLAYERTYPE_FOO=0,PLAYERTYPE_UNKNOWN=1,PLAYERTYPE_FRIEND=2;
 class Player extends CardHolder{
 
     log(tolog){
-        // console.log(tolog);
+        console.log("PLAYER >>> "+tolog);
     }
     
     addEventListener(playerEventListener){
@@ -68,7 +95,7 @@ class Player extends CardHolder{
             throw new Error("Player "+this.name+" unable to prepare for playing: not associated with a game yet.");
         if(this.numberOfCards>0){
             console.error("BUG: Player "+this.name+" still has "+this.numberOfCards+" cards.");
-            this._cards=[];
+            this._removeCards(); // better done this way instead of this._cards=[]
         }
         // default player remembering its choices
         this._bid=-1; // the last bid of this player
@@ -84,10 +111,11 @@ class Player extends CardHolder{
     constructor(name,playerEventListener){
         super();
         this._name=name;
-        if(playerEventListener&&!(playerEventListener instanceof PlayerEventListener))
-            throw new Error("Player event listener of wrong type.");
         this._eventListeners=[];
-        if(playerEventListener)this.addEventListener(playerEventListener);
+        if(playerEventListener){
+            if(!(playerEventListener instanceof PlayerEventListener))throw new Error("Player event listener of wrong type.");
+            this.addEventListener(playerEventListener);
+        }
         // wait for receiving game and index
         this._index=-1;this._game=null; // waiting for the game to be plugged in (once)
         // removed wait until getting called through newGame: this._prepareForPlaying();
@@ -122,12 +150,16 @@ class Player extends CardHolder{
     */
 
     // end of getters/setters used by the game
+    _removeCards(){while(this._cards.length>0)this._cards.shift().holder=null;}
 
     get game(){return this._game;}
     set game(game){
+        if(this._game===game)return;
         if(game&&!(game instanceof PlayerGame))
             throw new Error("Game instance supplied to player "+(this.name||"?")+" not of type PlayerGame.");
-        if(this._index<0)throw new Error("Position index of player "+(this.name||"?")+" unknown!");
+        if(this._index<0)
+            throw new Error("Position index of player "+(this.name||"?")+" unknown!");
+        this._removeCards(); // MDH@11JAN2020: if the game changes we should remove the cards
         this._game=game;
         // sync _index
         if(this._game){
@@ -154,6 +186,7 @@ class Player extends CardHolder{
     }
 
     _getSuiteCards(){
+        this.log("Determining suite cards of "+this.numberOfCards+" cards!");
         let suiteCards=[[],[],[],[]];
         this._cards.forEach((card)=>{suiteCards[card.suite].push(card);});
         return suiteCards;
@@ -170,8 +203,12 @@ class Player extends CardHolder{
     // to signal having made a bid
     _bidMade(bid){
         if(this._eventListeners) // catch any error thrown by event listeners
-            this._eventListeners.forEach((eventListener)=>{try{eventListener.bidMade(this._bid);}catch(error){}});
-        if(this._game)this._game.bidMade(this._bid);
+            this._eventListeners.forEach((eventListener)=>{try{(!eventListener||eventListener.bidMade(this._bid));}catch(error){}});
+        if(this._game){
+            console.log("Passing bid "+this._bid+" of player '"+this.name+"' to the game!");
+            this._game.bidMade(this._bid);
+        }else
+            console.log("ERROR: No game to pass bid "+this._bid+" of player '"+this.name+"'.");
     }
     _setBid(bid){this._bidMade(this._bid=bid);}
 
@@ -205,23 +242,23 @@ class Player extends CardHolder{
         // assumes that this player has made a bid before, or that this is the first bid
         // this default implementation assumes to be running in a browser so we can use prompt()
         // all other available bids should be better than the last bid by any other player
-        let highestBidSoFar=BID_PAS;
+        let highestBidSoFar=PlayerGame.BID_PAS;
         if(playerbids){
             this.log("Player bids:",playerbids);
             for(let player=0;player<playerbids.length;player++)
                 if(playerbids[player].length>0&&playerbids[player][0]>highestBidSoFar)
                     highestBidSoFar=playerbids[player][0];
         }
-        this.log("Highest bid so far: '"+BID_NAMES[highestBidSoFar]+"'.");
+        this.log("Highest bid so far: '"+PlayerGame.BID_NAMES[highestBidSoFar]+"'.");
         // if the highest possible bid is not a bid all can play (at the same time), can't be bid again
-        if(BIDS_ALL_CAN_PLAY.indexOf(BID_NAMES[highestBidSoFar])<0)highestBidSoFar++;
-        let possibleBidNames=BID_NAMES.slice(highestBidSoFar);
-        possibleBidNames.unshift(BID_NAMES[BID_PAS]); // user can always 'pas'
+        if(PlayerGame.BIDS_ALL_CAN_PLAY.indexOf(PlayerGame.BID_NAMES[highestBidSoFar])<0)highestBidSoFar++;
+        let possibleBidNames=PlayerGame.BID_NAMES.slice(highestBidSoFar);
+        possibleBidNames.unshift(PlayerGame.BID_NAMES[PlayerGame.BID_PAS]); // user can always 'pas'
         this.log("Possible bids: ",possibleBidNames);
         let bid=-1;
         while(bid<0){
             let bidname=prompt("@"+this.name+" (holding "+this.getTextRepresentation(true)+")\nWhat is your bid (options: '"+possibleBidNames.join("', '")+"')?",possibleBidNames[0]);
-            bid=BID_NAMES.indexOf(bidname);
+            bid=PlayerGame.BID_NAMES.indexOf(bidname);
             if(bid<0)continue;
             try{
                 this._setBid(bid);

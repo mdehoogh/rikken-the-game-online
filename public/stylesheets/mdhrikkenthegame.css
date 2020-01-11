@@ -1,0 +1,268 @@
+/* @font-face {
+    font-family: 'Playing Cards';
+    src: url('../font/CARDS.TTF') format("truetype");
+} */
+@font-face {
+    font-family: 'Suit-Regular';
+    src: url('../font/suit-regular.eot');
+    src: url('../font/suit-regular.eot?#iefix') format('embedded-opentype'),
+         url('../font/suit-regular.woff') format('woff'),
+         url('../font/suit-regular.ttf') format('truetype'),
+         url('../font/suit-regular.svg#suit-regular') format('svg');
+    font-weight:normal;
+    font-style:normal;
+  }
+  
+  /*
+  */
+  body {
+      font-family: Verdana, Geneva, Tahoma, sans-serif;
+      background: #eee;
+      font-size:16px;
+  }
+  @media(min-width:640px)and(max-width:767px){
+      body{
+          font-size:18px;
+      }
+  }
+  @media(min-width:768px)and(max-width:1023px){
+      body{
+          font-size:20px;
+      }
+  }
+  @media(min-width:1024px)and(max-width:1199px){
+      body{
+          font-size:22px;
+      }
+  }
+  @media(min-width:1200px){
+      body{
+          font-size:24px;
+      }
+  }
+  
+  #info {
+      color:blue;
+      font-family:Arial, Helvetica, sans-serif;
+      font-size:1rem;
+      display:none; /* start hidden */
+  }
+  
+  .prompt {
+      font-size:1.5rem;
+  }
+  
+  input[type=button] {
+      font-size:1.25rem;
+  }
+  
+  .pages {
+      color:#333;
+  }
+  
+  .trick {
+      height:100px;
+  }
+  
+  #tricks-played-table tr:nth-child(even) {
+      background-color: #ccc;
+  }
+  
+  .separator {
+      background:grey;
+      height:2px;
+      width:100%;
+      /* margin-left:10px;
+      margin-right:10px; */
+  }
+  
+  tr {
+      border-color:grey;
+      border-bottom:1px;
+  }
+  td, th {
+      text-align:center;
+      font-size:1rem;
+      height:1rem;
+  }
+  
+  .page {
+      /* every page should be positioned relative to the parent in the top-left corner */
+      position:absolute;
+      x:0;
+      y:0;
+      width:100%;
+  }
+  
+  /* page-button-groups to show in the right top corner */
+  .page-button-group {
+      position:absolute;
+      top:1.6rem;
+      right:1.6rem;
+      margin:auto;
+      font-size:1.6rem;
+  }
+  
+  /* h1 is used for page titles */
+  .page-title{
+      font-size:1.6rem;
+  }
+  
+  .page-header{
+      background-color: rgb(44, 103, 170);
+      padding:4px 8px;
+      color:white;
+      /*border-top:5px;
+      border-bottom:5px;
+      border-color:red;
+     */
+       /* margin-left:16px;
+      margin-right:16px; */
+  }
+  
+  /* setup rules page */
+  /*
+  #page-rules {
+      background:black;
+  }
+  */
+  
+  /* setup game page */
+  /*
+  #page-setup-game {
+      background:black;
+  }
+  */
+  .player-name {
+      width:100%;
+  }
+  .player-name input{
+      text-align:center;
+      width:200px;
+      height:40px;
+  }
+  
+  /* bidding page */
+  .pas{
+      color:grey;
+  }
+  .rik{
+      color:green;
+  }
+  .solitary{
+      color:blue;
+  }
+  /*
+  #page-bidding {
+      background:black;
+  }
+  */
+  
+  .bid-partner{
+      font-size:2rem;
+  }
+  
+  /* show the bids buttons in a row wrapping to the next line if possible */
+  .bid-buttons{
+      display:flex;
+      flex-wrap:wrap;
+  }
+  
+  .bid-buttons input[type=button] {
+      margin:4px 8px;
+      height:3rem;
+      /* padding:4px; */
+      font-size:1.4rem;
+  }
+  
+  /* playing page */
+  .trump .diamond,.heart{
+      color:purple;
+  }
+  .diamond,.heart{
+      color:red;
+      /* font-size:1.2rem; */
+  }
+  .trump .club,.spade {
+      color:blue;
+  }
+  .club,.spade {
+      color:black;
+      /* font-size:1.4rem; */
+  }
+  
+  .card-text{
+      font-family:'Apple Symbols';
+      font-size:700%;
+      /* font-size:1.4rem; */
+  }
+  
+  .partner{
+      color:green;
+  }
+  .trick-cards{
+      margin:0 1rem;
+  }
+  
+  #game-info{
+      margin:0 10px;
+  }
+  #trick-info{
+      display:flex;
+      flex-direction: column;
+  }
+  /*
+  #page-playing {
+      background:black;
+  }
+  */
+  /*
+  .playablecard {
+      margin:4px;
+      padding:4px;
+  }
+  */
+  
+  /* playing finished page */
+  #page-finished {
+      background:beige;
+  }
+  
+  /* COLLAPSABLE BID CARDS (source: https://www.w3schools.com/howto/howto_js_collapsible.asp) */
+  /* Style the button that is used to open and close the collapsible content */
+  .collapsible-button {
+    background-color: #eee;
+    color: #444;
+    cursor: pointer;
+    padding: 10px;
+    width: 100%;
+    border: none;
+    text-align: left;
+    outline: none;
+    font-size: 15px;
+  }
+  
+  /* Add a background color to the button if it is clicked on (add the .active class with JS), and when you move the mouse over it (hover) */
+  .active-bid-button, .collapsible-button:hover {
+    background-color: #ccc;
+  }
+  
+  /* Style the collapsible content. Note: now open by default */
+  #bidder-suitecards-table {
+    padding: 0 18px;
+    display: block;
+    overflow: hidden;
+    background-color: #f1f1f1;
+  }
+  
+  .collapsible-button:after {
+      content: '\02795'; /* Unicode character for "plus" sign (+) */
+      font-size: 13px;
+      color: white;
+      float: right;
+      margin-left: 5px;
+    }
+    
+    .active-bid-button:after {
+      content: "\2796"; /* Unicode character for "minus" sign (-) */
+    }
