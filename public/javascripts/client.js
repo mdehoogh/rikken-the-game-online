@@ -38,6 +38,8 @@ function newGame(){
     (!currentPlayer||currentPlayer.playsTheGameAtIndex(null,-1));
 }
 
+function forceFocus(){if(!document.hasFocus())alert('Your turn!');}
+
 var bidderCardsElement=document.getElementById("bidder-cards");
 
 function initializeBidderSuitecardsButton(){
@@ -417,6 +419,7 @@ class OnlinePlayer extends Player{
     makeABid(playerBidsObjects,possibleBids){
         // debugger
         showGameState("Bied!"); // defined in info.js
+        forceFocus();
         document.getElementById("wait-for-bid").style.visibility="hidden"; // show the bidding element
         document.getElementById("bidding").style.visibility="visible"; // show the bidding element
         // currentPlayer=this; // remember the current player
@@ -457,6 +460,7 @@ class OnlinePlayer extends Player{
     }
     chooseTrumpSuite(suites){
         showGameState("Troef kiezen");
+        forceFocus();
         console.log("Possible trump suites:",suites);
         setPage("page-trump-choosing");
         document.getElementById("trump-suite-input").style.visibility="visible"; // ascertain to allow choosing the trump suite
@@ -467,6 +471,7 @@ class OnlinePlayer extends Player{
     }
     choosePartnerSuite(suites,partnerRank){ // partnerRankName changed to partnerRank (because Language should be used at the UI level only!)
         showGameState("Partner kiezen");
+        forceFocus();
         console.log("Possible partner suites:",suites);
         setPage("page-partner-choosing");
         document.getElementById("partner-suite-input").style.visibility="visible"; // ascertain to allow choosing the trump suite
@@ -480,6 +485,7 @@ class OnlinePlayer extends Player{
     playACard(trick){
         // currentPlayer=this;
         showGameState("Speel!"); // defined in info.js
+        forceFocus();
         document.getElementById("wait-for-play").style.visibility="hidden"; // hide the wait-for-play element
         document.getElementById("playing").style.visibility="visible"; // show the play element
         // currentPlayer=this; // remember the current player
@@ -1072,7 +1078,7 @@ function prepareForPlaying(){
 
     // MDH@09JAN2020: check for a user name
     var urlParams = new URLSearchParams(window.location.search);
-    let initialPlayerName=(urlParams.has("user")?urlParams.get("user").trim():null);
+    let initialPlayerName=(urlParams.has("player")?urlParams.get("player").trim():null);
     setPlayerName(initialPlayerName,(err)=>{});
 
 };

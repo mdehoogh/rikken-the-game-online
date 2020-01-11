@@ -1,6 +1,9 @@
 // gameengine requires plugging in a sockets.io server and a GamesListener
 const GamesListener=require('./gameslistener.js');
 
+const User=require('./models/user.js');
+const Game=require('./models/game.js');
+
 class RikkenTheGameGamesListener extends GamesListener{
     gameStarted(game){
         super.gameStarted(game);
@@ -8,6 +11,19 @@ class RikkenTheGameGamesListener extends GamesListener{
     gameFinished(game){
         super.gameFinished(game);
         // TODO store the game results
+        let playerNames=game.getPlayerNames();
+        
+        let playerScores=game._deltaPoints; // which will contain the points the players got
+        
+        let gameScores={name:game.name,scores:scores};
+        // store the game scores in the game collection and obtain the game id
+        let gameId=null;
+        Game.create(gameScores).then((game)=>{
+            // append the game id to the array of game ids stored with each player
+            playerNames.forEach((playerName)=>{
+                User.findOneAndUpdate({'username':playerName},{$push:{games:game.id}},(error,success)=>{console.log(error||success);});
+            });
+        }).catch((err)=>{console.error(err)});
     }
     gameCanceled(game){
         super.gameCanceled(game);
@@ -46,7 +62,7 @@ const socket_io_server=require('socket.io')(server/*,{
 
 const gameengine=require('./gameengine.js')(socket_io_server,new RikkenTheGameGamesListener());
 
-// MDH@11JAN2020: pretty essential to do the init BEFORE registering the helper AND then it worked!!!!!!
+// MDH@11JAN2020: pretty essential to do the init BEFORE registering the helper AND then it works
 app.use(i18n.init); // use internationalization
 app.use(function(req, res, next) {
     hbs.registerHelper('__',function(){
@@ -85,10 +101,9 @@ hbs.registerHelper('__l',()=>{
     return result;
 });
 */
-app.get('/', function(req, res) {
-    console.log("Rendering test.hbs");
-    res.render('./test.hbs');
-});
+app.get('/', (req, res)=>{res.render('test');}); // the test page with 4 links for each of the players
+
+app.get('/gameplaying',(req,res)=>{res.render('gameplaying');}); // each player 
 
 server.listen(3000,()=>{
     console.log("Express server listening on port 3000.");

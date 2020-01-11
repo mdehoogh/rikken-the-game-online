@@ -799,8 +799,6 @@ class Language{
     static get DUTCH_SUITE_NAMES(){return ["ruiten","klaveren","harten","schoppen"];};
 }
 
-function capitalize(str){return(str?(str.length?str[0].toUpperCase()+str.slice(1):""):"?");}
-
 // MDH@07JAN2020: adding entering the id of the user on page-settings, so we do not need to insert a new one
 //                alternatively we can do that on a separate page / page-auth is OK
 //                we go to page-auth when NOT playing the game in demo mode!!!

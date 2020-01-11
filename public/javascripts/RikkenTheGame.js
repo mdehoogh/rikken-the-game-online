@@ -548,6 +548,8 @@ class RikkenTheGame extends PlayerGame{
         return partnerRank;
     }
 
+    static _capitalize(str){return(str?(str.length?str[0].toUpperCase()+str.slice(1):""):"?");}
+
     /**
      * setter for setting the trump suite
      * if the game played is not played by a single person (without a partner), the partner suite is requested next passing the rank of the card to ask for
@@ -562,7 +564,7 @@ class RikkenTheGame extends PlayerGame{
             return;
         }
         this._partnerRank=-1; // safety measure 
-        this.log(">>> "+capitalize(Card.SUITE_NAMES[this._trumpSuite])+" selected as trump playing '"+PlayerGame.BID_NAMES[this._highestBid]+"'.");
+        this.log(">>> "+RikkenTheGame._capitalize(Card.SUITE_NAMES[this._trumpSuite])+" selected as trump playing '"+PlayerGame.BID_NAMES[this._highestBid]+"'.");
         // is this a trump game with a partner (ace/king) to ask for?
         // I guess we can pass along the rank, which means we can choose the rank ourselves
         if(this._highestBid==PlayerGame.BID_RIK||this._highestBid==PlayerGame.BID_RIK_BETER){ // yes, a regular 'rik'

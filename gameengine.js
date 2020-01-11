@@ -1,4 +1,5 @@
 // server-side game engine
+const Card=require('./public/javascripts/Card.js');
 const {CardHolder,HoldableCard}=require('./public/javascripts/CardHolder.js');
 const {PlayerEventListener,PlayerGame,Player}=require('./public/javascripts/Player.js'); // the player class we'll be extending...
 const {RikkenTheGameEventListener,Trick,RikkenTheGame}=require('./public/javascripts/RikkenTheGame.js'); // the (original) RikkenTheGame that we extend here
