@@ -198,9 +198,11 @@ class RikkenTheGame extends PlayerGame{
     isPlayerPartner(playerIndex,partnerIndex){let player=this.getPlayerAtIndex(playerIndex);return(player?partnerIndex===player.partner:false);}
 
     getHighestBidders(){return this._highestBidPlayers;} // return all players that play the highest bid (possibly more than one)
+    get highestBidders(){return this.highestBidders();}
 
     getHighestBid(){return this._highestBid;} // the bid of the game that is being played
-
+    get highestBid(){return this.getHighestBid();}
+    
     getLastBids(){
         let lastBids=[];this._highestBidPlayers.forEach((highestBidPlayer)=>{lastBids.push(highestBidPlayer[0]);});return lastBids;
     }
@@ -515,10 +517,12 @@ class RikkenTheGame extends PlayerGame{
    }
 
    // expose the current points each player has
-   get points(){return this._points.slice(0);} // returns a copy of the current set of points
+   getPoints(){return this._points.slice(0);} // returns a copy of the current set of points
+   get points(){return this.getPoints();}
 
    // and the results of the points won/lost in the last game (if any)
-   get deltaPoints(){return(this._deltaPoints?this._deltaPoints.slice(0):null);}
+   getDeltaPoints(){return(this._deltaPoints?this._deltaPoints.slice(0):null);}
+   get deltaPoints(){return this.getDeltaPoints();} // a getter for the time being
 
    /**
     * starts playing with player to start playing
@@ -915,13 +919,18 @@ class RikkenTheGame extends PlayerGame{
     }
     */
 
-    get bid(){return this._bid;} // the bid so far
-    get player(){return this._player;}
+    getBid(){return this._bid;}
+    get bid(){return this.getBid();} // the bid so far
 
-    get trumpSuite(){return this._trumpSuite;}
-    get partnerSuite(){return this._partnerSuite;}
-    get partnerRank(){return this._partnerRank;}
-    
+    getPlayer(){return this._player;}
+    get player(){return this.getPlayer();}
+
+    getTrumpSuite(){return this._trumpSuite;}
+    getPartnerSuite(){return this._partnerSuite;}
+    getPartnerRank(){return this._partnerRank;}
+    getFourthAcePlayer(){return this._fourthAcePlayer;}
+    getTrumpPlayer(){return this._trump}
+
     start(){
         if(this._state!==PlayerGame.IDLE)this.state=PlayerGame.IDLE; // if not in the IDLE state go there first
         if(this._state===PlayerGame.IDLE)this.state=PlayerGame.DEALING; // only from the IDLE state can we start dealing

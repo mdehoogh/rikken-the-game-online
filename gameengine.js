@@ -9,7 +9,7 @@ module.exports=(socket_io_server,gamesListener)=>{
     function gameEngineLog(tolog){console.log("GAME ENGINE >>> "+tolog);}
     
     function logEvent(from,to,event,data){
-        gameEngineLog(from+" sending event "+event+" with data "+JSON.stringify(data)+to+".");
+        gameEngineLog(from+" sending event "+event+" with data "+JSON.stringify(data)+" "+to+".");
         return [event,data];
     }
     function logReceivedEvent(from,event,data){
@@ -22,7 +22,15 @@ module.exports=(socket_io_server,gamesListener)=>{
     }
     function getTrickInfo(trick){
         // TODO we'd probably have to send more information from the trick
-        return {'cards':getCardsInfo(trick),'winner':trick.winner,'first':trick.firstPlayer};
+        let trickInfo={
+            cards:getCardsInfo(trick),
+            winner:trick.winner,
+            firstPlayer:trick.firstPlayer,
+            playSuite:trick.playSuite,
+            canAskForPartnerCard:trick.canAskForPartnerCard,
+            askingForPartnerCard:trick.askingForPartnerCard
+        };
+        return trickInfo;
     }
     function getTricksInfo(tricks){
         return tricks.map((trick)=>{return getTrickInfo(trick);});
@@ -252,17 +260,17 @@ module.exports=(socket_io_server,gamesListener)=>{
                 case PlayerGame.PLAYING:
                     // every player should know the game that is being played
                     // let's compose the object to send with all the data that is needed over there
+                    // NOTE: all these values are read-only so it's preferred to not use the (still available) getter anymore
                     {
-                        let playInfo={
-                            'trumpSuite':this.trumpSuite,
-                            'partnerSuite':this.partnerSuite,
-                            'partnerRank':this.partnerRank,
-                            'highestBid':this.highestBid,
-                            'highestBidders':this.highestBidPlayers,
-                            'trumpPlayer':this.trumpPlayer,  
-                            'fourthAcePlayer':this.fourthAcePlayer,
+                        let gameInfo={
+                            trumpSuite:this.getTrumpSuite(),
+                            partnerSuite:this.getPartnerSuite(),
+                            partnerRank:this.getPartnerRank(),
+                            highestBid:this.getHighestBid(),
+                            highestBidders:this.getHighestBidders(),
+                            fourthAcePlayer:this.getFourthAcePlayer()
                         };
-                        this.sendToAllPlayers('GAMEINFO',playInfo);
+                        this.sendToAllPlayers('GAMEINFO',gameInfo);
                     }
                     break;
                 case PlayerGame.CANCELING:

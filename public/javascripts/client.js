@@ -865,7 +865,15 @@ class PlayerGameProxy extends PlayerGame {
 
     parseTrick(trickInfo){
         let trick=new Trick();
+        trickInfo.cards.forEach((cardInfo)=>{new HoldableCard(cardInfo[0],cardInfo[1]).holder=trick;}); // store the cards received in trick
+        trick._firstPlayer=trickInfo.firstPlayer;
+        trick._winner=trickInfo.winner;
+        trick._playSuite=trickInfo.playSuite;
+        trick._canAskForPartnerCard=trickInfo.canAskForPartnerCard;
+        trick._askingForPartnerCard=trickInfo.askingForPartnerCard;
+        return trick;
     }
+
     prepareForCommunication(){
         console.log("Preparing for communication");
         // this._socket.on('connect',()=>{
@@ -919,7 +927,7 @@ class PlayerGameProxy extends PlayerGame {
             this._partnerRank=data.partnerRank;
             this._highestBid=data.highestBid;
             this._highestBidders=data.highestBidders;
-            this._trumpPlayer=data.trumpPlayer;
+            this._fourthAcePlayer=data.fourthAcePlayer;
         });
         this._socket.on("TO_BID",(data)=>{
             this.logEvent('TO_BID',data);
@@ -936,7 +944,7 @@ class PlayerGameProxy extends PlayerGame {
         this._socket.on('PLAY_A_CARD',(data)=>{
             this.logEvent('PLAY_A_CARD',data);
             // we're receiving trick info in data
-            currentPlayer.playACard(parseTrick(data));
+            currentPlayer.playACard(this.parseTrick(data));
         });
         this._socket.on('CHOOSE_TRUMP_SUITE',(data)=>{
             this.logEvent('CHOOSE_TRUMP_SUITE',data);
@@ -947,15 +955,15 @@ class PlayerGameProxy extends PlayerGame {
             currentPlayer.choosePartnerSuite(data.suites,data.partnerRankName);
         });
         this._socket.on('TRICK',(data)=>{
-            this.logEvent('TRICK',parseTrick(data));
-            updateTricks(parseTrick())
+            let trick=this.parseTrick(data);
+            this.logEvent('TRICK',trick);
+            updateTricks(trick);
         });
         this._socket.on('TRICKS',(data)=>{
             this.logEvent('TRICKS',data);
-            // we can't just simply assign the tricks though
-            this._tricks=[]; // should already be the case?????
-            data.forEach((trickInfo)=>{this._tricks.push(this.parseTrick(trickInfo))});
-            updateTricks();
+            // extract the tricks from the array of tricks in data
+            this._tricks=data.map((trickInfo)=>{return this.parseTrick(trickInfo);});
+            updateTricksPlayedTables();
         });
         this._socket.on('RESULTS',(data)=>{
             this.logEvent('RESULTS',data);
@@ -971,7 +979,7 @@ class PlayerGameProxy extends PlayerGame {
         this._state=PlayerGame.OUT_OF_ORDER;
         this._socket=socket;
         this._dealer=-1;
-        this._trumpSuite=-1;this._trumpPlayer=-1;
+        this._trumpSuite=-1;//this._trumpPlayer=-1;
         this._partnerSuite=-1;this._partnerRank=-1;
         this._numberOfTricksWon=[0,0,0,0]; // assume no tricks won by anybody
         this._highestBid=-1;this._highestBidders=[]; // no highest bidders yet
@@ -992,7 +1000,7 @@ class PlayerGameProxy extends PlayerGame {
     getTrumpSuite(){return this._trumpSuite;}
     getPartnerSuite(){return this._partnerSuite;}
     getPartnerRank(){return this._partnerRank;}
-    getTrumpPlayer(){return this._trumpPlayer;}
+    // getTrumpPlayer(){return this._trumpPlayer;}
     getNumberOfTricksWonByPlayer(player){return this._numberOfTricksWon[player];}
     getPartnerName(player){return this._partnerNames[player];}
     getHighestBidders(){return this._highestBidders;}

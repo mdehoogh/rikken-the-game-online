@@ -12,21 +12,33 @@ class RikkenTheGameGamesListener extends GamesListener{
         super.gameFinished(game);
         // TODO store the game results
         let playerNames=game.getPlayerNames();
-        
-        let playerScores=game._deltaPoints; // which will contain the points the players got
-        
-        let gameScores={name:game.name,scores:scores};
-        // store the game scores in the game collection and obtain the game id
-        let gameId=null;
-        Game.create(gameScores).then((game)=>{
-            // append the game id to the array of game ids stored with each player
-            playerNames.forEach((playerName)=>{
-                User.findOneAndUpdate({'username':playerName},{$push:{games:game.id}},(error,success)=>{console.log(error||success);});
+        User.find({'username':{$in:playerNames}})
+            .then((users)=>{
+                let playerScores=game._deltaPoints; // which will contain the points the players won/lost
+                if(users.length<playerNames.length){
+                    let gameScores=users.map((user,index)=>{return {"user":user._id,"score":playerScores[index]};});
+                    Game.create(gameScores)
+                        .then((game)=>{
+                            // append the game id to the array of game ids stored with each player
+                            playerNames.forEach((playerName)=>{
+                                // will the callback work???
+                                User.findOneAndUpdate({'username':playerName},{$push:{games:game.id}}
+                                                        ,(error,success)=>{
+                                                            console.log((error?"Error in ":"Result of")+"registering the game played by user "+playerName+".",(error||success));
+                                                            });
+                            });
+                        })
+                        .catch((err)=>{console.log("ERROR: Failed to register the results of game "+game.name+".",err);});            
+                }else
+                    console.log("ERROR: Unable to store the result of playing "+game.name+": not all players are registered users.");
+            })
+            .catch((err)=>{
+                console.log("ERROR: Failed to retrieve the users that played "+game.name+".",err);
             });
-        }).catch((err)=>{console.error(err)});
     }
     gameCanceled(game){
         super.gameCanceled(game);
+        console.log("Game "+game.name+" canceled!");
     }
 }
 
