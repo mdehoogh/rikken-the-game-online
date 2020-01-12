@@ -130,6 +130,13 @@ class CardHolder{
         return(card>=0); // found if card is not negative
     }
 
+    // MDH@13JAN2020: we need this to find a specific card
+    getCard(suite,rank){
+        let cardIndex=this._cards.length;
+        while(--cardIndex>=0){let card=this._cards[cardIndex];if(card.suite===suite&&card.rank===rank)return card;}
+        return null;
+    }
+
     /**
      * can expose a text represention
      */

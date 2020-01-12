@@ -1,4 +1,7 @@
 {
-    "Het Spel": "The Game",
-    "Speler": "Player"
+	"The Game": "The Game",
+	"Player": "Player",
+	"Bid": "Bid!",
+	"with": "with",
+	"test instruction": "Instruction: Hold down the cmd (Mac) or Control (Windows) key clicking all but the last link."
 }

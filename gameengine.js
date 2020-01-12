@@ -36,25 +36,59 @@ module.exports=(socket_io_server,gamesListener)=>{
         return tricks.map((trick)=>{return getTrickInfo(trick);});
     }
     // a RemotePlayer represents a remote player
-    class RemotePlayer extends Player {
+    class RemotePlayer extends Player{
 
         constructor(client){
             super(null); // for now nameless
             this._client=client;
             // this._userId=null;
             // this._wantsToPlay=false; // a flag that determines if a remote player wants to play
+            this._pendingEvents=[]; // keep track of all pending events
+        }
+        // expose pending events TODO we might clone them though
+        getPendingEvents(){return this._pendingEvents;}
+
+        _sendPendingEvents(){
+            while(this._client&&this._pendingEvents.length>0){
+                let pendingEvent=this._pendingEvents.shift();
+                this._client.emit(...logEvent(this.name,'over',pendingEvent[0],pendingEvent[1]));
+            }
+        }
+        addPendingEvents(pendingEvents){
+            // append all received pending events
+            if(pendingEvents&&pendingEvents.length>0)this._pendingEvents.push(...pendingEvents);
+            if(this._client)this._sendPendingEvents();
+        }
+        
+        _sendNewEvent(event,data){
+            // if we currently have a client, 
+            if(this._client){
+                this._sendPendingEvents(); // if we have any, send all pending events first
+                this._client.emit(...logEvent(this.name,'over',event,data));
+                return true;
+            }
+            // ASSERT no client to send to, so queue for sending at the earliest possible moment
+            this._pendingEvents.push([event,data]);
+            return false;
         }
 
         get client(){return this._client;}
-        set client(client){this._client=client;}
-
+        set client(client){
+            this._client=client;
+            if(this._client)this._sendPendingEvents(); // send any pending events we have
+        }
         get status(){
             return this.client?(this.game?"PLAYING":"IDLE"):(this.game?"*** BROKEN LINK ***":"DISCONNECTED");
         }
 
-        getInfo(defaultName){
-            return (this.name||defaultName)+":"+this.status;
-        }
+        getInfo(defaultName){return (this.name||defaultName)+":"+this.status;}
+
+        // if the game sets the partner (index) we need to send it over
+        set partner(partner){
+            super.partner=partner;
+            // send the partner over...
+            this._sendNewEvent('PARTNER',this._partner);
+        } // to set the partner once the partner suite/rank card is in the trick!!!!
 
         /*
         get userId(){return this._userId;}
@@ -93,33 +127,46 @@ module.exports=(socket_io_server,gamesListener)=>{
         }
         */
 
+        _getPlayerInfo(){
+            let cardsInfo=getCardsInfo(this);
+            return{cards:cardsInfo,numberOfTricksWon:this.numberOfTricksWon,numberOfTricksToWin:this.numberOfTricksToWin};
+        }
+
         sendCards(){
             gameEngineLog("Sending cards to client of remote player "+(this.name?this.name:"?")+".");
-            this._client.emit(...logEvent(this.name,'over','CARDS',getCardsInfo(this)));
+            this._sendNewEvent('CARDS',getCardsInfo(this));
         }
 
         // copied over from OnlinePlayer() in main.js 
         // METHODS CALLED BY THE GAME
         makeABid(playerBidObjects,possibleBids){
-            this._client.emit(...logEvent(this.name,'over','MAKE_A_BID',{'playerBidObjects':playerBidObjects,'possibleBids':possibleBids}));
+            this._sendNewEvent('MAKE_A_BID',{'playerBidObjects':playerBidObjects,'possibleBids':possibleBids});
         }
         chooseTrumpSuite(suites){
-            this._client.emit(...logEvent(this.name,'over','CHOOSE_TRUMP_SUITE',suites));
+            this._sendNewEvent('CHOOSE_TRUMP_SUITE',suites);
         }
         choosePartnerSuite(suites,partnerRankName){
-            this._client.emit(...logEvent(this.name,'over','CHOOSE_PARTNER_SUITE',{'suites':suites,'partnerRankName':partnerRankName}));
+            this._sendNewEvent('CHOOSE_PARTNER_SUITE',{'suites':suites,'partnerRankName':partnerRankName});
         }
         // almost the same as the replaced version except we now want to receive the trick itself
         playACard(trick){
+            // MDH@13JAN2020: let's send player info over before asking for the card to play
+            this._sendNewEvent('PLAYER_INFO',this._getPlayerInfo());
             // can we send all the trick information this way??????? I guess not
-            this._client.emit(...logEvent(this.name,'over','PLAY_A_CARD',getTrickInfo(trick)));
+            this._sendNewEvent('PLAY_A_CARD',getTrickInfo(trick));
+        }
+
+        setNumberOfTricksToWin(numberOfTricksToWin){
+            super.setNumberOfTricksToWin(numberOfTricksToWin);
+            // send the number of tricks to win over
+            this._sendNewEvent('TRICKS_TO_WIN',this.numberOfTricksToWin);
         }
         // END METHODS CALLED BY THE GAME
-
         // METHODS CALLED BY THE PLAYER ITSELF TO BE PASSED ON TO THE GAME
         // not to be confused with _cardPlayed() defined in the base class Player which informs the game
         // NOTE cardPlayed is a good point for checking the validity of the card played
         // NOTE can't use _cardPlayed (see Player superclass)
+        /* this method will be called on the other end, (and wouldn't work on this end)
         _cardPlayedWithSuiteAndIndex(suite,index){
             let card=(suite<this._suiteCards.length&&this._suiteCards[suite].length?this._suiteCards[suite][index]:null);
             if(card){
@@ -151,8 +198,7 @@ module.exports=(socket_io_server,gamesListener)=>{
                                 this._trick.askingForPartnerCard=-1; // yes, asking blind!!
                                 /////alert("\tBLIND!");
                             }
-                        }else
-                            /*alert("Not indicated!!!!")*/;
+                        };
                     }
                 }else{ // not the first card in the trick played
                     // the card needs to be the same suite as the play suite (if the player has any)
@@ -175,6 +221,7 @@ module.exports=(socket_io_server,gamesListener)=>{
             }else
                 alert("Invalid card suite "+String(suite)+" and suite index "+String(index)+".");
         }
+        */
         /*
         // playing a game means setting this._game (no need to actually know it here), and index which the client should know!!!
         playsTheGameAtIndex(game,index){
@@ -240,6 +287,21 @@ module.exports=(socket_io_server,gamesListener)=>{
         // MDH@07JAN2020: whenever the state changes, we tell the game players
         set state(newstate){
             let oldstate=this._state;
+            // unfortunately we need to send the game info BEFORE a player is asked for a card to play (as super.state would)
+            // NOTE on playing 'troela' BIDDING could be skipped, and we still need to send the game info over!!!!
+            if(oldstate<PlayerGame.PLAYING&&newstate===PlayerGame.PLAYING){
+                // every player should know the game that is being played
+                // let's compose the object to send with all the data that is needed over there
+                // NOTE: all these values are read-only so it's preferred to not use the (still available) getter anymore
+                this.sendToAllPlayers('GAME_INFO',{
+                    trumpSuite:this.getTrumpSuite(),
+                    partnerSuite:this.getPartnerSuite(),
+                    partnerRank:this.getPartnerRank(),
+                    highestBid:this.getHighestBid(),
+                    highestBidders:this.getHighestBidders(),
+                    fourthAcePlayer:this.getFourthAcePlayer()
+                });
+            };
             super.state=newstate; // should do what it needs to do
             if(this._state===oldstate)return;
             gameEngineLog("********* STATE CHANGE FROM "+oldstate+" TO "+this._state+" ************");
@@ -257,21 +319,7 @@ module.exports=(socket_io_server,gamesListener)=>{
                     // every player should know the cards it's been dealt (before moving to bidding page)
                     this._players.forEach((player)=>{player.sendCards();});
                     break;
-                case PlayerGame.PLAYING:
-                    // every player should know the game that is being played
-                    // let's compose the object to send with all the data that is needed over there
-                    // NOTE: all these values are read-only so it's preferred to not use the (still available) getter anymore
-                    {
-                        let gameInfo={
-                            trumpSuite:this.getTrumpSuite(),
-                            partnerSuite:this.getPartnerSuite(),
-                            partnerRank:this.getPartnerRank(),
-                            highestBid:this.getHighestBid(),
-                            highestBidders:this.getHighestBidders(),
-                            fourthAcePlayer:this.getFourthAcePlayer()
-                        };
-                        this.sendToAllPlayers('GAMEINFO',gameInfo);
-                    }
+                case PlayerGame.PLAYING: // see above
                     break;
                 case PlayerGame.CANCELING:
                     break;
@@ -435,6 +483,12 @@ module.exports=(socket_io_server,gamesListener)=>{
                 //gameOver(remotePlayers[remotePlayerIndex].tableId,true);
             */
         });
+        client.on('BYE',(data)=>{
+            // we have to cancel the game because one of the player left
+            // let's send the reason over?????
+            gameEngineLog("BYE event received"+JSON.stringify(data));
+            this.unregisterClient(client);
+        });
         // when a client sends in it's ID which it should
         client.on('PLAYER',(data)=>{
             // MDH@10JAN2020: this client could be a player we already know about (when a reconnect occurred)
@@ -458,6 +512,7 @@ module.exports=(socket_io_server,gamesListener)=>{
                         if(removedRemotePlayer&&removedRemotePlayer.game){
                             remotePlayer.index=removedRemotePlayer.index;
                             remotePlayer.game=removedRemotePlayer.game;
+                            remotePlayer.addPendingEvents(removedRemotePlayer.pendingEvents);
                         }
                     }else
                         gameEngineLog("WARNING: Player name '"+data+"' received again!");
@@ -473,7 +528,11 @@ module.exports=(socket_io_server,gamesListener)=>{
         });
         client.on('CARD',(data)=>{
             let remotePlayerIndex=getIndexOfRemotePlayerOfClient(client);
-            remotePlayers[remotePlayerIndex]._setCard(new Card(...logReceivedEvent(remotePlayers[remotePlayerIndex].name,'CARD',data)));
+            // we may assume that the card played is one from the given player AND we need to get that one
+            let player=remotePlayers[remotePlayerIndex];
+            // given that we get the actual card played from the other side, we should call player._setCard here!!!!
+            // passing in the actual card that the player has in his hands as returned by getCard() (defined in class CardHolder)
+            player._setCard(player.getCard(...logReceivedEvent(player.name,'CARD',data)));
         });
         client.on('TRUMPSUITE',(data)=>{
             let remotePlayerIndex=getIndexOfRemotePlayerOfClient(client);

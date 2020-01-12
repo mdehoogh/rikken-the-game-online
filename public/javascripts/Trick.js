@@ -1,3 +1,4 @@
+const Card=require('./Card.js'); // for comparing cards
 const {CardHolder,HoldableCard}=require('./CardHolder.js');
 
 class Trick extends CardHolder{
@@ -82,7 +83,7 @@ class Trick extends CardHolder{
             // MDH@09DEC2019: when asking for the partner card only the partner card can ever win (even if there's trump!!)
             //                but we need to know whether the partner card was already thrown
             //                SOLUTION: (NEAT) it's easiest to simply ignore trump is the partner card is being asked for!!!!!!
-            if(Cards.WithPlayAndTrumpSuite(card,this._cards[this._winnerCard],this._playSuite,(this._askingForPartnerCard!=0?-1:this._trumpSuite))>0)
+            if(Card.compareCardsWithPlayAndTrumpSuite(card,this._cards[this._winnerCard],this._playSuite,(this._askingForPartnerCard!=0?-1:this._trumpSuite))>0)
                 this._setWinnerCard(numberOfCardsNow);
         }else // after the first card the first player is the winner of course
             this._setWinnerCard(0);

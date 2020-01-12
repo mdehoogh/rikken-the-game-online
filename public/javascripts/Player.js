@@ -356,6 +356,7 @@ class Player extends CardHolder{
     }
 
     get numberOfTricksWon(){return this._tricksWon.length;}
+    
     getNumberOfTricksWon(){
         // return the total number of tricks won (including those by the partner (if any))
         return(this.numberOfTricksWon+this._game.getNumberOfTricksWonByPlayer(this.partner));

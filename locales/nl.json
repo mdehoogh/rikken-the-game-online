@@ -1,5 +1,13 @@
 {
-    "Het Spel": "Het Spel",
-    "Speler": "Speler",
-    "pas":"pas","rik":"rik","beter":"rik (beter)","negen (alleen)":"negen (alleen)","pico":"pico","tien (alleen)":"tien (alleen)"
+	"The Game": "Het Spel",
+	"Player": "Speler",
+	"Bid": "Bied!",
+	"with": "met",
+	"pas": "pas",
+	"rik": "rik",
+	"rik (better)": "rik (beter)",
+	"nine (alone)": "negen (alleen)",
+	"pico": "pico",
+	"ten (alone)": "tien (alleen)",
+	"test instruction": "Instructie: Hou de cmd (Mac) of Control (Windows) toets ingedrukt bij het klikken van elke link, behalve de laatste."
 }

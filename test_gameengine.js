@@ -83,7 +83,7 @@ app.use(function(req, res, next) {
             var options=args.pop();
             return i18n.__.apply(options.data.root,args);
           }
-          return i18n.__.apply(this, arguments);
+          return i18n.__.apply(this,arguments);
     });
     next();
   });
@@ -115,7 +115,7 @@ hbs.registerHelper('__l',()=>{
 */
 app.get('/', (req, res)=>{res.render('test');}); // the test page with 4 links for each of the players
 
-app.get('/gameplaying',(req,res)=>{res.render('gameplaying');}); // each player 
+app.get('/gameplaying',(req,res)=>{res.render('gameplaying',(req.query.player?null:{username:"Marc"}));}); // each player 
 
 server.listen(3000,()=>{
     console.log("Express server listening on port 3000.");

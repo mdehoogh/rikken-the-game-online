@@ -2,7 +2,7 @@
 <html>
   <head>
     <meta charset="UTF-8"><!-- we'll be needing this!! -->
-    <title>Rikken - {{__ 'Het Spel'}}</title>
+    <title>Rikken</title>
     <link rel='stylesheet' href='./public/stylesheets/mdhrikkenthegame.css' />
   </head>
   <body>
@@ -120,7 +120,7 @@
             <!-- current player -->
             <div id='wait-for-bid'>Het wachten is op het bod van <span id='to-bid'>?</span>.</div>
             <div id='bidding'>
-                <div class='prompt'><span id='bidder'></span>, wat wil je spelen?</div>
+                <div class='prompt'>Wat wil je spelen?</div>
                 <!-- all the possible bids will be buttons one can click -->
                 <div class='bid-buttons'>
                     <input type='button' data-bid='0' class='bid pas' value='Pas'>
@@ -470,7 +470,7 @@
                 <div id='wait-for-play'>Het wachten is op de kaart van <span id='to-play'></span></div>
                 <div id='playing'>
                     <div id='asking-for-partner-card-info'>De&nbsp;<span class='partner-suite'></span>&nbsp;<span class='partner-rank'></span>&nbsp;wordt gevraagd.</div>
-                    <div class='prompt'><span id='card-player'></span>, welke <span id='trick-playsuite'></span> wil je spelen?</div>
+                    <div class='prompt'>Welke <span id='trick-playsuite'></span> wil je spelen?</div>
                     <div id='ask-partner-card'>
                         <!-- a player can ask for the ace blind -->
                         <input type="checkbox" id='ask-partner-card-checkbox'><span>De&nbsp;<span class='partner-suite'></span>&nbsp;<span class='partner-rank'></span>&nbsp;<span id='ask-partner-card-blind'></span>vragen</span>
@@ -643,5 +643,7 @@
     <!-- link socket.io-client script from the server -->
     <script src='/socket.io/socket.io.js'></script>
     <script src='/public/javascripts/gameplaying.js'></script>
+    {{! if we have a username use it immediately }}
+    {{#if username}}<script>setPlayerName("{{username}}");</script>{{/if}}
   </body>
 </html>
