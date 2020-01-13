@@ -63,7 +63,7 @@ class RikkenTheGame extends PlayerGame{
     }
 
     log(tolog){
-        // console.log(tolog);
+        console.log("RIKKENTHEGAME >>> "+tolog);
     }
     
     // called when RikkenTheGame moves into the IDLE state

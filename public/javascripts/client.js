@@ -38,7 +38,9 @@ function newGame(){
     (!currentPlayer||currentPlayer.playsTheGameAtIndex(null,-1));
 }
 
-function forceFocus(){if(!document.hasFocus())alert('Your turn!');}
+function forceFocus(){
+    // if(!document.hasFocus())alert('Your turn!');
+}
 
 var bidderCardsElement=document.getElementById("bidder-cards");
 
@@ -82,6 +84,7 @@ function showPlayerNames(){
 
 // whenever the player changes, show the player name
 function showCurrentPlayerName(){
+    // showGameState(currentPlayer?currentPlayer.name:null); // show the current player name immediately in the title
     document.getElementById("player-name").innerHTML=(currentPlayer?currentPlayer.name:"?");
 }
 
@@ -415,7 +418,7 @@ class OnlinePlayer extends Player{
 
     // as we're not receiving the actual tricks won, we have to override the getter
     set numberOfTricksWon(numberOfTricksWon){this._numberOfTricksWon=numberOfTricksWon;}
-    get numberOfTricksWon(){return this._numberOfTricksWon;}
+    getNumberOfTricksWon(){return this._numberOfTricksWon;} // do NOT use the getter here!!!!
 
     // to set the partner once the partner suite/rank card is in the trick!!!!
 
@@ -821,43 +824,44 @@ class PlayerGameProxy extends PlayerGame {
     bidMade(bid){
         if(this._state===PlayerGame.OUT_OF_ORDER)return false;
         this._socket.emit(...this.getSendEvent('BID',bid,function(){
-            console.log("Bid event acknowledged!");
-        })); // no need to send the player id I think... {'by':this._playerIndex,'bid':bid}));
-        document.getElementById("bidding").style.visibility="hidden"; // hide the bidding element again
-        showGameState(null); // a bit crude to get rid of the Bieden page name though
+                console.log("BID event receipt acknowledged!");
+                document.getElementById("bidding").style.visibility="hidden"; // hide the bidding element again
+                showGameState(null); // a bit crude to get rid of the Bieden page name though
+            })); // no need to send the player id I think... {'by':this._playerIndex,'bid':bid}));
         return true;
     }
     // MDH@13JAN2020: we're sending the exact card over that was played (and accepted at this end as it should I guess)
     cardPlayed(card){
         if(this._state===PlayerGame.OUT_OF_ORDER)return false;
         this._socket.emit(...this.getSendEvent('CARD',[card.suite,card.rank],function(){
-            console.log("Card played receipt acknowledged.");
-        })); // replacing: {'player':this._playerIndex,'card':[card.suite,card.rank]}));
-        document.getElementById("playing").style.visibility="hidden"; // hide the bidding element again
-        showGameState(null);
+                console.log("CARD played receipt acknowledged.");
+                document.getElementById("playing").style.visibility="hidden"; // hide the bidding element again
+                showGameState(null);
+            })); // replacing: {'player':this._playerIndex,'card':[card.suite,card.rank]}));
         return true;
     }
     trumpSuiteChosen(trumpSuite){
         if(this._state===PlayerGame.OUT_OF_ORDER)return false;
         this._socket.emit(...this.getSendEvent('TRUMPSUITE',trumpSuite,function(){
-            console.log("Trump suite event receipt acknowledged.");
-        })); // same here: {'player':this._playerIndex,'suite':trumpSuite}));
-        showGameState(null);
-        document.getElementById("trump-suite-input").style.visibility="hidden"; // ascertain to hide the trump suite input element
+                console.log("Trump suite event receipt acknowledged.");
+                showGameState(null);
+                document.getElementById("trump-suite-input").style.visibility="hidden"; // ascertain to hide the trump suite input element
+            })); // same here: {'player':this._playerIndex,'suite':trumpSuite}));
         return true;
     }
     partnerSuiteChosen(partnerSuite){
         if(this._state===PlayerGame.OUT_OF_ORDER)return false;
         this._socket.emit(...this.getSendEvent('PARTNERSUITE',partnerSuite,function(){
-            console.log("Partner suite event receipt acknowledged!");
-        })); // replacing: {'player':this._playerIndex,'suite':partnerSuite}));
-        document.getElementById("partner-suite-input").style.visibility="hidden"; // ascertain to hide the partner suite input element
-        showGameState(null);
+                console.log("Partner suite event receipt acknowledged!");
+                document.getElementById("partner-suite-input").style.visibility="hidden"; // ascertain to hide the partner suite input element
+                showGameState(null);
+            })); // replacing: {'player':this._playerIndex,'suite':partnerSuite}));
         return true;
     }
     exit(reason){
         this._socket.emit(...this.getSendEvent('BYE',reason,function(){
-            console.log("Bye event receipt acknowledged!");
+            console.log("BYE event receipt acknowledged!");
+            setPage("page=rules");
         }));
     }
 

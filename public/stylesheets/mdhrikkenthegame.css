@@ -49,7 +49,7 @@
   }
   
   .prompt {
-      font-size:1.5rem;
+      font-size:1.25rem;
   }
   
   input[type=button] {
@@ -100,12 +100,12 @@
       top:1.6rem;
       right:1.6rem;
       margin:auto;
-      font-size:1.6rem;
+      font-size:1.25rem;
   }
   
   /* h1 is used for page titles */
   .page-title{
-      font-size:1.6rem;
+      font-size:1.4rem;
   }
   
   .page-header{
@@ -159,7 +159,7 @@
   */
   
   .bid-partner{
-      font-size:2rem;
+      font-size:1.4rem;
   }
   
   /* show the bids buttons in a row wrapping to the next line if possible */
@@ -193,7 +193,7 @@
   
   .card-text{
       font-family:'Apple Symbols';
-      font-size:700%;
+      font-size:600%;
       /* font-size:1.4rem; */
   }
   
@@ -204,9 +204,9 @@
       margin:0 1rem;
   }
   
-  #game-info{
+  /* #game-info{
       margin:0 10px;
-  }
+  } */
   #trick-info{
       display:flex;
       flex-direction: column;

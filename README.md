@@ -19,6 +19,30 @@ DEVELOPMENT
   It's index.html is present in this project at the root level, and is used as base of the client (browser) part, extended in such a way
   that the server part (app) running on the server machine communicates over a web socket to the client.
 
+  GAME PLAY TESTING
+  -----------------
+  The game play can be tested separately.
+  To do so (standing in the folder you cloned the repository from):
+  $ cd rikken-the-game-online
+  $ code .
+  In VS Code execute npm script 'test' from the NPM SCRIPTS tab in the EXPLORER window, or, open the terminal (Cmd/Ctrl-~), and
+  $ npm test
+  Then, open Chrome and open URL 'localhost:3001'.
+  If everything is Ok, you get to see a list of 8 links.
+  After Cmd/Ctrl clicking 4 links, 4 tabs will be created, and each tab would have a title started with 'Rikken'.
+  With 4 active players, the game engine will start a game.
+  Once a game starts the game engine will prompt each player for bidding, choose trump and/or partner suits, and play cards.
+  Every prompt will make the name of the player appear in the document title. This way one knows what tab page to go to
+  while testing.
+
+  However, due to problems sending information between player and game engine the game might halt.
+  If that happens nobody is prompted anymore while they should. In that case kill the VS Code terminal, followed by closing
+  all player tab pages in Chrome, and start over. Of course, we will attempt to fix all the little bugs asap. 
+
+  Good luck!
+
+  Marc P. de Hoogh, 14 January 2020
+
 
 
 

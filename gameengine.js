@@ -403,10 +403,10 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
         
         // PlayerEventListener implementation
         bidMade(bid){
-            super.bidMade(bid);
             // 1. register the bid
             ////////now passed in as argument: let bid=this._players[this._player].bid; // collect the bid made by the current player
-            gameEngineLog("Bid by "+this._players[this._player].name+": '"+PlayerGame.BID_NAMES[bid]+"'.");
+            gameEngineLog("Bid by "+this._players[this._player].name+": "+PlayerGame.BID_NAMES[bid]+".");
+            super.bidMade(bid);
         }
         trumpSuiteChosen(chosenTrumpSuite){
             super.trumpSuiteChosen(chosenTrumpSuite);
