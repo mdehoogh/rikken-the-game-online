@@ -1757,7 +1757,7 @@ function _setPlayer(player,errorcallback){
         currentPlayer=null;
     }
     if(player){
-        let clientsocket=io('http://localhost:3000');
+        let clientsocket=io('http://localhost:3001');
         clientsocket.on('connect',()=>{
             if(clientsocket.connected){
                 console.log("Connected!!!");

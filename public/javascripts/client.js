@@ -812,15 +812,17 @@ function cancelGame(){
 // MDH@07JAN2020: additional stuff that we're going to need to make this stuff work
 class PlayerGameProxy extends PlayerGame {
 
-    getSendEvent(event,data){
+    getSendEvent(event,data,callback){
         console.log("Sending event "+event+" with data "+JSON.stringify(data)+".");
-        return [event,data];
+        return [event,data,callback];
     }
 
     // what the player will be calling when (s)he made a bid, played a card, choose trump or partner suite
     bidMade(bid){
         if(this._state===PlayerGame.OUT_OF_ORDER)return false;
-        this._socket.emit(...this.getSendEvent('BID',bid)); // no need to send the player id I think... {'by':this._playerIndex,'bid':bid}));
+        this._socket.emit(...this.getSendEvent('BID',bid,function(){
+            console.log("Bid event acknowledged!");
+        })); // no need to send the player id I think... {'by':this._playerIndex,'bid':bid}));
         document.getElementById("bidding").style.visibility="hidden"; // hide the bidding element again
         showGameState(null); // a bit crude to get rid of the Bieden page name though
         return true;
@@ -828,26 +830,36 @@ class PlayerGameProxy extends PlayerGame {
     // MDH@13JAN2020: we're sending the exact card over that was played (and accepted at this end as it should I guess)
     cardPlayed(card){
         if(this._state===PlayerGame.OUT_OF_ORDER)return false;
-        this._socket.emit(...this.getSendEvent('CARD',[card.suite,card.rank])); // replacing: {'player':this._playerIndex,'card':[card.suite,card.rank]}));
+        this._socket.emit(...this.getSendEvent('CARD',[card.suite,card.rank],function(){
+            console.log("Card played receipt acknowledged.");
+        })); // replacing: {'player':this._playerIndex,'card':[card.suite,card.rank]}));
         document.getElementById("playing").style.visibility="hidden"; // hide the bidding element again
         showGameState(null);
         return true;
     }
     trumpSuiteChosen(trumpSuite){
         if(this._state===PlayerGame.OUT_OF_ORDER)return false;
-        this._socket.emit(...this.getSendEvent('TRUMPSUITE',trumpSuite)); // same here: {'player':this._playerIndex,'suite':trumpSuite}));
+        this._socket.emit(...this.getSendEvent('TRUMPSUITE',trumpSuite,function(){
+            console.log("Trump suite event receipt acknowledged.");
+        })); // same here: {'player':this._playerIndex,'suite':trumpSuite}));
         showGameState(null);
         document.getElementById("trump-suite-input").style.visibility="hidden"; // ascertain to hide the trump suite input element
         return true;
     }
     partnerSuiteChosen(partnerSuite){
         if(this._state===PlayerGame.OUT_OF_ORDER)return false;
-        this._socket.emit(...this.getSendEvent('PARTNERSUITE',partnerSuite)); // replacing: {'player':this._playerIndex,'suite':partnerSuite}));
+        this._socket.emit(...this.getSendEvent('PARTNERSUITE',partnerSuite,function(){
+            console.log("Partner suite event receipt acknowledged!");
+        })); // replacing: {'player':this._playerIndex,'suite':partnerSuite}));
         document.getElementById("partner-suite-input").style.visibility="hidden"; // ascertain to hide the partner suite input element
         showGameState(null);
         return true;
     }
-    exit(reason){this._socket.emit(...this.getSendEvent('BYE',reason));}
+    exit(reason){
+        this._socket.emit(...this.getSendEvent('BYE',reason,function(){
+            console.log("Bye event receipt acknowledged!");
+        }));
+    }
 
     set state(newstate){
         let oldstate=this._state;
@@ -1157,7 +1169,7 @@ function _setPlayer(player,errorcallback){
     }
     // if(errorcallback)setPage("page-rules"); // the page we can show if there's no player!!!! (TODO or page-auth?????)
     if(player){
-        let clientsocket=io('http://localhost:3000');
+        let clientsocket=io(location.protocol+'//'+location.host);
         clientsocket.on('connect',()=>{
             if(clientsocket.connected){
                 console.log("Connected!!!");

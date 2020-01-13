@@ -4,7 +4,7 @@ const {CardHolder,HoldableCard}=require('./public/javascripts/CardHolder.js');
 const {PlayerEventListener,PlayerGame,Player}=require('./public/javascripts/Player.js'); // the player class we'll be extending...
 const {RikkenTheGameEventListener,Trick,RikkenTheGame}=require('./public/javascripts/RikkenTheGame.js'); // the (original) RikkenTheGame that we extend here
 
-module.exports=(socket_io_server,gamesListener)=>{
+module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
 
     function gameEngineLog(tolog){console.log("GAME ENGINE >>> "+tolog);}
     
@@ -12,6 +12,7 @@ module.exports=(socket_io_server,gamesListener)=>{
         gameEngineLog(from+" sending event "+event+" with data "+JSON.stringify(data)+" "+to+".");
         return [event,data];
     }
+
     function logReceivedEvent(from,event,data){
         gameEngineLog("Received event "+event+" with data "+JSON.stringify(data)+" from "+from+".");
         return data;
@@ -35,6 +36,55 @@ module.exports=(socket_io_server,gamesListener)=>{
     function getTricksInfo(tricks){
         return tricks.map((trick)=>{return getTrickInfo(trick);});
     }
+
+    // MDH@14JAN2020 (day 31): I want to ascertain receipt at the other end
+    class SendEvent{
+        constructor(client,from,to,event,data,sendInterval){
+            this._client=client;
+            this._from=from;
+            this._to=to;
+            this._event=event;
+            this._data=data;
+            this._sendInterval=sendInterval;
+            this._sendAfter=1;
+        }
+        send(){
+            gameEngineLog("Sending acknowledgeable event "+this._event+".");
+            this._sendAfter=this._sendInterval; // reset the send counter
+            // send with an ack function at the end
+            let sendEventData=logEvent(this._from,this._to,this._event,this._data);
+            this._client.emit(sendEventData[0],sendEventData[1],(answer)=>{
+                gameEngineLog("Event "+this._event+" receipt acknowledged "+(!answer?"":"(answer: "+answer+")")+"!");
+                this._sendAfter=-1; // indicating successful delivery, so it won't get send again
+            });
+        }
+    }
+    var sendEventQueue=[]; // keep a send event queue
+    // sendEvents should be executed every second using 
+    function sendEventQueueProcessor(){
+        // decrement the _sendAfter counter by 1 for all events to send when positive
+        let sendEventIndex=sendEventQueue.length;
+        gameEngineLog("Processing "+sendEventIndex+" send events.");
+        while(--sendEventIndex>=0){
+            let sendEvent=sendEventQueue[sendEventIndex];
+            if(sendEvent._sendAfter>0){
+                sendEvent._sendAfter--;
+                // send the event when _sendAfter reached zero
+                if(sendEvent._sendAfter===0)sendEvent.send();
+            }else
+            if(sendEvent._sendAfter<0) // acknowledged so no longer need to be sent!!!!
+                sendEventQueue.splice(sendEventIndex,1);
+        }
+    }
+    var sendEventIntervalId=null;
+    function stopSendingEvents(){
+        if(sendEventIntervalId){clearInterval(sendEventIntervalId);sendEventIntervalId=null;}
+    }
+    function startSendingEvents(){
+        stopSendingEvents();
+        sendEventIntervalId=setInterval(sendEventQueueProcessor,1000);
+    }
+
     // a RemotePlayer represents a remote player
     class RemotePlayer extends Player{
 
@@ -47,11 +97,14 @@ module.exports=(socket_io_server,gamesListener)=>{
         }
         // expose pending events TODO we might clone them though
         getPendingEvents(){return this._pendingEvents;}
-
         _sendPendingEvents(){
             while(this._client&&this._pendingEvents.length>0){
                 let pendingEvent=this._pendingEvents.shift();
-                this._client.emit(...logEvent(this.name,'over',pendingEvent[0],pendingEvent[1]));
+                if(sendEventIntervalId)
+                    // push in from the front, because we send from the back!!!
+                    sendEventQueue.unshift(new SendEvent(this._client,this.name,'over',pendingEvent[0],pendingEvent[1],pendingEvent[2]));
+                else
+                    this._client.emit(...logEvent(this.name,'over',pendingEvent[0],pendingEvent[1]));
             }
         }
         addPendingEvents(pendingEvents){
@@ -60,15 +113,18 @@ module.exports=(socket_io_server,gamesListener)=>{
             if(this._client)this._sendPendingEvents();
         }
         
-        _sendNewEvent(event,data){
+        _sendNewEvent(event,data,sendInterval){
             // if we currently have a client, 
             if(this._client){
                 this._sendPendingEvents(); // if we have any, send all pending events first
-                this._client.emit(...logEvent(this.name,'over',event,data));
+                if(sendEventIntervalId)
+                    sendEventQueue.unshift(new SendEvent(this._client,this.name,'over',event,data,sendInterval));
+                else 
+                    this._client.emit(...logEvent(this.name,'over',event,data));
                 return true;
             }
             // ASSERT no client to send to, so queue for sending at the earliest possible moment
-            this._pendingEvents.push([event,data]);
+            this._pendingEvents.push([event,data,sendInterval]);
             return false;
         }
 
@@ -87,7 +143,7 @@ module.exports=(socket_io_server,gamesListener)=>{
         set partner(partner){
             super.partner=partner;
             // send the partner over...
-            this._sendNewEvent('PARTNER',this._partner);
+            this._sendNewEvent('PARTNER',this._partner,2);
         } // to set the partner once the partner suite/rank card is in the trick!!!!
 
         /*
@@ -134,32 +190,32 @@ module.exports=(socket_io_server,gamesListener)=>{
 
         sendCards(){
             gameEngineLog("Sending cards to client of remote player "+(this.name?this.name:"?")+".");
-            this._sendNewEvent('CARDS',getCardsInfo(this));
+            this._sendNewEvent('CARDS',getCardsInfo(this),5);
         }
 
         // copied over from OnlinePlayer() in main.js 
         // METHODS CALLED BY THE GAME
         makeABid(playerBidObjects,possibleBids){
-            this._sendNewEvent('MAKE_A_BID',{'playerBidObjects':playerBidObjects,'possibleBids':possibleBids});
+            this._sendNewEvent('MAKE_A_BID',{'playerBidObjects':playerBidObjects,'possibleBids':possibleBids},5);
         }
         chooseTrumpSuite(suites){
-            this._sendNewEvent('CHOOSE_TRUMP_SUITE',suites);
+            this._sendNewEvent('CHOOSE_TRUMP_SUITE',suites,10);
         }
         choosePartnerSuite(suites,partnerRankName){
-            this._sendNewEvent('CHOOSE_PARTNER_SUITE',{'suites':suites,'partnerRankName':partnerRankName});
+            this._sendNewEvent('CHOOSE_PARTNER_SUITE',{'suites':suites,'partnerRankName':partnerRankName},10);
         }
         // almost the same as the replaced version except we now want to receive the trick itself
         playACard(trick){
             // MDH@13JAN2020: let's send player info over before asking for the card to play
             this._sendNewEvent('PLAYER_INFO',this._getPlayerInfo());
             // can we send all the trick information this way??????? I guess not
-            this._sendNewEvent('PLAY_A_CARD',getTrickInfo(trick));
+            this._sendNewEvent('PLAY_A_CARD',getTrickInfo(trick),10);
         }
 
         setNumberOfTricksToWin(numberOfTricksToWin){
             super.setNumberOfTricksToWin(numberOfTricksToWin);
             // send the number of tricks to win over
-            this._sendNewEvent('TRICKS_TO_WIN',this.numberOfTricksToWin);
+            this._sendNewEvent('TRICKS_TO_WIN',this.numberOfTricksToWin,5);
         }
         // END METHODS CALLED BY THE GAME
         // METHODS CALLED BY THE PLAYER ITSELF TO BE PASSED ON TO THE GAME
@@ -464,7 +520,7 @@ module.exports=(socket_io_server,gamesListener)=>{
         //console.log("Client: ",client);
         showRemotePlayersInfo("Connect");
         // if a client disconnect they cannot play anymore
-        client.on('disconnect', () => {
+        client.on('disconnect', (callback) => {
             let remotePlayerIndex=getIndexOfRemotePlayerOfClient(client);
             if(remotePlayerIndex>=0){
                 let remotePlayer=remotePlayers[remotePlayerIndex];
@@ -474,6 +530,7 @@ module.exports=(socket_io_server,gamesListener)=>{
             }else
                 gameEngineLog("ERROR: Unknown remote player client disconnecting!");
             showRemotePlayersInfo("Disconnect");
+            if(typeof callback==='function')callback();else gameEngineLog("No callback on disconnect event.");
             /* replacing:
             // if still playing a game might reconnect, otherwise accept
             if(remotePlayers[remotePlayerIndex].tableId)
@@ -483,14 +540,15 @@ module.exports=(socket_io_server,gamesListener)=>{
                 //gameOver(remotePlayers[remotePlayerIndex].tableId,true);
             */
         });
-        client.on('BYE',(data)=>{
+        client.on('BYE',(data,callback)=>{
             // we have to cancel the game because one of the player left
             // let's send the reason over?????
             gameEngineLog("BYE event received"+JSON.stringify(data));
             this.unregisterClient(client);
+            if(typeof callback==='function')callback();else gameEngineLog("No callback on BYE event.");
         });
         // when a client sends in it's ID which it should
-        client.on('PLAYER',(data)=>{
+        client.on('PLAYER',(data,callback)=>{
             // MDH@10JAN2020: this client could be a player we already know about (when a reconnect occurred)
             //                it's easier to remove the other client instead of 
             let indexOfRemotePlayerOfClient=getIndexOfRemotePlayerOfClient(client);
@@ -520,29 +578,36 @@ module.exports=(socket_io_server,gamesListener)=>{
             }else
                 gameEngineLog("ERROR: Name of unregistered player ("+data+") received!");
             showRemotePlayersInfo("Player ID");
+            if(typeof callback==='function')callback();else console.log("No callback on PLAYER event");
         });
         // what's coming back from the players are bids, cards played, trump and/or partner suites choosen
-        client.on('BID', (data) => { 
+        client.on('BID', (data,callback) => { 
             let remotePlayerIndex=getIndexOfRemotePlayerOfClient(client);
             remotePlayers[remotePlayerIndex]._setBid(logReceivedEvent(remotePlayers[remotePlayerIndex].name,'BID',data));
+            if(typeof callback==='function')callback();else gameEngineLog("No callback on BID event.");
         });
-        client.on('CARD',(data)=>{
+        client.on('CARD',(data,callback)=>{
             let remotePlayerIndex=getIndexOfRemotePlayerOfClient(client);
             // we may assume that the card played is one from the given player AND we need to get that one
             let player=remotePlayers[remotePlayerIndex];
             // given that we get the actual card played from the other side, we should call player._setCard here!!!!
             // passing in the actual card that the player has in his hands as returned by getCard() (defined in class CardHolder)
             player._setCard(player.getCard(...logReceivedEvent(player.name,'CARD',data)));
+            if(typeof callback==='function')callback();else gameEngineLog("No callback on CARD event.");
         });
-        client.on('TRUMPSUITE',(data)=>{
+        client.on('TRUMPSUITE',(data,callback)=>{
             let remotePlayerIndex=getIndexOfRemotePlayerOfClient(client);
             remotePlayers[remotePlayerIndex]._setTrumpSuite(logReceivedEvent(remotePlayers[remotePlayerIndex].name,'TRUMPSUITE',data));
+            if(typeof callback==='function')callback();else gameEngineLog("No callback on TRUMPSUITE event.");
         });
-        client.on('PARTNERSUITE',(data)=>{
+        client.on('PARTNERSUITE',(data,callback)=>{
             let remotePlayerIndex=getIndexOfRemotePlayerOfClient(client);
             remotePlayers[remotePlayerIndex]._setPartnerSuite(logReceivedEvent(remotePlayers[remotePlayerIndex].name,'PARTNERSUITE',data));
+            if(typeof callback==='function')callback();else gameEngineLog("No callback on PARTNERSUITE event.");
         });
     });
+
+    if(acknowledgmentRequired)startSendingEvents(); // ascertain to start sending events 
 
     // returning all the functions to interface with the game engine
     // any user that logs in should call canPlay and as soon as logged out cantPlay

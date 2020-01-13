@@ -80,7 +80,7 @@ const PLAYERTYPE_FOO=0,PLAYERTYPE_UNKNOWN=1,PLAYERTYPE_FRIEND=2;
 class Player extends CardHolder{
 
     log(tolog){
-        console.log("PLAYER >>> "+tolog);
+        // console.log("PLAYER >>> "+tolog);
     }
     
     addEventListener(playerEventListener){

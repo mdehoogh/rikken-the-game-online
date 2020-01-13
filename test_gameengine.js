@@ -72,7 +72,9 @@ const socket_io_server=require('socket.io')(server/*,{
     cookie: false
   }*/);
 
-const gameengine=require('./gameengine.js')(socket_io_server,new RikkenTheGameGamesListener());
+// running with the acknowledgmentRequired flag set to true would result in multiple users being asked to send their bid
+// which must mean that an event isn't actually acknowledged!!!!!
+const gameengine=require('./gameengine.js')(socket_io_server,new RikkenTheGameGamesListener(),false);
 
 // MDH@11JAN2020: pretty essential to do the init BEFORE registering the helper AND then it works
 app.use(i18n.init); // use internationalization
@@ -117,7 +119,7 @@ app.get('/', (req, res)=>{res.render('test');}); // the test page with 4 links f
 
 app.get('/gameplaying',(req,res)=>{res.render('gameplaying',(req.query.player?null:{username:"Marc"}));}); // each player 
 
-server.listen(3000,()=>{
-    console.log("Express server listening on port 3000.");
+server.listen(3001,()=>{
+    console.log("Express server listening on port 3001.");
 });
 
