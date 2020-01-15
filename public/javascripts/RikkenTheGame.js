@@ -101,6 +101,7 @@ class RikkenTheGame extends PlayerGame{
 
         if(eventListener&&!(eventListener instanceof RikkenTheGameEventListener))
             throw new Error("Invalid event listener defined.");
+
         this._eventListener=eventListener;
 
         if(!players||!Array.isArray(players)||players.length<4)
@@ -110,27 +111,41 @@ class RikkenTheGame extends PlayerGame{
         this._deltaPoints=[]; // what is won/lost in a single game
         this._players=[]; // to store the players myself
         // replace undefined players by emulated players and register myself as player event listener
-        let player=players.length;
-        while(--player>=0){
-            if(players[player]){
-                if(!(players[player] instanceof Player))
+        let playerIndex=players.length;
+        while(--playerIndex>=0){
+            if(players[playerIndex]){
+                if(!(players[playerIndex] instanceof Player))
                     throw new Error("Player of wrong type.");
-                this._players.unshift(players[player]);
-            }else
+                this._players.unshift(players[playerIndex]);
+            }else{
+                console.log("Emulating player #"+playerIndex+".");
                 this._players.unshift(new EmulatedPlayer(RikkenTheGame.MY_NAME));
+            }
             this._points.unshift(0); // start with zero points
         }
-
+        console.log("Game players registered!");
         // MDH@07JAN2020: we can move the following to when the game wants to move to the IDLE state
         ///*
         // register the game with each of the players and initialie the player bids as well
         ////this._passBidCount=0; // the number of players that bid 'pass'
         ////this._playersBids=[];
-        player=this._players.length;
-        while(--player>=0){
-            this._players[player].playsTheGameAtIndex(this,player);
-            if(this._players[player].game!=this)
-                throw new Error("Failed to register player '"+this._players[player].name+"'.");
+        playerIndex=this._players.length;
+        while(--playerIndex>=0){
+            let player=this._players[playerIndex];
+            if(player){
+                console.log("Registering the game player at index #"+(playerIndex)+".");
+                try{
+                    player.playsTheGameAtIndex(this,playerIndex);
+                }catch(err){
+                    console.error(err);
+                }
+                if(player.game!=this){
+                    console.log("ERROR: Game player at index #"+(playerIndex)+"  NOT  registered.");
+                    //throw new Error("Failed to register player '"+this._players[playerIndex].name+"'.");
+                }else
+                    console.log("Game player at index #"+(playerIndex)+" registered.");    
+            }else
+                console.log("ERROR: No player at index #"+playerIndex+".");
             ////this._playersBids.push([]);
         }
         ////if(this._playersBids.length<4)throw new Error("Failed to initialize the player bids.");
@@ -158,7 +173,7 @@ class RikkenTheGame extends PlayerGame{
         // move the state to the IDLE state!!!!
         this.state=IDLE;
         */
-
+        console.log("Game created!");
     }
 
     get numberOfPlayers(){return this._players.length;}
@@ -762,9 +777,14 @@ class RikkenTheGame extends PlayerGame{
 
     getTrickAtIndex(index){return(index>=0&&index<this._tricks.length?this._tricks[index]:null);}
 
-    cardPlayed(card){
-        this.log("Card played");
+    // MDH@14JAN2020: adding the 'flag' indicating whether or not the partner card is being asked
+    //                NOTE this is only allowed though when this is the first card and the partner card
+    //                     can be asked for as is determined by the _canAskForPartnerCard flag in the trick
+    cardPlayed(card,askingForPartnerCard){
+        this.log("Card played (asking for partner card: "+askingForPartnerCard+").");
         let numberOfPlayerCards=this._players[this._player].numberOfCards;
+        // MDH@14JAN2020: if the user didn't uncheck the ask-partner-card (s)he is asking for the partner card
+        this._trick.askingForPartnerCard=askingForPartnerCard;
         ////////////////// now passed in as argument!!!! let card=this._players[this._player].card;
         // move the card into the trick (effectively removing it from the player cards)
         this._trick.addCard(card);

@@ -42,6 +42,9 @@ function forceFocus(){
     // if(!document.hasFocus())alert('Your turn!');
 }
 
+// of course: from stackoverflow!!!
+function difference(a1,a2){var a2Set=new Set(a2);return a1.filter((x)=>!a2Set.has(x));}
+
 var bidderCardsElement=document.getElementById("bidder-cards");
 
 function initializeBidderSuitecardsButton(){
@@ -554,7 +557,8 @@ class OnlinePlayer extends Player{
                     if(this._trick.canAskForPartnerCard<0){ // could be blind
                         // if the checkbox is still set i.e. the user didn't uncheck it
                         // he will be asking for the 
-                        if(document.getElementById("ask-partner-card-blind").checked&&
+                        // MDH@14JAN2020 BUG FIX: was using ask-partner-card-blind instead of ask-partner-card-checkbox!!!
+                        if(document.getElementById("ask-partner-card-checkbox").checked&&
                             (suite!=this._game.getTrumpSuite()||confirm("Wilt U de "+Language.DUTCH_SUITE_NAMES[this._game.getPartnerSuite()]+" "+Language.DUTCH_RANK_NAMES[this._game.getPartnerRank()]+" (blind) vragen met een troef?"))){
                             this._trick.askingForPartnerCard=-1; // yes, asking blind!!
                             /////alert("\tBLIND!");
@@ -579,7 +583,9 @@ class OnlinePlayer extends Player{
                     }
                 }
             }
-            this._setCard(card);
+            // MDH@14JAN2020: we have to also return whatever trick value that might've changed
+            //                which in this case could wel be the asking for partner card 'flag'
+            this._setCard(card,this._trick.askingForPartnerCard);
         }else
             alert("Invalid card suite "+String(suite)+" and suite index "+String(index)+".");
     }
@@ -831,9 +837,12 @@ class PlayerGameProxy extends PlayerGame {
         return true;
     }
     // MDH@13JAN2020: we're sending the exact card over that was played (and accepted at this end as it should I guess)
-    cardPlayed(card){
+    // MDH@14JAN2020: passing in the askingForPartnerCard 'flag' as well!!!!
+    //                because we're overriding the base RikkenTheGame implementation
+    //                askingForPartnerCard doesn't end up in the local RikkenTheGame trick
+    cardPlayed(card,askingForPartnerCard){
         if(this._state===PlayerGame.OUT_OF_ORDER)return false;
-        this._socket.emit(...this.getSendEvent('CARD',[card.suite,card.rank],function(){
+        this._socket.emit(...this.getSendEvent('CARD',[card.suite,card.rank,askingForPartnerCard],function(){
                 console.log("CARD played receipt acknowledged.");
                 document.getElementById("playing").style.visibility="hidden"; // hide the bidding element again
                 showGameState(null);
@@ -906,126 +915,165 @@ class PlayerGameProxy extends PlayerGame {
         return trick;
     }
 
+    acknowledgeEventIds(){
+        // now if the unacknowledge event ids do NOT reach the server we will receive certain events again until we do
+        // manage to get them over
+        // make a copy of all the unacknowledged event ids
+        let acknowledgeableEventIds=[...this._unacknowledgedEventIds];
+        // of course we could send them passing an acknowledge function though
+        if(acknowledgeableEventIds.length>0){
+            // emit passing along a callback function that should get called when the ACK message was received by the server
+            this._socket.emit("ACK",this.acknowledgeableEventIds,()=>{
+                // we now may remove all acknowledgeable event ids
+                this._unacknowledgedEventIds=difference(this._unacknowledgedEventIds,acknowledgeableEventIds);
+            });
+        }
+    }
+
+    // generic method for processing any event, every
+    processEvent(event,eventData,acknowledge){
+        // log every event
+        this.logEvent(event,eventData);
+        // if data has an id it needs to be acknowledged
+        let eventId=(eventData.hasOwnProperty("id")?eventData.id:null);
+        // if there's an event id in this event, and we're supposed to send acknowledgements, do so
+        if(eventId){
+            this._unacknowledgedEventIds.push(eventId);
+            if(acknowledge)this.acknowledgeEventIds();
+        }
+        let data=(eventId?eventData.payload:eventData);
+        switch(event){
+            case "STATECHANGE":
+                this.state=data.to;
+                break;
+            case "GAME":
+                // console.log("Game information received by '"+currentPlayer.name+"'.",data);
+                // we can set the name of the game now
+                this.name=data;
+                if(data.hasOwnProperty('players'))this.playerNames=data.players;
+                break;
+            case "PLAYERS":
+                this.playerNames=data;
+                break;
+            case "DEALER":
+                this._dealer=data;
+                break;
+            case "CARDS":
+                // create holdable card from cardInfo passing in the current player as card holder
+                currentPlayer._removeCards(); // TODO find a way NOT to have to do this!!!
+                data.forEach((cardInfo)=>{new HoldableCard(cardInfo[0],cardInfo[1],currentPlayer);});
+                currentPlayer.renderCards();
+                break;
+            case "PARTNER":
+                currentPlayer.partner=data;
+                break;
+            case "GAME_INFO":
+                {
+                    // typically the game info contains ALL information pertaining the game that is going to be played
+                    // i.e. after bidding has finished
+                    this._trumpSuite=data.trumpSuite;
+                    this._partnerSuite=data.partnerSuite;
+                    this._partnerRank=data.partnerRank;
+                    this._highestBid=data.highestBid;
+                    this._highestBidders=data.highestBidders;
+                    this._fourthAcePlayer=data.fourthAcePlayer;
+                }
+                break;
+            case "TO_BID":
+                document.getElementById('to-bid').innerHTML=data;
+                break;
+            case "MAKE_A_BID":
+                currentPlayer.makeABid(data.playerBidsObjects,data.possibleBids);
+                break;
+            case "TO_PLAY":
+                document.getElementById('to-bid').innerHTML=data;
+                break;
+            case "PLAYER_INFO":
+                {
+                    // will contain the current cards the user has
+                    currentPlayer._removeCards(); // TODO find a way NOT to have to do this!!!
+                    data.cards.forEach((cardInfo)=>{new HoldableCard(cardInfo[0],cardInfo[1],currentPlayer);});
+                    currentPlayer.renderCards();
+                    // also the number of tricks won and to win
+                    currentPlayer.numberOfTricksWon=data.numberOfTricksWon;
+                    // TODO PLAYER_INFO does not need to send the following with each PLAYER_INFO THOUGH
+                    currentPlayer.setNumberOfTricksToWin(data.numberOfTricksToWin);
+                }
+                break;
+            case "TRICKS_TO_WIN":
+                currentPlayer.setNumberOfTricksToWin(data);
+                break;
+            case "PLAY_A_CARD":
+                // we're receiving trick info in data
+                currentPlayer.playACard(this.parseTrick(data));
+                break;
+            case "CHOOSE_TRUMP_SUITE":
+                currentPlayer.chooseTrumpSuite(data);
+                break;
+            case "CHOOSE_PARTNER_SUITE":
+                currentPlayer.choosePartnerSuite(data.suites,data.partnerRankName);
+                break;
+            case "TRICK":
+                updateTricks(this.parseTrick(data));
+                break;
+            case "TRICKS":
+                {
+                    // extract the tricks from the array of tricks in data
+                    this._tricks=data.map((trickInfo)=>{return this.parseTrick(trickInfo);});
+                    updateTricksPlayedTables();
+                }
+                break;
+            case "RESULTS":
+                this._deltaPoints=data.deltapoints;
+                break;
+            case "GAMEOVER":
+                // kill the game instance (returning to the rules page until assigned to a game again)
+                if(currentPlayer)currentPlayer.playsTheGameAtIndex(null,-1);
+                // this.exit("in response to '"+data+"'");
+                break;
+            case "disconnect":
+                this.state=PlayerGame.OUT_OF_ORDER;
+                break;
+            default:
+                console.log("ERROR: Unknown event "+event+" received!");
+        }
+    }
+
     prepareForCommunication(){
         console.log("Preparing for communication");
         // this._socket.on('connect',()=>{
         //     this._state=IDLE;
         // });
-        this._socket.on('disconnect',()=>{
-            this.logEvent('disconnect',null);
-            this.state=PlayerGame.OUT_OF_ORDER;
-        });
-        // register to receive data on all custom events
-        this._socket.on('STATECHANGE',(data)=>{
-            this.logEvent('STATECHANGE',data);
-            this.state=data.to;
-        });
-        // player events (in order of appearance)
-        this._socket.on('GAME',(data)=>{
-            this.logEvent('GAME',data);
-            // console.log("Game information received by '"+currentPlayer.name+"'.",data);
-            // we can set the name of the game now
-            this.name=data;
-            if(data.hasOwnProperty('players'))this.playerNames=data.players;
-        });
-        // when the remote game reaches the IDLE state (and the game is on!!!!)
-        this._socket.on('PLAYERS',(data)=>{
-            this.logEvent('PLAYERS',data);
-            this.playerNames=data;
-        });
-        this._socket.on('DEALER',(data)=>{
-            this.logEvent('DEALER',data);
-            this._dealer=data;
-        });
-        this._socket.on('CARDS',(data)=>{
-            this.logEvent('CARDS',data);
-            // create holdable card from cardInfo passing in the current player as card holder
-            currentPlayer._removeCards(); // TODO find a way NOT to have to do this!!!
-            data.forEach((cardInfo)=>{new HoldableCard(cardInfo[0],cardInfo[1],currentPlayer);});
-            currentPlayer.renderCards();
-        });
-        // this._socket.on('TRUMP_SUITE',(data)=>{
-        //     this.logEvent('TRUMP_SUITE',data);
-        // });
-        // this._socket.on('PARTNER_SUITE',(data)=>{
-        //     this.logEvent('PARTNER_SUITE',data);
-        // });
-        this._socket.on('PARTNER',(data)=>{
-            this.logEvent('PARTNER',data);
-            currentPlayer.partner=data;
-        });
-        this._socket.on('GAME_INFO',(data)=>{
-            this.logEvent('GAME_INFO',data);
-            // typically the game info contains ALL information pertaining the game that is going to be played
-            // i.e. after bidding has finished
-            this._trumpSuite=data.trumpSuite;
-            this._partnerSuite=data.partnerSuite;
-            this._partnerRank=data.partnerRank;
-            this._highestBid=data.highestBid;
-            this._highestBidders=data.highestBidders;
-            this._fourthAcePlayer=data.fourthAcePlayer;
-        });
-        this._socket.on("TO_BID",(data)=>{
-            this.logEvent('TO_BID',data);
-            document.getElementById('to-bid').innerHTML=data;
-        });
-        this._socket.on('MAKE_A_BID',(data)=>{
-            this.logEvent('MAKE_A_BID',data);
-            currentPlayer.makeABid(data.playerBidsObjects,data.possibleBids);
-        });
-        this._socket.on("TO_PLAY",(data)=>{
-            this.logEvent('TO_PLAY',data);
-            document.getElementById('to-bid').innerHTML=data;
-        });
+        this._unacknowledgedEventIds=[]; // keep track of the unacknowledgedEventIds
+        this._socket.on('disconnect',()=>{this.processEvent('disconnect',null,true);});
+        this._socket.on('STATECHANGE',(data)=>{this.processEvent('STATECHANGE',data,true);});
+        this._socket.on('GAME',(data)=>{this.processEvent('GAME',data,true);});
+        this._socket.on('PLAYERS',(data)=>{this.processEvent('PLAYERS',data,true);});
+        this._socket.on('DEALER',(data)=>{this.processEvent('DEALER',data,true);});
+        this._socket.on('CARDS',(data)=>{this.processEvent('CARDS',data,true);});
+        this._socket.on('PARTNER',(data)=>{this.processEvent('PARTNER',data,true);});
+        this._socket.on('GAME_INFO',(data)=>{this.processEvent('GAME_INFO',data,true);});
+        this._socket.on("TO_BID",(data)=>{this.processEvent('TO_BID',data,true);});
+        this._socket.on('MAKE_A_BID',(data)=>{this.processEvent('MAKE_A_BID',data,true);});
+        this._socket.on("TO_PLAY",(data)=>{this.processEvent('TO_PLAY',data,true);});
         // MDH@13JAN2020: player info will be received before being asked to play a card to update the player data
-        this._socket.on("PLAYER_INFO",(data)=>{
-            this.logEvent('PLAYER_INFO',data);
-            // will contain the current cards the user has
-            currentPlayer._removeCards(); // TODO find a way NOT to have to do this!!!
-            data.cards.forEach((cardInfo)=>{new HoldableCard(cardInfo[0],cardInfo[1],currentPlayer);});
-            currentPlayer.renderCards();
-            // also the number of tricks won and to win
-            currentPlayer.numberOfTricksWon=data.numberOfTricksWon;
-            // TODO PLAYER_INFO does not need to send the following with each PLAYER_INFO THOUGH
-            currentPlayer.setNumberOfTricksToWin(data.numberOfTricksToWin);
-        });
-        this._socket.on('TRICKS_TO_WIN',(data)=>{
-            this.logEvent('TRICKS_TO_WIN',data);
-            currentPlayer.setNumberOfTricksToWin(data);
-        });
-        this._socket.on('PLAY_A_CARD',(data)=>{
-            this.logEvent('PLAY_A_CARD',data);
-            // we're receiving trick info in data
-            currentPlayer.playACard(this.parseTrick(data));
-        });
-        this._socket.on('CHOOSE_TRUMP_SUITE',(data)=>{
-            this.logEvent('CHOOSE_TRUMP_SUITE',data);
-            currentPlayer.chooseTrumpSuite(data);
-        });
-        this._socket.on('CHOOSE_PARTNER_SUITE',(data)=>{
-            this.logEvent("CHOOSE_PARTNER_SUITE",data);
-            currentPlayer.choosePartnerSuite(data.suites,data.partnerRankName);
-        });
-        this._socket.on('TRICK',(data)=>{
-            let trick=this.parseTrick(data);
-            this.logEvent('TRICK',trick);
-            updateTricks(trick);
-        });
-        this._socket.on('TRICKS',(data)=>{
-            this.logEvent('TRICKS',data);
-            // extract the tricks from the array of tricks in data
-            this._tricks=data.map((trickInfo)=>{return this.parseTrick(trickInfo);});
-            updateTricksPlayedTables();
-        });
-        this._socket.on('RESULTS',(data)=>{
-            this.logEvent('RESULTS',data);
-            this._deltaPoints=data.deltapoints;
-        });
-        // when somebody stopped playing the GAMEOVER event will be sent (to all clients)
-        this._socket.on('GAMEOVER',(data)=>{
-            // kill the game instance (returning to the rules page until assigned to a game again)
-            if(currentPlayer)currentPlayer.playsTheGameAtIndex(null,-1);
-            // this.exit("in response to '"+data+"'");
+        this._socket.on("PLAYER_INFO",(data)=>{this.processEvent('PLAYER_INFO',data,true);});
+        this._socket.on('TRICKS_TO_WIN',(data)=>{this.processEvent('TRICKS_TO_WIN',data,true);});
+        this._socket.on('PLAY_A_CARD',(data)=>{this.processEvent('PLAY_A_CARD',data,true);});
+        this._socket.on('CHOOSE_TRUMP_SUITE',(data)=>{this.processEvent('CHOOSE_TRUMP_SUITE',data,true);});
+        this._socket.on('CHOOSE_PARTNER_SUITE',(data)=>{this.processEvent("CHOOSE_PARTNER_SUITE",data,true);});
+        this._socket.on('TRICK',(data)=>{this.processEvent('TRICK',data,true);});
+        this._socket.on('TRICKS',(data)=>{this.processEvent('TRICKS',data,true);});
+        this._socket.on('RESULTS',(data)=>{this.processEvent('RESULTS',data,true);});
+        this._socket.on('GAMEOVER',(data)=>{this.processEvent('GAMEOVER',data,true);});
+        // if we receive multiple events as a whole, we process all of them separately
+        this._socket.on('EVENTS',(events)=>{
+            // we could consume the events I guess
+            while(events.length>0){
+                event=events.shift(); // remove the first event
+                // ascertain to send all unacknowledged event ids when this is the last process event!!!!
+                this.processEvent(event.event,event.data,events.length===0);
+            }
         });
     }
 
@@ -1033,7 +1081,7 @@ class PlayerGameProxy extends PlayerGame {
     constructor(socket){
         // OOPS didn't like forgetting this!!! 
         // but PlayerGame does NOT have an explicit constructor (i.e. no required arguments)
-        super(); 
+        super();
         this._state=PlayerGame.OUT_OF_ORDER;
         this._socket=socket;
         this._dealer=-1;

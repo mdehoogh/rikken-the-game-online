@@ -34,11 +34,15 @@ class Trick extends CardHolder{
     get askingForPartnerCard(){return this._askingForPartnerCard;}
     // pass in -1 when asking the partner card blind, or +1 when asking for it (non-blind)
     set askingForPartnerCard(askingForPartnerCard){
+        if(typeof askingForPartnerCard!=="number"){
+            console.log("ERROR: Asking for partner card NOT defined!");
+            return;
+        }
         if(askingForPartnerCard!=0&&this.numberOfCards>0)
             throw new Error("Opgeven de partner aas/heer (blind) te vragen niet meer toegestaan.");
         this._askingForPartnerCard=askingForPartnerCard;
         console.log("Asking for partner card set to "+this._askingForPartnerCard+".");
-    }
+    } 
 
     _setWinnerCard(winnerCard){
         this._winnerCard=winnerCard;

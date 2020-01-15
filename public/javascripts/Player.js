@@ -9,7 +9,7 @@ const {CardHolder,HoldableCard}=require('./CardHolder.js');
  */
 class PlayerEventListener{
     bidMade(bid){}
-    cardPlayed(card){}
+    cardPlayed(card,askingForPartnerCard){}
     trumpSuiteChosen(trumpSuite){}
     partnerSuiteChosen(partnerSuite){}
 }
@@ -172,8 +172,10 @@ class Player extends CardHolder{
     set index(index){this._index=index;} // MDH@09JAN2020: sometimes an index can be set separately
 
     playsTheGameAtIndex(game,index){
+        console.log("Registering the game played at index "+index+".");
         this.index=index;
         this.game=game;
+        console.log("Game registered!");
     }
     /*
     addCard(card){
@@ -212,14 +214,14 @@ class Player extends CardHolder{
     }
     _setBid(bid){this._bidMade(this._bid=bid);}
 
-    _cardPlayed(card){
-        if(this._eventListeners)this._eventListeners.forEach((eventListener)=>{eventListener.cardPlayed(card);});
-        if(this._game)this._game.cardPlayed(card);
+    _cardPlayed(card,askingForPartnerCard){
+        if(this._eventListeners)this._eventListeners.forEach((eventListener)=>{eventListener.cardPlayed(card,askingForPartnerCard);});
+        if(this._game)this._game.cardPlayed(card,askingForPartnerCard);
     }
     // TODO a bid setter will allow subclasses to pass a bid by setting the property
-    _setCard(card){
+    _setCard(card,askingForPartnerCard){
         // technically checking whether the played card is valid should be done here, or BEFORE calling setCard
-        this._cardPlayed(this._card=card);
+        this._cardPlayed(this._card=card,askingForPartnerCard);
     }
 
     // to signal having choosen a trump suite
