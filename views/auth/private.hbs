@@ -1,0 +1,32 @@
+
+
+{{#if user}}
+<div class="page">
+  <div id="greeting">
+    <h1>Hallo {{{user.username}}}</h1>
+  </div>
+  <div id="score table">
+    <table style="width:100%">
+  <tr>
+    <th>Datum</th>
+    <th>Aantal Punten</th>
+    <th>Resultaat</th>
+  </tr>
+    <tr>
+      <td>{{{user.games}}}</td>
+      <td>{{{user.games}}}</td>
+      <td>{{{user.games}}}</td>
+    </tr>
+</table>
+  </div>
+</div>
+{{/if}}
+
+{{#each gamesPlayed}}
+  <h1>{{name}}</h1>
+  {{#each scores}}
+      <h3>user: {{user.username}}</h3>
+      <h3>score: {{score}}</h3>
+  {{/each}}
+{{/each}}
+{{> footer}}

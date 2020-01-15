@@ -3,11 +3,13 @@ const Schema   = mongoose.Schema;
 
 const userSchema = new Schema({
   username: String,
-  password: String
+  password: String,
+  googleID: String,
+  games: [{type: Schema.Types.ObjectId, ref: "game"}]
 }, {
   timestamps: { createdAt: "created_at", updatedAt: "updated_at" }
 });
 
-const User = mongoose.model("User", userSchema);
+const User = mongoose.model("user", userSchema);
 
 module.exports = User;

@@ -4,16 +4,27 @@ const logger       = require('morgan');
 const cookieParser = require('cookie-parser');
 const bodyParser   = require('body-parser');
 const session = require("express-session");
-const bcrypt = require("bcrypt");
+const bcrypt = require("bcryptjs");
 const passport = require("passport");
-const LocalStrategy = require("passport-local").Strategy;
+const ensureLogin = require("connect-ensure-login");
+const flash = require("connect-flash");
+const hbs = require("hbs");
+
+
 
 // MONGOOSE SETUP
 const mongoose     = require('mongoose');
 mongoose.connect('mongodb://localhost/rikken-the-game-online');
 
 //AUTH DATABASE CONNECT
-mongoose.connect('mongodb://localhost/rikken-auth', {useMongoClient: true});
+mongoose.Promise = Promise;
+mongoose
+  .connect('mongodb://localhost/rikken-auth', {useMongoClient: true})
+  .then(() => {
+    console.log('Connected to Mongo!')
+  }).catch(err => {
+    console.error('Error connecting to mongo', err)
+  });
 
 // END MONGOOSE SETUP
 
@@ -54,7 +65,7 @@ app.locals.title = 'Rikken - het spel';
 // uncomment after placing your favicon in /public
 //app.use(favicon(path.join(__dirname, 'public', 'favicon.ico')));
 app.use(logger('dev'));
-
+app.use(flash());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 
@@ -62,50 +73,34 @@ app.use(cookieParser());
 
 app.use(express.static(path.join(__dirname, 'public')));
 
-const index = require('./routes/index');
-app.use('/', index);
-
-
-
-// const router = require("./routes/auth-routes");
-// app.use('/', router);
-
-// passport middleware config and init
+// passport init and config
 app.use(session({
   secret: "our-passport-local-strategy-app",
   resave: true,
   saveUninitialized: true
 }));
 
-passport.serializeUser((user, cb) => {
-  cb(null, user._id);
-});
-
-passport.deserializeUser((id, cb) => {
-  User.findById(id, (err, user) => {
-    if (err) { return cb(err); }
-    cb(null, user);
-  });
-});
-
-passport.use(new LocalStrategy((username, password, next) => {
-  User.findOne({ username }, (err, user) => {
-    if (err) {
-      return next(err);
-    }
-    if (!user) {
-      return next(null, false, { message: "Incorrect username" });
-    }
-    if (!bcrypt.compareSync(password, user.password)) {
-      return next(null, false, { message: "Incorrect password" });
-    }
-
-    return next(null, user);
-  });
-}));
-
 app.use(passport.initialize());
 app.use(passport.session());
+
+//registering partials
+hbs.registerPartials(__dirname + '/views/partials');
+
+//routes
+
+// const index = require('./routes/index');
+// app.use('/',index);
+app.use("/private-page", require("./routes/private-profile"));
+app.use('/', require("./routes/auth-routes"));
+
+app.get('/', (req, res, next) => {
+  res.render('home');
+});
+
+
+app.get('/waiting', (req, res, next) => {
+  res.render('waiting');
+});
 
 // catch 404 and forward to error handler
 app.use((req, res, next) => {

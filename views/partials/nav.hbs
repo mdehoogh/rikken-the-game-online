@@ -1,0 +1,58 @@
+{{!-- <!-- Image and text -->
+<nav class="navbar navbar-light bg-light nav-bar">
+  <a class="navbar-brand" href="/">
+    <img src="\images\contract-bridge-playing-card-suit-card-game-cards-s-png-clip-art.png" width="60" height="30" class="d-inline-block align-top" alt="">
+    Rikken
+  </a>
+  <ul class="nav justify-content-end">
+  <li class="nav-item">
+    <a class="nav-link active" href="/login">Inloggen</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" href="/signup">Inschrijven</a>
+  </li>
+  {{#if user}}
+  <li class="nav-item">
+    <a class="nav-link" href="/logout">Uitloggen</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" href="">Ik wil spelen!</a>
+  </li>
+  {{/if}}
+</ul>
+</nav> --}}
+{{!-- <nav class="navigation-bar">
+    <img class="logo" src="\images\american-contract-bridge-league-duplicate-bridge-bridge-base-inc-playing-card-product-promotion-banner-material-download.jpg">
+    <a href="/">Rikken</a>
+    {{#if user}}
+    <a href="/logout">Uitloggen</a>
+    <a href="/waiting">Ik wil spelen</a>
+    {{else}}
+    <a href="/waiting">Ik wil spelen</a>
+    <a href="/signup">Inschrijven</a>
+    {{/if}}
+</nav> --}}
+
+  <nav class="navbar navbar-light bg-light">
+  <a class="navbar-brand" href="/">
+    <img src="\images\contract-bridge-playing-card-suit-card-game-cards-s-png-clip-art.png" width="60" height="30" class="d-inline-block align-top" alt="">
+    Rikken
+  </a>
+  <ul class="nav justify-content-end">
+  {{#if user}}
+  <li class="nav-item">
+    <a href="/logout">Uitloggen</a>
+  </li>
+  <li class="nav-item">
+    <a href="/waiting">Ik wil spelen</a>
+  </li>
+  {{else}}
+  <li class="nav-item">
+    <a class="nav-link" href="/signup">Inschrijven</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link active" href="/login">Inloggen</a>
+  </li>
+  {{/if}}
+</ul>
+</nav>
