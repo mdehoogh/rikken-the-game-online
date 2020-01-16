@@ -1,0 +1,61 @@
+
+.loginform {
+  margin: 2em;
+  padding: 2em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  left: 33%;
+  max-width: 30%;
+  background-color: rgb(26, 114, 92);
+  color:whitesmoke;
+}
+
+.fields{
+  display: flex;
+  flex-direction: column;
+ 
+}
+
+.field {
+  margin: 0.5em 0;
+  border: none;
+  height: 2em;
+  border-radius: 4px;
+}
+
+.submitbutton {
+  border-radius: 4px;
+  margin: 0.5em 0;
+  border: none;
+  padding: 0.4em 1em;
+  
+} 
+
+#google > a {
+  border-radius: 4px;
+  margin: 0.5em 0;
+  border: none;
+  padding: 0.4em 1em;
+  color: black;
+}
+
+#glink:hover {
+  text-decoration: none;
+  color: black;
+}
+
+.signup {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.username {
+  color: whitesmoke !important;
+}
+
+.password {
+  color:whitesmoke !important;
+}

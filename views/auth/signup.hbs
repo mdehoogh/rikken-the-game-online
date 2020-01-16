@@ -1,21 +1,29 @@
-<h2>Signup</h2>
+<h2 class="signup">Signup</h2>
+
+<div class="loginform">
 
 <form action="/signup" method="POST" id="form-container">
-  <label for="username">Username</label>
-  <input id="username" type="text" name="username" placeholder="JonSnow">
+<div class="fields">
+  <label for="username">Gebruikersnaam:</label>
+  <input id="username" type="text" name="username" placeholder="Naam">
   <br><br>
-  <label for="password">Password</label>
-  <input id="password" type="password" name="password" placeholder="Your password">
-
+  <label for="password">Wachtwoord:</label>
+  <input id="password" type="password" name="password" placeholder="Je wachtwoord">
+</div>
   {{#if message}}
     <div class="error-message">{{ message }}</div>
   {{/if}}
   <br><br>
 
-  <button>Create account</button>
+  <button class="submitbutton" type="submit" value="Inloggen">Maak Account</button>
 
   <p class="account-message">
-    Do you already have an account?
-    <a href="/login">Login</a>
+      Heeft u al een account?
+    <button class="submitbutton"><a id="loginlink" href="/login">Inloggen</a></button>
+  </p>
+    <p class="account-message">
+      Aanmelden met Google
+    <button class="submitbutton"><a id="loginlink" href="/auth/google">Google Inschrijven</a></button>
   </p>
 </form>
+</div>

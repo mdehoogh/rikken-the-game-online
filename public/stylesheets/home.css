@@ -1,0 +1,40 @@
+/* #page-rules {
+    max-width: 50%;
+} */
+
+
+body {
+    font-family: Verdana, Geneva, Tahoma, sans-serif;
+    font-size:16px;
+    margin: 0;
+    background: url('../images/playing-cards-at-christmas-why-it-doesnt-have-to-be-poker-min.jpg');
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+
+}
+
+#info {
+    display: none;
+}
+
+.jumbotron {
+    background-color: teal !important;
+    height: 50vh;
+}
+
+.btn {
+    color: wheat !important;
+    background-color: navy !important;
+    border-color: navy !important;
+}
+
+.btn:hover {
+    color: wheat !important;
+    background-color: rgb(106, 106, 252) !important;
+    border-color: rgb(106, 106, 252) !important;
+}
+
+.spacer {
+    height: 50vh;
+}

@@ -1,0 +1,23 @@
+.page {
+    display: table;
+    width: 100%;
+    background: #dedede;
+    text-align: center;
+    font-family: 'Poppins', sans-serif;
+    background-color: teal !important;
+    height: 100vh;
+    background-image: none !important;
+  }
+  
+.waiting {
+    height: 10em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: teal !important;
+    margin-left: 10em;
+    margin-right: 10em;
+    margin-top: 5em;
+}
+
+
