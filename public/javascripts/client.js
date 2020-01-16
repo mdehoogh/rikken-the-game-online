@@ -915,17 +915,19 @@ class PlayerGameProxy extends PlayerGame {
         return trick;
     }
 
-    acknowledgeEventIds(){
+    acknowledgeEvents(){
         // now if the unacknowledge event ids do NOT reach the server we will receive certain events again until we do
         // manage to get them over
-        // make a copy of all the unacknowledged event ids
-        let acknowledgeableEventIds=[...this._unacknowledgedEventIds];
+        // make a copy of all the unacknowledged events
+        let acknowledgeableEvents=this._unacknowledgedEvents.map((unacknowledgedEvent)=>Object.assign({},unacknowledgedEvent));
+        console.log("Sending acknowledgeable events: ",acknowledgeableEvents);
         // of course we could send them passing an acknowledge function though
-        if(acknowledgeableEventIds.length>0){
+        if(acknowledgeableEvents.length>0){
             // emit passing along a callback function that should get called when the ACK message was received by the server
-            this._socket.emit("ACK",this.acknowledgeableEventIds,()=>{
-                // we now may remove all acknowledgeable event ids
-                this._unacknowledgedEventIds=difference(this._unacknowledgedEventIds,acknowledgeableEventIds);
+            this._socket.emit("ACK",acknowledgeableEvents,()=>{
+                // we now may remove all acknowledgeable events
+                console.log("****** Events acknowledgements received! ********");
+                this._unacknowledgedEvents=[]; /////difference(this._unacknowledgedEvents,acknowledgeableEvents);
             });
         }
     }
@@ -934,12 +936,17 @@ class PlayerGameProxy extends PlayerGame {
     processEvent(event,eventData,acknowledge){
         // log every event
         this.logEvent(event,eventData);
+        if(!eventData)return;
         // if data has an id it needs to be acknowledged
         let eventId=(eventData.hasOwnProperty("id")?eventData.id:null);
         // if there's an event id in this event, and we're supposed to send acknowledgements, do so
         if(eventId){
-            this._unacknowledgedEventIds.push(eventId);
-            if(acknowledge)this.acknowledgeEventIds();
+            // MDH@17JAN2020: now push the event name as well so the server can log that and we can see what's acknowlegded!!!
+            //                BUT don't push it again if it's already there!!!!
+            if(acknowledge)
+                if(this._unacknowledgedEvents.length===0||this._unacknowledgedEvents[this._unacknowledgedEvents.length-1].id!==eventId)
+                    this._unacknowledgedEvents.push({'id':eventId,'event':event});
+            this.acknowledgeEvents();
         }
         let data=(eventId?eventData.payload:eventData);
         switch(event){
@@ -1044,7 +1051,7 @@ class PlayerGameProxy extends PlayerGame {
         // this._socket.on('connect',()=>{
         //     this._state=IDLE;
         // });
-        this._unacknowledgedEventIds=[]; // keep track of the unacknowledgedEventIds
+        this._unacknowledgedEvents=[]; // keep track of the unacknowledgedEventIds
         this._socket.on('disconnect',()=>{this.processEvent('disconnect',null,true);});
         this._socket.on('STATECHANGE',(data)=>{this.processEvent('STATECHANGE',data,true);});
         this._socket.on('GAME',(data)=>{this.processEvent('GAME',data,true);});

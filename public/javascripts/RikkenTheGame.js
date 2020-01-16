@@ -194,7 +194,16 @@ class RikkenTheGame extends PlayerGame{
     // MDH@06DEC2019: the trump player is the player that can ask for the partner suite and rank              
     getTrumpPlayer(){
         // only when playing a 'rik' game (with trump, played with a partner, but not troela, we have a trump player)
-        return(this._highestBid==PlayerGame.BID_RIK||this._highestBid==PlayerGame.BID_RIK_BETER?this._highestBidPlayers[0]:-1);
+        if(this._highestBid!==PlayerGame.BID_RIK&&this._highestBid!==PlayerGame.BID_RIK_BETER){
+            this.log("Not playing an ordinary (two-person) trump game!");
+            return -1;
+        }
+        if(!this._highestBidPlayers||this._highestBidPlayers.length==0){
+            this.log("ERROR: No highest bid player!");
+            return -1;
+        }
+        this.log("Highest bid player "+this._highestBidPlayers[0]+" is the trump player!");
+        return this._highestBidPlayers[0];
     }
     // end PlayerGame implementation
 
@@ -312,12 +321,20 @@ class RikkenTheGame extends PlayerGame{
         // theoretically the card can be played but it might be the card with which the partner card is asked!!
         // is this a game where there's a partner card that hasn't been played yet
         // alternatively put: should there be a partner and there isn't one yet?????
-        if(this.getTrumpPlayer()===this._player){ // this is trump player is playing the first card
-            if(!this._arePartnersKnown) // partner not known yet, therefore the partner card has not been played yet
+        let trumpPlayer=this.getTrumpPlayer();
+        if(trumpPlayer===this._player){ // this is trump player is playing the first card
+            if(!this._arePartnersKnown){ // partner not known yet, therefore the partner card has not been played yet
                 // asking for the partner card is only possible when the player does not have the partner cards anymore
-                return(this._players[this._player].getNumberOfCardsWithSuite(this.getPartnerSuite())>0?1:-1);
+                if(this._players[this._player].getNumberOfCardsWithSuite(this.getPartnerSuite())>0){
+                    this.log("Current player is the trump player and can ask for the partner card.");
+                    return 1;
+                }
+                this.log("Current player can ask for the partner card blind!");
+                return -1;
+            }
             this.log("Partner known, so no need to ask for the partner card anymore!");
-        }
+        }else
+            this.log("Current player ("+this._player+") NOT the trump player ("+trumpPlayer+").");
         return 0;
     }
     /**

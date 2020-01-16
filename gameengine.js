@@ -48,17 +48,20 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
         }
         // we do not need a client until we actually send the event!!!!!
         sendto(client){
-            if(!client)return false;
-            gameEngineLog("Sending acknowledgeable event "+this._event+".");
-            if(this._sendInterval)this._sendAfter=this._sendInterval; // reset the send counter (if to be acknowledged)
-            // send with an ack function at the end
-            let sendEventData=logEvent(this._from,this._to,this._id,this._event,this._data);
-            // send over to client (if the event data has an id it will be acknowledged)
-            client.emit(sendEventData[0],sendEventData[1]/*,(answer)=>{
-                gameEngineLog("Event "+this._event+" receipt acknowledged "+(!answer?"":"(answer: "+answer+")")+"!");
-                this._sendAfter=-1; // indicating successful delivery, so it won't get send again
-            }*/);
-            return true;
+            let result=false;
+            try{
+                if(client){
+                    gameEngineLog("Sending acknowledgeable event "+this._event+".");
+                    // send with an ack function at the end
+                    let sendEventData=logEvent(this._from,this._to,this._id,this._event,this._data);
+                    // send over to client (if the event data has an id it will be acknowledged)
+                    client.emit(sendEventData[0],sendEventData[1]);
+                    result=true; // ESSENTIAL BRO'     
+                }
+            }catch(err){
+                gameEngineLog("ERROR: '"+err.message+"' trying to send event "+this._event+".");
+            }
+            return result;
         }
     }
 
@@ -126,46 +129,24 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
         constructor(client){
             super(null); // for now nameless
             this._pendingEvents=[]; // keep track of all pending events
+            this._unacknowledgedEvents=[]; // keep track of all unacknowledged events
             this._client=client;
         }
+
         // expose pending events TODO we might clone them though
         getPendingEvents(){return this._pendingEvents;}
 
         // _sendPendingEvents will send any events that couldn't be send due to missing client
         _sendPendingEvents(){
-            // block if 
-            if(!this._client)return; // can't send anyways
-            if(this._pendingEvents.length===0)return; // nothing to send right now
-            let pendingEventId=this._pendingEvents[0].id;
-            if(pendingEventId&&pendingEventId<0)return; // can't send unacknowledged events
-            // try to send as many events over as possible in one go
-            // but in the right order i.e. in the order they occur in in this._pendingEvents
-            // and we only send events if there are no unacknowledged events in the queue
-            let pendingEventIndex=0;
-            while(this._client&&pendingEventIndex<this._pendingEvents.length){
+            if(this._unacknowledgedEvents.length>0)return; // can't send while waiting for event acknowledgements
+            // what if the client disappears while sending? we wouldn't want that now would we?????
+            while(this._pendingEvents.length>0&&this._pendingEvents[0].sendto(this._client)){
                 // if the event has an id it needs to be acknowledged BEFORE it can be removed
                 // if not it can be removed immediately!!!!!
-                let pendingEvent=this._pendingEvents[pendingEventIndex];
-                let pendingEventId=pendingEvent.id;
-                if(pendingEventId&&pendingEventId<0)break; // can't continue, still unacknowledged events
-                // call sendto with the client to use on the pending event (removed or not)
-                if(pendingEvent.sendto(this._client)){
-                    if(pendingEventId){
-                        pendingEvent.id=-pendingEventId; // toggle, so we wait for acknowledgement
-                        pendingEventIndex++; // skip this event
-                    }else
-                        this._pendingEvents.shift();
-                }
-
-                // replacing: this._client.emit(...logEvent(this.name,'over',pendingEventId,pendingEvent[0],pendingEvent[1]));
-                // prepare the event for resending (when it has an id)
-                /* removing:
-                if(!sendEventIntervalId){
-                    this._client.emit(...logEvent(this.name,'over',pendingEvent[0],pendingEvent[1]));
-                }else
-                    // push in from the front, because we send from the back!!!
-                    sendEventQueue.unshift(new SendEvent(RemotePlayer.getUniqueEventId(),this._client,this.name,'over',pendingEvent[0],pendingEvent[1],pendingEvent[2]));
-                */
+                // if we fail to send the pending event we break (can only happen when the client is now null)
+                let pendingEvent=this._pendingEvents.shift();
+                // until the event is acknowledged, we're going to resend it if need be!!!!
+                if(pendingEvent.id)this._unacknowledgedEvents.push(pendingEvent);
             }
         }
 
@@ -177,35 +158,34 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
             // and resend it when the counter is zero
             // NOTE we might not have a client to resend though, in which case we leave the counter at zero
             //      and resend asap
-            console.log("Player "+this.name+" responding to clock tick!");
-            let pendingEventIndex=this._pendingEvents.length;
-            while(--pendingEventIndex>=0){
-                let pendingEvent=this._pendingEvents[pendingEventIndex];
-                if(pendingEvent.id&&pendingEvent.id<0){
-                    if(pendingEvent._sendAfter>0)pendingEvent._sendAfter--;
-                    // send when zero, NOTE if this._client is undefined won't send!!!!
-                    if(pendingEvent.sendAfter===0)pendingEvent.sendto(this._client);
-                }
+            gameEngineLog("Player "+this.name+" responding to clock tick!");
+            let unacknowledgedEventIndex=this._unacknowledgedEvents.length;
+            while(--unacknowledgedEventIndex>=0){
+                let unacknowledgedEvent=this._unacknowlegdedEvents[unacknowledgedEventIndex];
+                if(unacknowledgedEvent._sendAfter>0)pendingEvent._sendAfter--;
+                // send when zero, if succeeded reset send after count!!!!
+                if(unacknowledgedEvent._sendAfter===0)
+                    if(unacknowledgedEvent.sendto(this._client))
+                        unacknowledgedEvent._sendAfter=unacknowledgedEvent._sendInterval;
             }
         }
 
         // call eventsAcknowledged with the received event ids
-        eventsAcknowledged(eventIds){
+        eventsAcknowledged(acknowledgedEventIds){
             // remove all the pending events with those ids
             // BUT those should be at the beginning, not per se
             let someEventsAcknowledged=false;
-            let pendingEventIndex=this._pendingEvents.length;
-            while(--pendingEventIndex>=0){
-                let pendingEventId=this._pendingEvents[pendingEventIndex].id;
-                if(!pendingEventId||pendingEventId>=0)continue; // not send yet
-                // an event yet to be acknowledged
-                let acknowledgedEventIdIndex=eventIds.indexOf(-pendingEventId);
-                if(acknowledgedEventIdIndex>=0){ // yes, an acknowledged event!!!!
-                    someEventsAcknowledged=tue;
-                    this._pendingEvents.splice(pendingEventIndex,1); // remove from pending events
-                    eventIds.splice(acknowledgedEventIdIndex,1);
-                    if(eventIds.length===0)break; // when no acknowledged event ids left, done
-                }
+            let unacknowledgedEventIndex=-1;
+            while(++unacknowledgedEventIndex<this._unacknowledgedEvents.length){
+                let unacknowledgedEventId=this._unacknowledgedEvents[unacknowledgedEventIndex].id;
+                // is this an event not yet aknownledged
+                let acknowledgedEventIdIndex=acknowledgedEventIds.indexOf(unacknowledgedEventId);
+                if(acknowledgedEventIdIndex<0)continue; 
+                // yes, an acknowledged event!!!!
+                someEventsAcknowledged=true;
+                this._unacknowledgedEvents.splice(unacknowledgedEventIndex,1); // remove from pending events
+                acknowledgedEventIds.splice(acknowledgedEventIdIndex,1);
+                if(acknowledgedEventIds.length===0)break; // no acknowledged event ids left, done
             }
             // when events have been removed, new events could be ready for sending...
             if(someEventsAcknowledged)this._sendPendingEvents();
@@ -214,22 +194,27 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
         addPendingEvents(pendingEvents){
             // append all received pending events
             if(pendingEvents&&pendingEvents.length>0)this._pendingEvents.push(...pendingEvents);
-            if(this._client)this._sendPendingEvents();
+            this._sendPendingEvents();
         }
         
         _sendNewEvent(event,data,sendInterval){
-            // it's easiest to simply append a new send event
-            this._pendingEvents.push(new SendEvent(RemotePlayer.getUniqueEventId(),this.name,'over',event,data,sendInterval));
-            if(!this._client)return false;
-            this._sendPendingEvents();
+            // if we fail to append the new event
+            let numberOfPendingEvents=this._pendingEvents.length;
+            let interval=(typeof sendInterval==='number'&&sendInterval>0?sendInterval:null);
+            let sendEvent=new SendEvent((interval?RemotePlayer.getUniqueEventId():null),this.name,'over',event,data,interval);
+            // if we succeed in sending the event when it is not supposed to get acknowledged, no need to store in the pending event queue
+            if(!interval)if(sendEvent.sendto(this._client))return true;
+            if(this._pendingEvents.push(sendEvent)<=numberOfPendingEvents)return false;
+            this._sendPendingEvents(); // try to send some pending events now
             return true;
         }
 
         get client(){return this._client;}
         set client(client){
             this._client=client;
-            if(this._client)this._sendPendingEvents(); // send any pending events we have
+            this._sendPendingEvents(); // send any pending events we have
         }
+
         get status(){
             return this.client?(this.game?"PLAYING":"IDLE"):(this.game?"*** BROKEN LINK ***":"DISCONNECTED");
         }
@@ -647,14 +632,28 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
         });
         // MDH@15JAN2020: very important to process the ACKs!!!!
         client.on('ACK',(data,callback)=>{
-            let indexOfRemotePlayerOfClient=getIndexOfRemotePlayerOfClient(client);
-            if(indexOfRemotePlayerOfClient>=0){ // we should have this client registered (of course)
-                let remotePlayer=remotePlayers[indexOfRemotePlayerOfClient]; // the associated player
-                // pass the event ids sent over to the remote player!!!
-                remotePlayer.eventsAcknowledged(data);
+            gameEngineLog("Acknowledged event data: "+JSON.stringify(data)+".");
+            let result=false;
+            if(data){
+                let indexOfRemotePlayerOfClient=getIndexOfRemotePlayerOfClient(client);
+                if(indexOfRemotePlayerOfClient>=0){ // we should have this client registered (of course)
+                    let remotePlayer=remotePlayers[indexOfRemotePlayerOfClient]; // the associated player
+                    // pass the event ids sent over to the remote player!!!
+                    // assuming they contain both the id and the event name in each of the data elements
+                    let acknowledgedEventIds=data.map((acknowledgedEvent)=>{
+                        gameEngineLog("Acknowledged event: "+JSON.stringify(acknowledgedEvent)+".");
+                        return acknowledgedEvent.id;
+                    });
+                    gameEngineLog("Acknowledged event ids: "+JSON.stringify(acknowledgedEventIds)+".");
+                    remotePlayer.eventsAcknowledged(acknowledgedEventIds);
+                    result=true;
+                }else
+                    console.log("ERROR: Unable to find the player to process ACK event data "+JSON.stringify(data)+".");
+            }
+            if(typeof callback==='function'){
+                if(result)callback();else gameEngineLog("ERROR: Callback not executed: acknowledgments processing failed.");
             }else
-                console.log("ERROR: Unable to find the player to process ACK event data "+JSON.stringify(data)+".");
-            if(typeof callback==='function')callback();else gameEngineLog("No callback on ACK event.");
+                gameEngineLog("No callback on ACK event.");
         });
         client.on('BYE',(data,callback)=>{
             // we have to cancel the game because one of the player left
