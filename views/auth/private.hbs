@@ -5,17 +5,21 @@
   </div>
   <div id="score table">
     <table style="width:100%">
-  <tr>
-    <th>Datum</th>
-    <th>Aantal Punten</th>
-    <th>Resultaat</th>
-  </tr>
-    <tr>
-      <td>{{{user.games}}}</td>
-      <td>{{{user.games}}}</td>
-      <td>{{{user.games}}}</td>
-    </tr>
-</table>
+      <thead>
+        <tr>
+          <th>Datum</th>
+          <th>Aantal Punten</th>
+          <th>Resultaat</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>{{{this.games}}}</td>
+          <td>{{{user.games}}}</td>
+          <td>{{{user.games}}}</td>
+        </tr>
+      </tbody>
+    </table>
   </div>
 </div>
 {{/if}}

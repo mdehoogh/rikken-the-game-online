@@ -1,3 +1,5 @@
+require('dotenv').config()
+
 const path         = require('path');
 const favicon      = require('serve-favicon');
 const logger       = require('morgan');
@@ -9,8 +11,6 @@ const passport = require("passport");
 const ensureLogin = require("connect-ensure-login");
 const flash = require("connect-flash");
 const hbs = require("hbs");
-
-
 
 // MONGOOSE SETUP
 const mongoose     = require('mongoose');
@@ -120,8 +120,11 @@ app.use((err, req, res, next) => {
   res.render('error');
 });
 
+
 server.listen(3000,()=>{
   console.log("Express server listening on port 3000.");
+  console.log("Google client ID: "+process.env.googleClientId+".");
+  console.log("Google client secret: '"+process.env.googleClientSecret+".");
 });
 
 module.exports = app;

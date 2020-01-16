@@ -126,8 +126,8 @@ router.get(
 passport.use(
   new GoogleStrategy(
     {
-      clientID: "350032470445-2vus698s1e3oe7m1nflcq2bm2gbctted.apps.googleusercontent.com",
-      clientSecret: "Me4FvZjTIRNWwXYmFHiv9SIA",
+      clientID: process.env.googleClientId,
+      clientSecret: process.env.googleClientSecret,
       callbackURL: "/auth/google/callback"
     },
     (accessToken, refreshToken, profile, done) => {
