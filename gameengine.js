@@ -23,15 +23,33 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
         let cardsInfo=[];cardHolder._cards.forEach((card)=>{cardsInfo.push([card.suite,card.rank]);});return cardsInfo;
     }
     function getTrickInfo(trick){
-        // TODO we'd probably have to send more information from the trick
-        return{
+        // TODO we'd probably have to send more information from the trick DONE
+        // TODO should we use the trick getters instead???????
+        // at a minimum send the constructor information over
+        let trickInfo={
+            firstPlayer:trick._firstPlayer,
+            trumpSuite:trick._trumpSuite,
+            partnerSuite:trick._partnerSuite,
+            partnerRank:trick._partnerRank,
+            canAskForPartnerCard:trick._canAskForPartnerCard,
+        };
+        if(trick.numberOfCards>0){
+            trickInfo.winner=trick._winner;
+            trickInfo.playSuite=trick._playSuite;
+            trickInfo.cards=getCardsInfo(trick);
+            trickInfo.askingForPartnerCard=trick._askingForPartnerCard;
+        }else // no cards but put an empty array in there just the same!!
+            trickInfo.cards=[];
+        return trickInfo;
+        /* replacing:
+        return {
+            firstPlayer:trick.firstPlayer,
+            canAskForPartnerCard:trick.canAskForPartnerCard,
             cards:getCardsInfo(trick),
             winner:trick.winner,
-            firstPlayer:trick.firstPlayer,
             playSuite:trick.playSuite,
-            canAskForPartnerCard:trick.canAskForPartnerCard,
             askingForPartnerCard:trick.askingForPartnerCard
-        };
+        };*/
     }
     function getTricksInfo(tricks){return tricks.map((trick)=>getTrickInfo(trick));}
 
@@ -288,10 +306,14 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
         }
         // almost the same as the replaced version except we now want to receive the trick itself
         playACard(trick){
+            // MDH@20JAN2020: this is a nuisance though
+            if(trick&&trick.numberOfCards==0)this._game.sendNewTrickEvent();
             // MDH@13JAN2020: let's send player info over before asking for the card to play
             this._sendNewEvent('PLAYER_INFO',this._getPlayerInfo());
             // can we send all the trick information this way??????? I guess not
-            this._sendNewEvent('PLAY_A_CARD',getTrickInfo(trick),10);
+            // MDH@18JAN2020: instead of sending the trick info with PLAY_A_CARD
+            //                we send it after each card that is played!!
+            this._sendNewEvent('PLAY_A_CARD',null,10); // replacing: getTrickInfo(trick),10);
         }
 
         setNumberOfTricksToWin(numberOfTricksToWin){
@@ -422,6 +444,28 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
             */
         }
 
+        // MDH@20JAN2020: whenever a new trick starts, we're going to send
+        //                additional information about the trick so the
+        //                receiver can instantiate a new trick
+        sendNewTrickEvent(){
+            // we're going to send additional information about the new trick
+            this.sendToAllPlayers('NEW_TRICK',
+                {canAskForPartnerCard:this._trick._canAskForPartnerCard,
+                firstPlayer:this._trick._firstPlayer});
+        }
+        sendCardPlayedEvent(){
+            let cardPlayed=this._trick.getLastCard();
+            if(cardPlayed){
+                this.sendToAllPlayers('CARD_PLAYED',
+                {
+                    askingForPartnerCard:this._trick._askingForPartnerCard,
+                    winner:this._trick._winner,
+                    suite:cardPlayed.suite,
+                    rank:cardPlayed.rank,
+                });
+            }
+        }
+
         // MDH@10JAN2020: overriding to be able to send this information to all players
         askPlayerForBid(){
             super.askPlayerForBid();
@@ -507,7 +551,7 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
         }
         cardPlayed(card,askingForPartnerCard){
             super.cardPlayed(card,askingForPartnerCard);
-            gameEngineLog("Card played by "+this._players[this._player].name+": '"+card.getTextRepresentation()+"'.");
+            gameEngineLog("Card played by "+this._players[this._player].name+": '"+card.toString()+"'.");
         }
         // end PlayerEventListener implementation
 
@@ -659,7 +703,7 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
             // we have to cancel the game because one of the player left
             // let's send the reason over?????
             gameEngineLog("BYE event received"+JSON.stringify(data));
-            this.unregisterClient(client);
+            unregisterClient(client);
             if(typeof callback==='function')callback();else gameEngineLog("No callback on BYE event.");
         });
         // when a client sends in it's ID which it should
@@ -709,8 +753,16 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
             // passing in the actual card that the player has in his hands as returned by getCard() (defined in class CardHolder)
             // MDH@14JAN2020: we're receiving the card (suite first, rank second, askingForPartnerCard flag)
             let eventData=logReceivedEvent(player.name,'CARD',data);
-            player._setCard(player.getCard(eventData[0],eventData[1]),eventData[2]);
-            if(typeof callback==='function')callback();else gameEngineLog("No callback on CARD event.");
+            let cardPlayed=player.getCard(eventData[0],eventData[1],eventData[2]);
+            if(cardPlayed){
+                player._setCard(cardPlayed); // will update the current trick as well!!
+                if(typeof callback==='function')callback();else gameEngineLog("No callback on CARD event.");    
+                // MDH@20JAN2020: on receipt of a card we simply send it back to all players
+                //                along with the current winner and whether or not asking for the partner card
+                //                TODO acknowledging probably not needed in that case!!!!!!
+                player.game.sendCardPlayedEvent();
+            }else
+                gameEngineLog("****** BUG: Card played not registered with current player!");
         });
         client.on('TRUMPSUITE',(data,callback)=>{
             let remotePlayerIndex=getIndexOfRemotePlayerOfClient(client);

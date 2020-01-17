@@ -495,16 +495,16 @@ class OnlinePlayer extends Player{
         document.getElementById('partner-rank').innerHTML=Language.DUTCH_RANK_NAMES[partnerRank];
     }
     // almost the same as the replaced version except we now want to receive the trick itself
-    playACard(trick){
+    playACard(/*trick*/){
         // currentPlayer=this;
         showGameState(this.name); ///////"Speel"); // defined in info.js
         forceFocus();
         document.getElementById("wait-for-play").style.visibility="hidden"; // hide the wait-for-play element
         document.getElementById("playing").style.visibility="visible"; // show the play element
         // currentPlayer=this; // remember the current player
-        setInfo("Doe een bod.");
+        setInfo("Speel een kaart bij.");
         // if this is a new trick update the tricks played table with the previous trick
-        if(trick.numberOfCards==0)updateTricksPlayedTables();
+        // if(trick.numberOfCards==0)updateTricksPlayedTables();
         /* see showTrick()
         document.getElementById("can-ask-for-partner-card-blind").style.display=(trick.canAskForPartnerCardBlind?"block":"none");
         // always start unchecked...
@@ -525,13 +525,15 @@ class OnlinePlayer extends Player{
         setInfo(this.name+", welke "+(trick.playSuite>=0?Language.DUTCH_SUITE_NAMES[trick.playSuite]:"kaart")+" wil je "+(trick.numberOfCards>0?"bij":"")+"spelen?");
         updatePlayerSuiteCards(this._suiteCards=this._getSuiteCards()); // remember the suite cards!!!!
         // show the trick (remembered in the process for use in cardPlayed below) from the viewpoint of the current player
-        showTrick(this._trick=trick); // MDH@11JAN2020: no need to pass the player index (as it is always the same)
+        ///// showTrick(this._trick=trick); // MDH@11JAN2020: no need to pass the player index (as it is always the same)
+        // MDH@18JAN2020: allow the player to play a card by plugging in the event handler again!!
+        updatePlayableCardButtonClickHandlers(true);
     }
+
     // not to be confused with _cardPlayed() defined in the base class Player which informs the game
     // NOTE cardPlayed is a good point for checking the validity of the card played
     // NOTE can't use _cardPlayed (see Player superclass)
     _cardPlayedWithSuiteAndIndex(suite,index){
-
         let card=(suite<this._suiteCards.length&&this._suiteCards[suite].length?this._suiteCards[suite][index]:null);
         if(card){
             // TODO checking should NOT be done by the player BUT by the trick itself!!!
@@ -648,8 +650,20 @@ function partnerSuiteButtonClicked(event){
  */
 function playablecardButtonClicked(event){
     let playablecardCell=event.currentTarget;
+    let cardSuite=parseInt(playablecardCell.getAttribute("data-suite-id"));
+    let cardRank=parseInt(playablecardCell.getAttribute("data-suite-index"));
     ////////if(playablecardCell.style.border="0px")return; // empty 'unclickable' cell
-    currentPlayer._cardPlayedWithSuiteAndIndex(parseInt(playablecardCell.getAttribute("data-suite-id")),parseInt(playablecardCell.getAttribute("data-suite-index")));
+    currentPlayer._cardPlayedWithSuiteAndIndex(cardSuite,cardRank));
+}
+
+/**
+ * convenient to be able to turn the playable card buttons on and off at the right moment
+ * @param {enable} enable 
+ */
+function updatePlayableCardButtonClickHandlers(enable){
+    // clicking card 'buttons' (now cells in table), we can get rid of the button itself!!!
+    for(let playablecardButton of document.querySelectorAll(".playable.card-text"))
+        playablecardButton.onclick=(enable?playablecardButtonClicked:null);
 }
 
 // in order to not have to use RikkenTheGame itself (that controls playing the game itself)
@@ -821,6 +835,10 @@ function cancelGame(){
 // MDH@07JAN2020: additional stuff that we're going to need to make this stuff work
 class PlayerGameProxy extends PlayerGame {
 
+    constructor(){
+        this._trickWinner=null;
+    }
+
     getSendEvent(event,data,callback){
         console.log("Sending event "+event+" with data "+JSON.stringify(data)+".");
         return [event,data,callback];
@@ -842,9 +860,14 @@ class PlayerGameProxy extends PlayerGame {
     //                askingForPartnerCard doesn't end up in the local RikkenTheGame trick
     cardPlayed(card,askingForPartnerCard){
         if(this._state===PlayerGame.OUT_OF_ORDER)return false;
+        // MDH@17JAN2020: disable the buttons once the card is accepted (to be played!!!)
+        //                TODO perhaps hiding the cards should also be done here!!!
+        updatePlayableCardButtonClickHandlers(false);
+        document.getElementById("wait-for-play").style.visibility="visible"; // hide the bidding element again
+        document.getElementById("playing").style.visibility="hidden"; // hide the bidding element again
+        console.log("Sending card played: "+card.toString()+" to the server.");
         this._socket.emit(...this.getSendEvent('CARD',[card.suite,card.rank,askingForPartnerCard],function(){
                 console.log("CARD played receipt acknowledged.");
-                document.getElementById("playing").style.visibility="hidden"; // hide the bidding element again
                 showGameState(null);
             })); // replacing: {'player':this._playerIndex,'card':[card.suite,card.rank]}));
         return true;
@@ -904,16 +927,46 @@ class PlayerGameProxy extends PlayerGame {
         return(player>=0&&player<this._numberOfTricksWon.length?this._numberOfTricksWon[player]:0);
     }
 
+    // MDH@20JAN2020: will be receiving the new trick event when a new trick starts
+    
+    newTrick(trickInfo){
+        if(!trickInfo)return;
+        // keep track of the number of tricks played!!!!
+        this._numberOfTricksPlayed=(this._trick?this._numberOfTricksWon+1:0);
+        // let's create a new trick BEFORE showing the alert
+        // because a card being played could be received BEFORE the alert goes away
+        this._trick=new Trick(trickInfo.firstPlayer,this._trumpSuite,this._partnerSuite,this._partnerRank,trickInfo.canAskForPartnerCard);
+        updateTricksPlayedTables();
+        // a previous trick always has a winner!!!!
+        let trickWinnerIndex=(trickInfo.hasOwnProperty("winner")?trickInfo.winner:-1);
+        this._trickWinner=(trickWinnerIndex<0?null:this.getPlayerName(trickWinnerIndex));
+        // while the alert is showing the player can view the last trick!!!!
+        if(this._trickWinner)alert("De slag is gewonnen door "+this._trickWinner);
+        if(this._trickWinner){this._trickWinner=null;showTrick(this._trick);}
+    }
+    newCard(cardInfo){
+        this._trick.winner=cardInfo.winner;
+        this._trick.addCard(new HoldableCard(cardInfo.suite,cardInfo.rank));
+        // if the user is still looking at the trick winner (from the previous trick)
+        // do nothing...
+        if(this._trickWinner){this._trickWinner=null;showTrick(this._trick);}
+    }
+    /* replacing:
     parseTrick(trickInfo){
-        let trick=new Trick();
-        trickInfo.cards.forEach((cardInfo)=>{new HoldableCard(cardInfo[0],cardInfo[1]).holder=trick;}); // store the cards received in trick
-        trick._firstPlayer=trickInfo.firstPlayer;
-        trick._winner=trickInfo.winner;
-        trick._playSuite=trickInfo.playSuite;
-        trick._canAskForPartnerCard=trickInfo.canAskForPartnerCard;
-        trick._askingForPartnerCard=trickInfo.askingForPartnerCard;
+        let trick=new Trick(trickInfo.firstPlayer,trickInfo.trumpSuite,trickInfo.partnerSuite,trickInfo.partnerRank,trickInfo.canAskForPartnerCard);
+        // already passed to the constructor!!!
+        // trick._firstPlayer=trickInfo.firstPlayer;
+        // trick._canAskForPartnerCard=trickInfo.canAskForPartnerCard;
+        if(trickInfo.cards&&trickInfo.cards.length>0){
+            // fill the trick with trick information from the other players!!!
+            trickInfo.cards.forEach((cardInfo)=>{new HoldableCard(cardInfo[0],cardInfo[1]).holder=trick;}); // store the cards received in trick
+            trick._winner=trickInfo.winner;
+            trick._playSuite=trickInfo.playSuite;
+            trick._askingForPartnerCard=trickInfo.askingForPartnerCard;
+        }
         return trick;
     }
+    */
 
     acknowledgeEvents(){
         // now if the unacknowledge event ids do NOT reach the server we will receive certain events again until we do
@@ -1010,9 +1063,16 @@ class PlayerGameProxy extends PlayerGame {
             case "TRICKS_TO_WIN":
                 currentPlayer.setNumberOfTricksToWin(data);
                 break;
+            case "NEW_TRICK":
+                this.newTrick(data);
+                break;
+            case "CARD_PLAYED":
+                this.newCard(data);
+                break;
             case "PLAY_A_CARD":
                 // we're receiving trick info in data
-                currentPlayer.playACard(this.parseTrick(data));
+                // MDH@20JAN2020: NOT anymore
+                currentPlayer.playACard(/*this.parseTrick(data)*/);
                 break;
             case "CHOOSE_TRUMP_SUITE":
                 currentPlayer.chooseTrumpSuite(data);
@@ -1095,6 +1155,7 @@ class PlayerGameProxy extends PlayerGame {
         this._trumpSuite=-1;//this._trumpPlayer=-1;
         this._partnerSuite=-1;this._partnerRank=-1;
         this._numberOfTricksWon=[0,0,0,0]; // assume no tricks won by anybody
+        this._numberOfTricksPlayed=0;this._trick=null;
         this._highestBid=-1;this._highestBidders=[]; // no highest bidders yet
         this._deltaPoints=null;
         this._points=null;
@@ -1195,8 +1256,6 @@ function prepareForPlaying(){
     // event handler for selecting a suite
     for(let suiteButton of document.querySelectorAll(".suite.bid-trump"))suiteButton.onclick=trumpSuiteButtonClicked;
     for(let suiteButton of document.querySelectorAll(".suite.bid-partner"))suiteButton.onclick=partnerSuiteButtonClicked;
-    // clicking card 'buttons' (now cells in table), we can get rid of the button itself!!!
-    for(let playablecardButton of document.querySelectorAll(".playable.card-text"))playablecardButton.onclick=playablecardButtonClicked;
     
     // make the suite elements of a specific type show the right text!!!!
     for(let suite=0;suite<4;suite++)

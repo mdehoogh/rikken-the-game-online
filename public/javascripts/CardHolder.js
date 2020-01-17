@@ -124,6 +124,9 @@ class CardHolder{
 
     getFirstCard(){if(this._cards.length>0)return this._cards[0];}
 
+    // MDH@20JAN2020: used in gameengine.js
+    getLastCard(){if(this._cards.length>0)return this._cards[this._cards.length-1];}
+
     containsCard(suite,rank){
         let card=this._cards.length;
         while(--card>=0&&(this._cards[card].suite!==suite||this._cards[card].rank!==rank));

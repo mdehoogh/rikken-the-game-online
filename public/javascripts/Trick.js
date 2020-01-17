@@ -9,7 +9,6 @@ class Trick extends CardHolder{
     // by passing in the trump player (i.e. the person that can ask for the partner card)
     constructor(firstPlayer,trumpSuite,partnerSuite,partnerRank,canAskForPartnerCard){ // replacing: trumpSuite,partnerSuite,partnerRank,trumpPlayer){
         super(); // using 4 fixed positions for the trick cards so we will know who played them!!!!
-        console.log(">>> New trick can ask for partner card: "+canAskForPartnerCard+".");
         this._firstPlayer=firstPlayer;
         this._trumpSuite=trumpSuite; // for internal use to be able to determine the winner of a trick
         this._partnerSuite=partnerSuite;this._partnerRank=partnerRank; // need this when it's being asked to determine the winner
@@ -18,6 +17,7 @@ class Trick extends CardHolder{
         this._playSuite=-1; // the suite of the trick (most of the time the suite of the first card)
         this._winnerCard=-1; // the card of the winner (note: NOT transformed to the actual player index yet)
         // let's keep track of the highest card
+        console.log(">>> New trick can ask for partner card: "+canAskForPartnerCard+".");
     }
 
     get firstPlayer(){return this._firstPlayer;}
@@ -32,6 +32,7 @@ class Trick extends CardHolder{
     get partnerRank(){return this._partnerRank;}
     */
     get askingForPartnerCard(){return this._askingForPartnerCard;}
+
     // pass in -1 when asking the partner card blind, or +1 when asking for it (non-blind)
     set askingForPartnerCard(askingForPartnerCard){
         if(typeof askingForPartnerCard!=="number"){
@@ -42,7 +43,7 @@ class Trick extends CardHolder{
             throw new Error("Opgeven de partner aas/heer (blind) te vragen niet meer toegestaan.");
         this._askingForPartnerCard=askingForPartnerCard;
         console.log("Asking for partner card set to "+this._askingForPartnerCard+".");
-    } 
+    }
 
     _setWinnerCard(winnerCard){
         this._winnerCard=winnerCard;
@@ -77,9 +78,24 @@ class Trick extends CardHolder{
         // ASSERT card added successfully
         if(this._askingForPartnerCard!=0&&this._trumpSuite<0)
             throw new Error("BUG: Asking for the partner card, but playing a game without trump.");
+        
         // if the partner card is being asked for blind everyone has to play the partner card suite
         // MDH@09DEC2019: OOPS I was already using this._partnerSuite here BUT still after actually taking it out (now in again)
-        if(this._playSuite<0)this._playSuite=(this._askingForPartnerCard<0?this._partnerSuite:card.suite);
+        if(this._playSuite<0){ // first card being played
+            // MDH@18JAN2020: ascertain that _askingForPartnerCard has the right value
+            //                it could be 0 but when the partner suite is played the player IS asking
+            if(this._canAskForPartnerCard!==0){ // player supposedly can still ask for the partner card
+                if(this._askingForPartnerCard<=0&&card.suite===this._partnerSuite){
+                    if(this._askingForPartnerCard<0)throw new Error("BUG: Cannot ask the partner card blind!");
+                    this.log("Implicitly asking for the partner card by playing the partner suite!");
+                    this._askingForPartnerCard=1;
+                }
+            }else{
+                if(this._askingForPartnerCard!==0)
+                    throw new Error("Cannot ask for the partner card when you can't ask for it anymore!");
+            }
+            this._playSuite=(this._askingForPartnerCard<0?this._partnerSuite:card.suite);
+        }
         // ASSERT this._playSuite now definitely non-negative, so
         this._canAskForPartnerCard=0; // use the right property bro'
         // update winner

@@ -797,11 +797,15 @@ class RikkenTheGame extends PlayerGame{
     // MDH@14JAN2020: adding the 'flag' indicating whether or not the partner card is being asked
     //                NOTE this is only allowed though when this is the first card and the partner card
     //                     can be asked for as is determined by the _canAskForPartnerCard flag in the trick
+    // MDH@18JAN2020: CORRECTION: askingForPartnerCard reflects the state of the check box in the UI
+    //                and if the player plays the partner card suite (s)he is asking for the ace!!!!
     cardPlayed(card,askingForPartnerCard){
         this.log("Card played (asking for partner card: "+askingForPartnerCard+").");
         let numberOfPlayerCards=this._players[this._player].numberOfCards;
+        
         // MDH@14JAN2020: if the user didn't uncheck the ask-partner-card (s)he is asking for the partner card
         this._trick.askingForPartnerCard=askingForPartnerCard;
+        
         ////////////////// now passed in as argument!!!! let card=this._players[this._player].card;
         // move the card into the trick (effectively removing it from the player cards)
         this._trick.addCard(card);
@@ -966,7 +970,6 @@ class RikkenTheGame extends PlayerGame{
     getPartnerSuite(){return this._partnerSuite;}
     getPartnerRank(){return this._partnerRank;}
     getFourthAcePlayer(){return this._fourthAcePlayer;}
-    getTrumpPlayer(){return this._trump}
 
     start(){
         if(this._state!==PlayerGame.IDLE)this.state=PlayerGame.IDLE; // if not in the IDLE state go there first
