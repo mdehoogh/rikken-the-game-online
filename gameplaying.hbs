@@ -16,7 +16,7 @@
         <div class='page-header'>
             <!-- don't make it a title because that would increase the font -->
             <p>U speelt <span id='game-name'>?</span> als <span id='player-name'>?</span>.</p>
-            <div class="page-button-group">
+            <div class="button-group">
                 <!-- changed from a next to a back button -->
                 <input type='button' class="help" value='Help'>
             </div>
@@ -118,9 +118,9 @@
                 </div>
             </div>
             <!-- current player -->
-            <div id='wait-for-bid'>Het wachten is op het bod van <span id='to-bid'>?</span>.</div>
+            <div id='bid-info'></div>
             <div id='bidding'>
-                <div class='prompt'>Wat wil je spelen?</div>
+                {{!-- <div class='prompt'>Wat wil je spelen?</div> --}}
                 <!-- all the possible bids will be buttons one can click -->
                 <div class='bid-buttons'>
                     <input type='button' data-bid='0' class='bid pas' value='Pas'>
@@ -144,7 +144,7 @@
             </div>
             <!-- the cards of the current player (made visible on request) -->
             <!-- now turned into a 'collapsable' (see w3schools) -->
-            <button type="button" id="bidder-suitecards-button" value="0" class='collapsible-button'>Kaarten</button>
+            <button type="button" id="bidder-suitecards-button" value="0" class='collapsible-button active-bid-button'>Kaarten</button>
             <div id='bidder-suitecards-table'>
                 <div class='diamond suite-cards'>
                     <span class='card-text'></span>
@@ -267,7 +267,7 @@
                     <input type='button' data-suite='3' class='spade suite bid-trump' value='\u2660'>
                 </div>
             </div>
-            <button type="button" id="bidder-suitecards-button" value="0" class='collapsible-button'>Kaarten</button>
+            <button type="button" id="bidder-suitecards-button" value="0" class='collapsible-button active-bid-button'>Kaarten</button>
             <div id='trump-suitecards-table'>
                     <div class='diamond suite-cards'>
                         <span class='card-text'></span>
@@ -363,7 +363,7 @@
                     <input type='button' data-suite='3' class='spade suite bid-partner' value='\u2660'>
                 </div>
             </div>
-            <button type="button" id="bidder-suitecards-button" value="0" class='collapsible-button'>Kaarten</button>
+            <button type="button" id="bidder-suitecards-button" value="0" class='collapsible-button active-bid-button'>Kaarten</button>
             <div id='partner-suitecards-table'>
                 <div class='diamond suite-cards'>
                     <span class='card-text'></span>
@@ -456,7 +456,7 @@
                     <!-- <input type='button' class="next" value='Klaar'> -->
                 </div>
             </div>
-            <div id='game-info'></div>
+            <p id='game-info'></p>
             <!-- number of tricks won so far -->
             <div>Aantal gehaalde slagen: <span id='tricks-won-so-far'>?</span>.</div>
             <div>Aantal te halen slagen: <span id='tricks-to-win'>?</span>.</div>
@@ -467,7 +467,7 @@
             </div>
             <!-- current player -->
             <div id='play-input'>
-                <div id='wait-for-play'>Het wachten is op de kaart van <span id='to-play'></span></div>
+                <div id='play-info'></div>
                 <div id='playing'>
                     <div id='asking-for-partner-card-info'>De&nbsp;<span class='partner-suite'></span>&nbsp;<span class='partner-rank'></span>&nbsp;wordt gevraagd.</div>
                     <div class='prompt'>Welke <span id='trick-playsuite'></span> wil je spelen?</div>

@@ -7,7 +7,7 @@ class Trick extends CardHolder{
     //                canAskForPartnerCard blind now determined by the game (engine) itself
 
     // by passing in the trump player (i.e. the person that can ask for the partner card)
-    constructor(firstPlayer,trumpSuite,partnerSuite,partnerRank,canAskForPartnerCard){ // replacing: trumpSuite,partnerSuite,partnerRank,trumpPlayer){
+    constructor(firstPlayer,trumpSuite,partnerSuite,partnerRank,canAskForPartnerCard,firstPlayerCanPlaySpades){ // replacing: trumpSuite,partnerSuite,partnerRank,trumpPlayer){
         super(); // using 4 fixed positions for the trick cards so we will know who played them!!!!
         this._firstPlayer=firstPlayer;
         this._trumpSuite=trumpSuite; // for internal use to be able to determine the winner of a trick
@@ -16,12 +16,16 @@ class Trick extends CardHolder{
         this._askingForPartnerCard=0; // the 'flag' set by the trump player when asking for the partner card in a trick
         this._playSuite=-1; // the suite of the trick (most of the time the suite of the first card)
         this._winnerCard=-1; // the card of the winner (note: NOT transformed to the actual player index yet)
+        this._firstPlayerCanPlaySpades=firstPlayerCanPlaySpades;
         // let's keep track of the highest card
         console.log(">>> New trick can ask for partner card: "+canAskForPartnerCard+".");
+        console.log(">>> New trick first player can play spades: "+firstPlayerCanPlaySpades+".");
     }
 
     get firstPlayer(){return this._firstPlayer;}
 
+    get firstPlayerCanPlaySpades(){return this._firstPlayerCanPlaySpades;}
+    
     // the winner exposed is the actual player who won
     get winner(){return(this._winnerCard<0?-1:(this._winnerCard+this._firstPlayer)%4);}
     

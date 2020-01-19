@@ -17,7 +17,7 @@ class PlayerEventListener{
 // MDH@07DEC2019: PlayerGame extends PlayerEventListener with game data exposed to player
 //                which was earlier stored in each trick
 class PlayerGame extends PlayerEventListener{
-    static get BID_NAMES(){return ["pas","rik","rik (beter)","negen alleen","negen alleen (beter)","pico","tien alleen","tien alleen (beter)","11 alleen","11 alleen (beter)","misere","12 alleen","12 alleen (beter)","open misere","13 alleen","13 alleen (beter)","open misere met een praatje","troela","schoppen vrouw en laatste slag"];};
+    static get BID_NAMES(){return ["pas","rik","rik (beter)","negen alleen","negen alleen (beter)","pico","tien alleen","tien alleen (beter)","elf alleen","elf alleen (beter)","mis\xe8re","twaalf alleen","twaalf alleen (beter)","open mis\xe8re","dertien alleen","dertien alleen (beter)","open mis\xe8re met een praatje","troela","om de schoppen vrouw en de laatste slag","om de laatste slag"];};
     static get BID_PAS(){return 0;};
     static get BID_RIK(){return 1;};
     static get BID_RIK_BETER(){return 2;};
@@ -37,12 +37,13 @@ class PlayerGame extends PlayerEventListener{
     static get BID_OPEN_MISERE_MET_EEN_PRAATJE(){return 16;};
     static get BID_TROELA(){return 17;};
     static get BID_LAATSTE_SLAG_EN_SCHOPPEN_VROUW(){return 18;};
+    static get BID_LAATSTE_SLAG(){return 19;};
     static get BIDS_ALL_CAN_PLAY(){return [PlayerGame.BID_PICO,PlayerGame.BID_OPEN_MISERE,PlayerGame.BID_OPEN_MISERE_MET_EEN_PRAATJE];}; // trumpless games
     static get BIDS_WITH_PARTNER_IN_HEARTS(){return [PlayerGame.BID_RIK_BETER,PlayerGame.BID_TIEN_ALLEEN_BETER,PlayerGame.BID_ELF_ALLEEN_BETER,PlayerGame.BID_TWAALF_ALLEEN_BETER,PlayerGame.BID_DERTIEN_ALLEEN_BETER];}; // games with trump played with a partner
-    static get BID_RANKS(){return [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,0,-1];}; // how I played it (bid pass excluded (always rank 0))
+    static get BID_RANKS(){return [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,0,-1,-1];}; // how I played it (bid pass excluded (always rank 0))
     
     // each bid has a certain amount of points to receive when winning the game
-    static get BID_POINTS(){return [0,1,1,2,2,4,3,3,4,4,5,5,5,6,10,2,2];}
+    static get BID_POINTS(){return [0,1,1,3,3,4,4,4,5,5,5,6,6,6,7,7,10,2,2,2];}
 
     // the state constants we have
     static get OUT_OF_ORDER(){return 0;}

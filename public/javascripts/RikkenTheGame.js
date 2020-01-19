@@ -48,7 +48,7 @@ class EmulatedPlayer extends Player{
     choosePartnerSuite(suites){
 
     }
-    playACard(){
+    playACard(trick){
 
     }
 
@@ -371,7 +371,8 @@ class RikkenTheGame extends PlayerGame{
         for(let playerIndex=0;playerIndex<this.numberOfPlayers;playerIndex++){
             let player=this._players[playerIndex];
             player.setNumberOfTricksToWin(-1); // don't care how many
-            if(this._highestBid!==PlayerGame.BID_LAATSTE_SLAG_EN_SCHOPPEN_VROUW){ // at least one person is 'playing' something
+            // MDH@19JAN2020: !== changed to <
+            if(this._highestBid<PlayerGame.BID_LAATSTE_SLAG_EN_SCHOPPEN_VROUW){ // at least one person is 'playing' something
                 if(this._partnerSuite>=0){ // some game that involves working together
                     player.setNumberOfTricksToWin(player.isFriendly(this.getTrumpPlayer())>0?8:6);
                 }else // a solitary game
@@ -444,7 +445,8 @@ class RikkenTheGame extends PlayerGame{
                         // if there's a partner suite (and rank) we have to check whether or not it was played or not
                         ////////this._partnerCardPlayedStatus=(this._partnerSuite>=0?0:-1); // keep track of whether the partner card was played
                         this.log("Let the games begin!");
-                        this._trick=new Trick(this._player,this.getTrumpSuite(),this.getPartnerSuite(),this.getPartnerRank(),this._canAskForPartnerCard()); // replacing: this._trumpSuite,this._partnerSuite,this._partnerRank,this._getTrumpPlayer()); // replacing: this._canAskForPartnerCardBlind());
+                        // MDH@20JAN2020: adding whether or the first player can play spades
+                        this._trick=new Trick(this._player,this.getTrumpSuite(),this.getPartnerSuite(),this.getPartnerRank(),this._canAskForPartnerCard(),this._highestBid!==PlayerGame.BID_LAATSTE_SLAG_EN_SCHOPPEN_VROUW); // replacing: this._trumpSuite,this._partnerSuite,this._partnerRank,this._getTrumpPlayer()); // replacing: this._canAskForPartnerCardBlind());
                         this._players[this._player].playACard(this._trick);
                     }
                     break;
@@ -488,27 +490,30 @@ class RikkenTheGame extends PlayerGame{
                                             this._deltaPoints[player]-=pointsWon;
                                 }
                                 break;
-                            case PlayerGame.BID_LAATSTE_SLAG_EN_SCHOPPEN_VROUW:
+                            case PlayerGame.BID_LAATSTE_SLAG:
+                            case PlayerGame.BID_LAATSTE_SLAG_EN_SCHOPPEN_VROUW: // MDH@19JAN2020: probably obsolete
                                 // the last trick winner has to pay the other players
-                                let lastTrickWinner=this._tricks[12].winner;
-                                for(let player=0;player<4;player++)
-                                    if(player==lastTrickWinner)
-                                        this._deltaPoints[player]-=(3*pointsToWinOffset);
-                                    else
-                                        this._deltaPoints[player]+=pointsToWinOffset;
-                                // the winner of the 'schoppen vrouw' trick also has to pay the other players
-                                let schoppenVrouwWinner=-1;
-                                for(let trick=0;trick<12;trick++){
-                                    if(this._tricks[trick].containsCard(Card.SUITE_SPADE,Card.RANK_QUEEN)){
-                                        schoppenVrouwWinner=this._tricks[trick].winner;
-                                        break;
+                                {
+                                    let lastTrickWinner=this._tricks[12].winner;
+                                    for(let player=0;player<4;player++)
+                                        if(player==lastTrickWinner)
+                                            this._deltaPoints[player]-=(3*pointsToWinOffset);
+                                        else
+                                            this._deltaPoints[player]+=pointsToWinOffset;
+                                    // the winner of the 'schoppen vrouw' trick also has to pay the other players
+                                    let schoppenVrouwWinner=-1;
+                                    for(let trick=0;trick<12;trick++){
+                                        if(this._tricks[trick].containsCard(Card.SUITE_SPADE,Card.RANK_QUEEN)){
+                                            schoppenVrouwWinner=this._tricks[trick].winner;
+                                            break;
+                                        }
                                     }
+                                    for(let player=0;player<4;player++)
+                                        if(player==schoppenVrouwWinner)
+                                            this._deltaPoints[player]-=(3*pointsToWinOffset);
+                                        else
+                                            this._deltaPoints[player]+=pointsToWinOffset;
                                 }
-                                for(let player=0;player<4;player++)
-                                    if(player==schoppenVrouwWinner)
-                                        this._deltaPoints[player]-=(3*pointsToWinOffset);
-                                    else
-                                        this._deltaPoints[player]+=pointsToWinOffset;
                                 break;
                             // the rest of the games (without trump) can be played by multiple players at the same time
                             // with points won by any of the highest bid players
@@ -536,8 +541,7 @@ class RikkenTheGame extends PlayerGame{
                                 }
                                 break;
                         }
-                        for(let player=0;player<4;player++)
-                            this._points[player]+=this._deltaPoints[player];
+                        for(let playerIndex=0;playerIndex<4;playerIndex++)this._points[playerIndex]+=this._deltaPoints[playerIndex];
                     }else // incomplete game so ascertain to have no delta points
                         this._deltaPoints=null;
                     break;
@@ -825,6 +829,17 @@ class RikkenTheGame extends PlayerGame{
                     // if the partners are now known yet (in a regular rik situation then)
                     if(!this._arePartnersKnown)this._tellPlayersWhoTheirPartnerIs();
                 }
+            }else{
+                if(this._highestBid===PlayerGame.BID_LAATSTE_SLAG_EN_SCHOPPEN_VROUW){
+                    if(this._trick._firstPlayerCanPlaySpades)
+                        console.log("BUG BUG BUG: The first player in the trick can play spades whereas it shouldn't!");
+                    else
+                    if(this._trick.containsCard(Card.SUITE_SPADE,Card.RANK_QUEEN)){ // the trick contains the queen of spades
+                        this._highestBid=PlayerGame.BID_LAATSTE_SLAG;
+                        console.log("De schoppen vrouw is gespeeld!");
+                    }else
+                        console.log("De schoppen vrouw is nog niet gespeeld!");
+                }
             }
             /* replacing:
             // NOTE if this._trick.askingForPartnerCard is not zero, it should!!!
@@ -884,7 +899,7 @@ class RikkenTheGame extends PlayerGame{
                 return;
             }
             // initialize a new trick with the first player to play
-            this._trick=new Trick(this._player,this.getTrumpSuite(),this.getPartnerSuite(),this.getPartnerRank(),this._canAskForPartnerCard()); // replacing: this._trumpSuite,this._partnerSuite,this._partnerRank,this._getTrumpPlayer()); // replacing: this._canAskForPartnerCardBlind());
+            this._trick=new Trick(this._player,this.getTrumpSuite(),this.getPartnerSuite(),this.getPartnerRank(),this._canAskForPartnerCard(),this._highestBid!==PlayerGame.BID_LAATSTE_SLAG_EN_SCHOPPEN_VROUW); // replacing: this._trumpSuite,this._partnerSuite,this._partnerRank,this._getTrumpPlayer()); // replacing: this._canAskForPartnerCardBlind());
         }else // not yet, more cards to play in this trick
             this._player=(this._player+1)%4;
         // and ask the new current player to play a card

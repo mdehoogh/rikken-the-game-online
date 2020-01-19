@@ -307,13 +307,21 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
         // almost the same as the replaced version except we now want to receive the trick itself
         playACard(trick){
             // MDH@20JAN2020: this is a nuisance though
-            if(trick&&trick.numberOfCards==0)this._game.sendNewTrickEvent();
+            if(trick&&trick.numberOfCards===0){
+                if(this._game){
+                    gameEngineLog("Start of a new trick!");
+                    this._game.sendNewTrickEvent();
+                }else
+                    gameEngineLog("ERROR: No game to play a trick in!");
+            }else
+                gameEngineLog("Not a new trick!");
+            this._game.sendNewPlayerEvent(); // ask the game to send who's playing next
             // MDH@13JAN2020: let's send player info over before asking for the card to play
             this._sendNewEvent('PLAYER_INFO',this._getPlayerInfo());
             // can we send all the trick information this way??????? I guess not
             // MDH@18JAN2020: instead of sending the trick info with PLAY_A_CARD
             //                we send it after each card that is played!!
-            this._sendNewEvent('PLAY_A_CARD',null,10); // replacing: getTrickInfo(trick),10);
+            this._sendNewEvent('PLAY_A_CARD',null,30); // replacing: getTrickInfo(trick),10);
         }
 
         setNumberOfTricksToWin(numberOfTricksToWin){
@@ -449,9 +457,18 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
         //                receiver can instantiate a new trick
         sendNewTrickEvent(){
             // we're going to send additional information about the new trick
+            gameEngineLog("******* Sending the new trick event! ************");
+            // MDH@19JAN2020: adding whether or not the first player can play spades
             this.sendToAllPlayers('NEW_TRICK',
-                {canAskForPartnerCard:this._trick._canAskForPartnerCard,
-                firstPlayer:this._trick._firstPlayer});
+                {
+                    index:this.numberOfTricksPlayed+1,
+                    firstPlayer:this._trick._firstPlayer,
+                    canAskForPartnerCard:this._trick._canAskForPartnerCard,
+                    firstPlayerCanPlaySpades:this._trick._firstPlayerCanPlaySpades
+                });
+        }
+        sendNewPlayerEvent(){
+            this.sendToAllPlayers('TO_PLAY',this._players[this._player].name);
         }
         sendCardPlayedEvent(){
             let cardPlayed=this._trick.getLastCard();
