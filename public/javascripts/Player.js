@@ -333,7 +333,7 @@ class Player extends CardHolder{
         }
     }
 
-    set partner(partner){this._partner=partner;} // to set the partner once the partner suite/rank card is in the trick!!!!
+    set partner(partner){this._partner=(typeof partner==='number'?partner:-1);} // to set the partner once the partner suite/rank card is in the trick!!!!
 
     // can be asked to play a card and add it to the given trick
     // NOTE this would be an 'abstract' method in classical OO

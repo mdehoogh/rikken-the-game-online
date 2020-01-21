@@ -119,7 +119,7 @@ app.get('/', (req, res)=>{res.render('test');}); // the test page with 4 links f
 
 app.get('/gameplaying',(req,res)=>{res.render('gameplaying',(req.query.player?null:{username:"Marc"}));}); // each player 
 
-server.listen(3001,()=>{
-    console.log("Express server listening on port 3001.");
+server.listen(3000,()=>{
+    console.log("Express server listening on port 3000.");
 });
 
