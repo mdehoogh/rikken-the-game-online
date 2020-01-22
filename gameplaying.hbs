@@ -15,7 +15,7 @@
     <div>
         <div class='page-header'>
             <!-- don't make it a title because that would increase the font -->
-            <p>U speelt <span id='game-name'>?</span> als <span id='player-name'>?</span>.</p>
+            <p>U speelt <span id='game-name'>?</span> als <span class='player-name'>?</span>.</p>
             <div class="button-group">
                 <!-- changed from a next to a back button -->
                 <input type='button' class="help" value='Help'>
@@ -36,6 +36,7 @@
             </div>
             <div>
                 <ol>
+                    <li>{{__ 'The Game'}}</li>
                     <li>Rikken wordt gespeeld door vier spelers met &eacute;&eacute;n spel kaarten.</li>
                     <li>Elk spel staat op zich. Alleen de deler (en de volgorde van de te verdelen kaarten) veranderd.</li>
                     <li>Bij aanvang van elk afzonderlijk spel worden de kaarten door een van de spelers (de deler) geschud en gedeeld.</li>
@@ -94,7 +95,7 @@
                 <input type='button' id='single-player-game-button' value='Speel'>
             </div>
           </div>
-          <div class='player-name'>Ik speel als&nbsp;<input id='single-player-name' data-player-id='' type='text' size='30' placeholder='Uw spelernaam'></div>
+          <div class='player-name-input'>Ik speel als&nbsp;<input id='single-player-name' data-player-id='' type='text' size='30' placeholder='Uw spelernaam'></div>
         </div>
         <div id='page-wait-for-players' class='page'>
           <div class='page-header'>
@@ -104,10 +105,10 @@
             </div>
           </div>
           <!-- now in header... <div>Spel id: <span id='game-id'></span></div> -->
-          <div class='player-name'>Speler 1:&nbsp;<span class='game-player-name' data-player-index='0'>Naam van speler 1</span></div>
-          <div class='player-name'>Speler 2:&nbsp;<span class='game-player-name' data-player-index='1'>Naam van speler 2</span></div>
-          <div class='player-name'>Speler 3:&nbsp;<span class='game-player-name' data-player-index='2'>Naam van speler 3</span></div>
-          <div class='player-name'>Speler 4:&nbsp;<span class='game-player-name' data-player-index='3'>Naam van speler 4</span></div>
+          <div class='game-player'>Speler 1:&nbsp;<span class='game-player-name' data-player-index='0'>Naam van speler 1</span></div>
+          <div class='game-player'>Speler 2:&nbsp;<span class='game-player-name' data-player-index='1'>Naam van speler 2</span></div>
+          <div class='game-player'>Speler 3:&nbsp;<span class='game-player-name' data-player-index='2'>Naam van speler 3</span></div>
+          <div class='game-player'>Speler 4:&nbsp;<span class='game-player-name' data-player-index='3'>Naam van speler 4</span></div>
         </div>
         <div id='page-bidding' class='page'>
             <div class='page-header'>
@@ -461,10 +462,10 @@
             <div>Aantal gehaalde slagen: <span id='tricks-won-so-far'>?</span>.</div>
             <div>Aantal te halen slagen: <span id='tricks-to-win'>?</span>.</div>
             <!-- showing the current trick (so far) -->
-            <div id='trick-info'>
+            {{!-- <div id='trick-info'>
                 <!-- information on the suite being played in the current trick -->
                 <div id='play-suite'></div>
-            </div>
+            </div> --}}
             <!-- current player -->
             <div id='play-input'>
                 <div id='play-info'></div>
@@ -542,15 +543,20 @@
             </div>
             <div class="separator"></div>
             <div class='trick-cards'>
-                <p>Op tafel:&nbsp;</p>
+                <div id='trick-info'>
+                    <div id='trick-id'></div>
+                    <input type='button' id='new-trick-button' value='Gezien'/>
+                    <div id='trick-winner-info'></div>
+                </div>
                 <div>
+                    <!-- showing trick information when a new trick is received!!!! -->
                     <table id='trick-cards-table'>
                         <tbody>
-                            <tr><td></td><td></td><td id='player-opposite-name' class='player'></td><td></td><td></td></tr>
-                            <tr><td></td><td></td><td id='player-opposite-card' data-suite-id='0' class='card-text diamond'></td><td></td><td></td></tr>
-                            <tr><td id='player-left-name' class='player'></td><td id='player-left-card' data-suite-id='0' class='card-text diamond'></td><td></td><td id='player-right-card' data-suite-id='0' class='card-text diamond'></td><td id='player-right-name' class='player'></td></tr>
-                            <tr><td></td><td></td><td id='player-card' data-suite-id='0' class='card-text diamond'></td><td></td><td></td></tr>
-                            <tr><td></td><td></td><td id='player-name' class='player'></td><td></td><td></td></tr>
+                            <tr><td></td><td></td><td id='opposite-player-name' class='player'></td><td></td><td></td></tr>
+                            <tr><td></td><td></td><td id='opposite-player-card' data-suite-id='0' class='card-text diamond'></td><td></td><td></td></tr>
+                            <tr><td id='lefthandside-player-name' class='player'></td><td id='lefthandside-player-card' data-suite-id='0' class='card-text diamond'></td><td></td><td id='righthandside-player-card' data-suite-id='0' class='card-text diamond'></td><td id='righthandside-player-name' class='player'></td></tr>
+                            <tr><td></td><td></td><td id='current-player-card' data-suite-id='0' class='card-text diamond'></td><td></td><td></td></tr>
+                            <tr><td></td><td></td><td id='current-player-name' class='player-name player'></td><td></td><td></td></tr>
                         </tbody>
                     </table>
                 </div>

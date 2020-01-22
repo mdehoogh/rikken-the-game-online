@@ -170,6 +170,7 @@ class Player extends CardHolder{
         }
     }
 
+    get index(){return this._index;} // MDH@22JAN2020: no harm in adding a getter!!!
     set index(index){this._index=index;} // MDH@09JAN2020: sometimes an index can be set separately
 
     playsTheGameAtIndex(game,index){

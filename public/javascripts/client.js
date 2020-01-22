@@ -95,7 +95,9 @@ function showPlayerNames(){
 // whenever the player changes, show the player name
 function showCurrentPlayerName(){
     // showGameState(currentPlayer?currentPlayer.name:null); // show the current player name immediately in the title
-    document.getElementById("player-name").innerHTML=(currentPlayer?currentPlayer.name:"?");
+    for(let playerNameElement of document.getElementsByClassName("player-name"))
+        if(playerNameElement)
+            playerNameElement.innerHTML=(currentPlayer?currentPlayer.name:"?");
 }
 
 /**
@@ -159,7 +161,13 @@ function showPlayerName(element,name,playerType){
 }
 
 // MDH@20JAN2020: keep the ids of the trick played cards in a constant array
-const PLAYED_CARD_IDS=["player-card","player-left-card","player-opposite-card","player-right-card"];
+const PLAYED_CARD_IDS=["current-player-card","lefthandside-player-card","opposite-player-card","righthandside-player-card"];
+
+// to be called on receiving the new trick event
+function clearCardsPlayedTable(){
+    for(let playedCardIndex in PLAYED_CARD_IDS)
+        document.getElementById(PLAYED_CARD_IDS[playedCardIndex]).innerHTML="";
+}
 
 /**
  * shows the given trick
@@ -195,10 +203,10 @@ function showTrick(trick/*,playerIndex*/){
 
     // show the other player names (the coloring might change depending on )
     // TODO shouldn't need to do the following:
-    showPlayerName(document.getElementById("player-name"),rikkenTheGame.getPlayerName(playerIndex),-2);
-    showPlayerName(document.getElementById("player-left-name"),rikkenTheGame.getPlayerName((playerIndex+1)%4),currentPlayer.isFriendly((playerIndex+1)%4));
-    showPlayerName(document.getElementById("player-opposite-name"),rikkenTheGame.getPlayerName((playerIndex+2)%4),currentPlayer.isFriendly((playerIndex+2)%4));
-    showPlayerName(document.getElementById("player-right-name"),rikkenTheGame.getPlayerName((playerIndex+3)%4),currentPlayer.isFriendly((playerIndex+3)%4));
+    // showPlayerName(document.getElementById("current-player-name"),rikkenTheGame.getPlayerName(playerIndex),-2);
+    showPlayerName(document.getElementById("lefthandside-player-name"),rikkenTheGame.getPlayerName((playerIndex+1)%4),currentPlayer.isFriendly((playerIndex+1)%4));
+    showPlayerName(document.getElementById("opposite-player-name"),rikkenTheGame.getPlayerName((playerIndex+2)%4),currentPlayer.isFriendly((playerIndex+2)%4));
+    showPlayerName(document.getElementById("righthandside-player-name"),rikkenTheGame.getPlayerName((playerIndex+3)%4),currentPlayer.isFriendly((playerIndex+3)%4));
     
     // NOTE the first card could be the blind card asking for the partner card in which case we should not show it!!
     //      but only the color of the partner suite
@@ -334,10 +342,11 @@ function clearTricksPlayedTables(){
     }
 }
 function updateTricksPlayedTables(){
-    let rikkenTheGame=currentPlayer.game;if(!rikkenTheGame)throw new Error("No game being played!"); // MDH@03JAN2020: rikkenTheGame should now point to the _game property of the current player
+    let rikkenTheGame=(currentPlayer?currentPlayer.game:null);if(!rikkenTheGame)throw new Error("No game being played!"); // MDH@03JAN2020: rikkenTheGame should now point to the _game property of the current player
     let lastTrickPlayedIndex=rikkenTheGame.numberOfTricksPlayed-1; // getter changed to getMethod call
     if(lastTrickPlayedIndex>=0){
         let trick=rikkenTheGame._trick; // MDH@20JAN2020 replacing: getTrickAtIndex(lastTrickPlayedIndex);
+        if(trick)
         for(let tricksPlayedTable of document.getElementsByClassName("tricks-played-table")){
             let row=tricksPlayedTable.querySelector("tbody").children[lastTrickPlayedIndex]; // the row we're interested in filling
             row.children[0].innerHTML=String(lastTrickPlayedIndex+1);
@@ -425,6 +434,38 @@ function getGameInfo(){
         }
    }
    return gameInfo;
+}
+
+// how to phrase a bid depends on the bid, and who plays it
+function getBidInfo(bid,bidder){
+    let better=(bid===PlayerGame.BID_RIK_BETER||bid===PlayerGame.BID_NEGEN_ALLEEN_BETER||bid===PlayerGame.BID_TIEN_ALLEEN_BETER||
+        bid===PlayerGame.BID_ELF_ALLEEN_BETER||bid===PlayerGame.BID_TWAALF_ALLEEN_BETER||bid===PlayerGame.BID_DERTIEN_ALLEEN_BETER);
+    if(better)bid--;
+    switch(bid){
+        case PlayerGame.BID_PAS:
+            return(bidder?bidder+" heeft gepast.":"Je hebt gepast.");
+        case PlayerGame.BID_RIK:
+            return(bidder?bidder+" heeft ":"Je hebt ")+(better?"beter ":"")+" gerikt.";
+        case PlayerGame.BID_NEGEN_ALLEEN:
+            return(bidder?bidder+" wil negen slagen alleen halen.":"Je wilt negen slagen alleen halen.");
+        case PlayerGame.BID_TIEN_ALLEEN:
+            return(bidder?bidder+" wil tien slagen alleen halen.":"Je wilt tien slagen alleen halen.");
+        case PlayerGame.BID_ELF_ALLEEN:
+            return(bidder?bidder+" wil elf slagen alleen halen.":"Je wilt elf slagen alleen halen.");
+        case PlayerGame.BID_TWAALF_ALLEEN:
+            return(bidder?bidder+" wil twaalf slagen alleen halen.":"Je wilt twaalf slagen alleen halen.");
+        case PlayerGame.BID_DERTIEN_ALLEEN:
+            return(bidder?bidder+" wil":"Je wilt")+" dertien slagen alleen halen.";
+        case PlayerGame.BID_PICO:
+            return(bidder?bidder+" wil":"Je wilt")+" slechts een slag halen.";
+        case PlayerGame.BID_MISERE:
+            return(bidder?bidder+" wil":"Je wilt")+" geen enkele slag halen.";
+        case PlayerGame.BID_OPEN_MISERE:
+            return(bidder?bidder+" wil":"Je wilt")+" geen enkele slag halen met open kaarten.";
+        case PlayerGame.BID_OPEN_MISERE_MET_EEN_PRAATJE:
+            return(bidder?bidder+" wil":"Je wilt")+" geen enkele slag halen met een praatje en open kaarten.";
+    }
+    return(bidder?bidder+" heeft":"Je hebt")+" een ongeldig bod gedaan.";
 }
 
 function getNumberOfTricksToWinText(numberOfTricksToWin,partnerName,highestBid){
@@ -537,17 +578,19 @@ class OnlinePlayer extends Player{
         document.getElementById('partner-rank').innerHTML=Language.DUTCH_RANK_NAMES[partnerRank];
     }
     // almost the same as the replaced version except we now want to receive the trick itself
-    playACard(trick){
+    playACard(){
         // currentPlayer=this;
         forceFocus(this.name);
-        // MDH@19JAN2020: allow the current player to play a card by clicking one
-        updatePlayableCardButtonClickHandlers(true);
         /* replacing:
         document.getElementById("wait-for-play").style.visibility="hidden"; // hide the wait-for-play element
         document.getElementById("playing").style.visibility="visible"; // show the play element
         */
+        let trick=(this.game?this.game._trick:null);
+        if(!trick){alert("BUG: No current trick to play a card in!");return;}
+        // MDH@19JAN2020: allow the current player to play a card by clicking one
+        updatePlayableCardButtonClickHandlers(true);
         // currentPlayer=this; // remember the current player
-        setInfo("Speel een kaart bij.");
+        setInfo("Speel een "+(trick.playSuite>=0?DUTCH_SUITE_NAMES[trick.playSuite]:"kaart")+".");
         // if this is a new trick update the tricks played table with the previous trick
         // if(trick.numberOfCards==0)updateTricksPlayedTables();
         /* see showTrick()
@@ -571,8 +614,6 @@ class OnlinePlayer extends Player{
         updatePlayerSuiteCards(this._suiteCards=this._getSuiteCards()); // remember the suite cards!!!!
         // show the trick (remembered in the process for use in cardPlayed below) from the viewpoint of the current player
         ///// showTrick(this._trick=trick); // MDH@11JAN2020: no need to pass the player index (as it is always the same)
-        // MDH@18JAN2020: allow the player to play a card by plugging in the event handler again!!
-        updatePlayableCardButtonClickHandlers(true);
     }
 
     // not to be confused with _cardPlayed() defined in the base class Player which informs the game
@@ -586,8 +627,11 @@ class OnlinePlayer extends Player{
             // BUG FIX: do NOT do the following here, but only at the start of a trick, or NOT at all!!!!!
             ////////////this._trick.askingForPartnerCard=0; // -1 when asking blind, 0 not asking, 1 if asking
             // CAN'T call _setCard (in base class Player) if the card cannot be played!!!
-            this._trick=this._game._trick; // MDH@19JAN2020: easiest way to get the current trick
-            if(this._trick.numberOfCards==0){ // first card in the trick played
+            let trick=this.game._trick; // MDH@19JAN2020: easiest way to get the current trick
+            if(!trick){
+                debugger
+            }else
+            if(trick.numberOfCards==0){ // first card in the trick played
                 // theoretically the card can be played but it might be the card with which the partner card is asked!!
                 // is this a game where there's a partner card that hasn't been played yet
                 // alternatively put: should there be a partner and there isn't one yet?????
@@ -596,27 +640,27 @@ class OnlinePlayer extends Player{
                     console.log(">>>> CHECKING WHETHER ASKING FOR THE PARTNER CARD <<<<");
                     // can the trump player ask for the partner card blind
                     // which means that the trump player does not have 
-                    if(this._trick.canAskForPartnerCard>0){ // non-blind
+                    if(trick.canAskForPartnerCard>0){ // non-blind
                         // TODO should be detected by the game preferably
                         if(suite==this._game.getPartnerSuite()){
-                            this._trick.askingForPartnerCard=1;
+                            trick.askingForPartnerCard=1;
                             ////alert("\tNON_BLIND");
                         }
                     }else
-                    if(this._trick.canAskForPartnerCard<0){ // could be blind
+                    if(trick.canAskForPartnerCard<0){ // could be blind
                         // if the checkbox is still set i.e. the user didn't uncheck it
                         // he will be asking for the 
                         // MDH@14JAN2020 BUG FIX: was using ask-partner-card-blind instead of ask-partner-card-checkbox!!!
                         if(document.getElementById("ask-partner-card-checkbox").checked&&
                             (suite!=this._game.getTrumpSuite()||confirm("Wilt U de "+Language.DUTCH_SUITE_NAMES[this._game.getPartnerSuite()]+" "+Language.DUTCH_RANK_NAMES[this._game.getPartnerRank()]+" (blind) vragen met een troef?"))){
-                            this._trick.askingForPartnerCard=-1; // yes, asking blind!!
+                            trick.askingForPartnerCard=-1; // yes, asking blind!!
                             /////alert("\tBLIND!");
                         }
                     }else
                         /*alert("Not indicated!!!!")*/;
                 }else{
                     // check whether or not the first player can play spades
-                    if(!this._trick._firstPlayerCanPlaySpades&&suite===Card.SUITE_SPADE){ // spade is being played by the first player whereas that is not allowed
+                    if(!trick._firstPlayerCanPlaySpades&&suite===Card.SUITE_SPADE){ // spade is being played by the first player whereas that is not allowed
                         if(this.getNumberOfCardsWithSuite(Card.SUITE_SPADE)<this.numberOfCards){
                             alert("Je kunt niet met schoppen uitkomen, want de schoppen vrouw is nog niet opgehaald.");
                             return;
@@ -625,12 +669,12 @@ class OnlinePlayer extends Player{
                 }
             }else{ // not the first card in the trick played
                 // the card needs to be the same suite as the play suite (if the player has any)
-                if(suite!==this._trick.playSuite&&this.getNumberOfCardsWithSuite(this._trick.playSuite)>0){
-                    alert("Je kunt "+card.getTextRepresentation()+" niet spelen, want "+Language.DUTCH_SUITE_NAMES[this._trick.playSuite]+" is gevraagd.");
+                if(suite!==trick.playSuite&&this.getNumberOfCardsWithSuite(trick.playSuite)>0){
+                    alert("Je kunt "+card.getTextRepresentation()+" niet spelen, want "+Language.DUTCH_SUITE_NAMES[trick.playSuite]+" is gevraagd.");
                     return;
                 }
                 // when being asked for the partner card that would be the card to play!
-                if(this._trick.askingForPartnerCard!=0){
+                if(trick.askingForPartnerCard!=0){
                     let partnerSuite=this._game.getPartnerSuite(),partnerRank=this._game.getPartnerRank();
                     if(this.containsCard(partnerSuite,partnerRank)){
                         if(card.suite!=partnerSuite||card.rank!=partnerRank){
@@ -642,7 +686,7 @@ class OnlinePlayer extends Player{
             }
             // MDH@14JAN2020: we have to also return whatever trick value that might've changed
             //                which in this case could wel be the asking for partner card 'flag'
-            this._setCard(card,this._trick.askingForPartnerCard);
+            this._setCard(card,trick.askingForPartnerCard);
             return true;
         }else
             alert("Invalid card suite "+String(suite)+" and suite index "+String(index)+".");
@@ -754,7 +798,6 @@ function _gameStateChanged(fromstate,tostate){
             document.getElementById("wait-for-play").style.visibility="hidden"; // hide the wait-for-play element
             document.getElementById("playing").style.visibility="visible"; // show the play element
             */
-            clearTricksPlayedTables();
             // initiate-playing will report on the game that is to be played!!!
             setPage("page-playing");
             break;
@@ -809,11 +852,19 @@ function setPage(newPage){
                     case "play-reporting":
                         break;
                     case "playing": // ????
+                        // we do everything here
+                        // assuming starting the game play
+                        document.getElementById("trick-id").innerHTML="";
+                        document.getElementById("trick-winner-info").innerHTML="";
+                        document.getElementById("new-trick-button").style.visible='hidden';
+                        clearCardsPlayedTable(); // just in case!!
+                        clearTricksPlayedTables();
                         // setInfo("Wacht op het verzoek tot het opgeven van de troefkleur en/of de mee te vragen aas/heer.");
                         setInfo("Het spelen begint!");
                         break;
                     case "finished":
                         {
+                            clearCardsPlayedTable(); // just in case
                             clearTricksPlayedTables();
                             setInfo("Wacht op het verzoek tot het (bij)spelen van een kaart.");
                         }
@@ -896,6 +947,13 @@ function cancelGame(){
     }
 }
 
+function newTrickButtonClicked(){
+    document.getElementById("new-trick-button").style.visibility="hidden";
+    document.getElementById("trick-winner-info").innerHTML="";
+    let rikkenTheGame=(currentPlayer?currentPlayer.game:null);
+    (!rikkenTheGame||rikkenTheGame.showNewTrickInfo());
+}
+
 // MDH@07JAN2020: additional stuff that we're going to need to make this stuff work
 class PlayerGameProxy extends PlayerGame {
 
@@ -956,7 +1014,7 @@ class PlayerGameProxy extends PlayerGame {
     exit(reason){
         this._socket.emit(...this.getSendEvent('BYE',reason,function(){
             console.log("BYE event receipt acknowledged!");
-            setPage("page=rules");
+            setPage("page-rules");
         }));
     }
 
@@ -968,6 +1026,7 @@ class PlayerGameProxy extends PlayerGame {
     }
 
     logEvent(event,data){
+        this._eventsReceived.push({event:event,data:data});
         console.log("GAMEPLAYING >>> Received event "+event+" with data "+JSON.stringify(data));
     }
 
@@ -982,16 +1041,21 @@ class PlayerGameProxy extends PlayerGame {
     getPlayerNames(){return this._playerNames;} // overriding getPlayerNames() of the demo version!!
     
     set playerNames(playerNames){
+
         this._playerNames=playerNames;
-        this._playerIndex=(!this._playerNames||this._playerNames.length==0?-1:this._playerNames.indexOf(currentPlayer.name));
+
+        this._playerIndex=(!this._playerNames||this._playerNames.length<4?-1:this._playerNames.indexOf(currentPlayer.name));
         currentPlayer.index=this._playerIndex;
         if(this._playerIndex>=0){
-            // we only need to show the current player name on page-playing ONCE as it will always stay the same
             updateGamePlayerNames();
-            showPlayerName(document.getElementById("player-name"),this.getPlayerName(this._playerIndex),-2);
+            showPlayerNames();
+            // we only need to show the current player name on page-playing ONCE as it will always stay the same
+            showCurrentPlayerName();
+            // replacing: showPlayerName(document.getElementById("player-name"),this.getPlayerName(this._playerIndex),-2);
         }else{
             console.log("ERROR: Current player '"+currentPlayer.name+"' not found.");
-            alert("Ernstige programmafout: Uw naam komt niet voor in de spelerlijst van het te spelen spel!");
+            if(this._playerNames)
+                alert("Ernstige programmafout: Uw naam komt niet voor in de spelerlijst van het te spelen spel!");
         }
     }
 
@@ -1000,28 +1064,62 @@ class PlayerGameProxy extends PlayerGame {
     }
 
     // MDH@20JAN2020: will be receiving the new trick event when a new trick starts
+    // MDH@22JAN2020: user will have to click the new trick button so they can look at the old trick first
+    _setNewTrickInfo(trickInfo){
+        // ASSERT only call when trickInfo is not NULL!!!!!
+        if(!trickInfo){alert("BUG: No trick info!");return;}
+
+        let newTrickButton=document.getElementById("new-trick-button");
+
+        this._trickInfo=trickInfo;
+
+        let showNewTrickButton=(this._trick?true:false);
+
+        if(showNewTrickButton){ // there is a previous trick (that is to be replaced with a new trick)
+
+            // enable the new trick button IFF we have a current trick that the user might want to keep looking at
+
+            // show who won the trick (which will be visible until the user presses the New trick button)
+            // the previous trick was always won by the new first player (of course), unless this is the first trick of course
+            let trickWinnerIndex=(trickInfo&&trickInfo.index>1?trickInfo.firstPlayer:-1);
+            this._trickWinner=(trickWinnerIndex<0?null:this.getPlayerName(trickWinnerIndex));
+            if(this._trickWinner){
+                document.getElementById("trick-winner-info").innerHTML="De slag is gewonnen door "+this._trickWinner+".";
+                document.getElementById("trick-winner-info").style.visibility='visible';
+            }else
+                document.getElementById("trick-winner-info").style.visibility='hidden';
+        }
+
+        // ALWAYS need to have a trick (even if it's the first one!!!!!!)
+        this._trick=new Trick(trickInfo.firstPlayer,this._trumpSuite,this._partnerSuite,this._partnerRank,trickInfo.canAskForPartnerCard,trickInfo.firstPlayerCanPlaySpades);
     
-    newTrick(trickInfo){
-        if(!trickInfo)return;
-        console.log("******* New trick ******");
-        // setInfo("We spelen slag "+trickInfo.index+".");
+        if(!showNewTrickButton){
+            newTrickButton.style.visibility="hidden";
+            this.showNewTrickInfo();
+        }else
+            newTrickButton.style.visibility="visible";
+
+    }
+    // MDH@22JAN2020: if the user clicks the new trick button, showNewTrickInfo() is called
+    showNewTrickInfo(){
+
+        // user finished looking at the (now) previous trick
+        document.getElementById("trick-winner-info").style.visibility='hidden';
+
+        let trickInfo=this._trickInfo;
+
+        document.getElementById("trick-id").innerHTML="Slag "+trickInfo.index;
+
         // keep track of the number of tricks played!!!!
         this._numberOfTricksPlayed=trickInfo.index-1; // replacing: this._numberOfTricksPlayed=(this._trick?this._numberOfTricksWon+1:0);
-        console.log("New trick defined!");
+
+        clearCardsPlayedTable();
+
         updateTricksPlayedTables(); // showig the previous finished trick
         
-        // let's create a new trick BEFORE showing the alert
-        // because a card being played could be received BEFORE the alert goes away
-        // MDH@19JAN2020: appending whether or not the first player can play spades
-        this._trick=new Trick(trickInfo.firstPlayer,this._trumpSuite,this._partnerSuite,this._partnerRank,trickInfo.canAskForPartnerCard,trickInfo.firstPlayerCanPlaySpades);
-
-        // the previous trick was always won by the new first player (of course), unless this is the first trick of course
-        let trickWinnerIndex=(trickInfo.index>1?trickInfo.firstPlayer:-1);
-        this._trickWinner=(trickWinnerIndex<0?null:this.getPlayerName(trickWinnerIndex));
-        // while the alert is showing the player can view the last trick!!!!
-        if(this._trickWinner)alert("De slag is gewonnen door "+this._trickWinner+".");
         // if(this._trickWinner){this._trickWinner=null;showTrick(this._trick);}
-        showTrick(this._trick);
+        // no need to show the new trick!!!! showTrick(this._trick); 
+
     }
 
     // MDH@20JAN2020: if we receive all partners we can extract the partner of the current player
@@ -1078,7 +1176,7 @@ class PlayerGameProxy extends PlayerGame {
     _getPlayerBidsObjects(){
         let playerBidsObjects=[];
         this._playersBids.forEach((playerBids)=>{
-            let playerBidsObject={name:this._players[playerBidsObjects.length].name,bids:[]};
+            let playerBidsObject={name:this.getPlayerName(playerBidsObjects.length),bids:[]};
             // use unshift NOT push as the bids are stored reverse order 
             playerBids.forEach((playerBid)=>{playerBidsObject.bids.unshift(PlayerGame.BID_NAMES[playerBid])});
             playerBidsObjects.push(playerBidsObject);
@@ -1154,9 +1252,10 @@ class PlayerGameProxy extends PlayerGame {
                 break;
             case "BID_MADE": // returned when a bid is made by someone
                 // assuming to receive in data both the player and the bid
+                document.getElementById("bid-info").innerHTML=getBidInfo(data.bid,data.player===currentPlayer.index?null:this.getPlayerName(data.player));
                 this._playersBids[data.player].push(data.bid);
                 // TODO how to show the bids?????
-                updateBidsTable(this._getBidsObjects());
+                updateBidsTable(this._getPlayerBidsObjects());
                 break;
             case "TO_PLAY":
                 if(currentPlayer.name!==data)
@@ -1180,7 +1279,7 @@ class PlayerGameProxy extends PlayerGame {
                 currentPlayer.setNumberOfTricksToWin(data);
                 break;
             case "NEW_TRICK":
-                this.newTrick(data);
+                this._setNewTrickInfo(data);
                 break;
             case "CARD_PLAYED":
                 this.newCard(data);
@@ -1188,8 +1287,12 @@ class PlayerGameProxy extends PlayerGame {
             case "PLAY_A_CARD":
                 // we're receiving trick info in data
                 // MDH@20JAN2020: NOT anymore
-                if(!this._trick)alert("Programmafout: U wordt om een kaart gevraagd in een ongedefinieerde slag!");
-                currentPlayer.playACard(this._trick);
+                if(!this._trick){
+                    alert("Programmafout: U wordt om een kaart gevraagd in een ongedefinieerde slag!");
+                }
+                // MDH@22JAN2020: occassionally we may receive the request to play BEFORE actually having received the state change!!
+                if(currentPage!=="page-playing")setPage("page-playing");
+                currentPlayer.playACard();
                 break;
             case "CHOOSE_TRUMP_SUITE":
                 currentPlayer.chooseTrumpSuite(data);
@@ -1216,7 +1319,8 @@ class PlayerGameProxy extends PlayerGame {
                 // this.exit("in response to '"+data+"'");
                 break;
             case "disconnect":
-                this.state=PlayerGame.OUT_OF_ORDER;
+                // MDH@22JAN2020: better not to go out of order when this happens!!!!!!
+                setInfo("Verbinding met de server (tijdelijk) verbroken!"); // replacing: this.state=PlayerGame.OUT_OF_ORDER;
                 break;
             default:
                 console.log("ERROR: Unknown event "+event+" received!");
@@ -1269,6 +1373,7 @@ class PlayerGameProxy extends PlayerGame {
         // OOPS didn't like forgetting this!!! 
         // but PlayerGame does NOT have an explicit constructor (i.e. no required arguments)
         super();
+        this._eventsReceived=[];
         this._trickWinner=null;
         this._state=PlayerGame.OUT_OF_ORDER;
         this._socket=socket;
@@ -1383,6 +1488,11 @@ function prepareForPlaying(){
     for(let suite=0;suite<4;suite++)
         for(let suiteButton of document.querySelectorAll(".suite."+Card.SUITE_NAMES[suite]))
             suiteButton.value=Card.SUITE_CHARACTERS[suite];
+    
+    // MDH@22JAN2020: event handler for clicking the new trick button
+    document.getElementById("new-trick-button").onclick=newTrickButtonClicked;
+    document.getElementById("new-trick-button").style.visible='hidden';
+    document.getElementById("trick-winner-info").style.visible='hidden';
 
     // MDH@09JAN2020: check for a user name
     var urlParams = new URLSearchParams(window.location.search);
@@ -1413,20 +1523,23 @@ function _setPlayer(player,errorcallback){
         clientsocket.on('connect',()=>{
             if(clientsocket.connected){
                 console.log("Connected!!!");
-                clientsocket.emit('PLAYER',player.name);
-                currentPlayer=player;
-                showCurrentPlayerName();
-                // unfortunately we can only set the game of the player if _index is non-negative, so we pass in 4
-                currentPlayer.index=4;
-                currentPlayer.game=new PlayerGameProxy(clientsocket);
-                if(errorcallback){errorcallback(null);setPage("page-wait-for-players");}
-                // replacing: (typeof errorcallback!=='function'||errorcallback(null));            
+                if(!currentPlayer){ // first time connect
+                    clientsocket.emit('PLAYER',player.name);
+                    currentPlayer=player;
+                    showCurrentPlayerName();
+                    // unfortunately we can only set the game of the player if _index is non-negative, so we pass in 4
+                    currentPlayer.index=4;
+                    currentPlayer.game=new PlayerGameProxy(clientsocket);
+                    if(typeof errorcallback!=='function'){errorcallback(null);setPage("page-wait-for-players");}    
+                }
             }else{
+                setInfo("De verbinding met de spel server is hersteld.");
                 (typeof errorcallback!=='function'||errorcallback(new Error("Failed to connect to the server.")));
             }
         });
         clientsocket.on('connect_error',(err)=>{
             console.log("Connect error: ",err);
+            setInfo("Er is een probleem met de verbinding met de spel server ("+err.message+")!");
             (typeof errorcallback!=='function'||errorcallback(err));
         });
         // try to connect to the server catching whatever happens through events

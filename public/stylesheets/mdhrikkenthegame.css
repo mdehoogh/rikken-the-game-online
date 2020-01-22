@@ -143,10 +143,10 @@ td, th {
     background:black;
 }
 */
-.player-name {
+.player-name-input {
     width:100%;
 }
-.player-name input{
+.player-name-input input{
     text-align:center;
     width:200px;
     height:40px;
@@ -219,7 +219,6 @@ td, th {
 } */
 #trick-info{
     display:flex;
-    flex-direction: column;
 }
 /*
 #page-playing {

@@ -470,12 +470,10 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
         sendNewPlayerEvent(){
             this.sendToAllPlayers('TO_PLAY',this._players[this._player].name);
         }
-        sendBidMadeEvent(bid){
+        sendBidMadeEvent(player,bid){
+            gameEngineLog("Sending bid "+bid+" of player #"+player+" to all players of game "+this.name+".");
             // by sending each bid to all players, they can update their bids
-            this.sendToAllPlayers('BID_MADE',{
-                player:this._player,
-                bid:bid,
-            });
+            this.sendToAllPlayers('BID_MADE',{player:player,bid:bid});
         }
         sendCardPlayedEvent(){
             // MDH@20JAN2020: after each card is played, we're going to send along all partner indices
@@ -769,9 +767,10 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
         // what's coming back from the players are bids, cards played, trump and/or partner suites choosen
         client.on('BID', (data,callback) => { 
             let remotePlayerIndex=getIndexOfRemotePlayerOfClient(client);
-            remotePlayers[remotePlayerIndex]._setBid(logReceivedEvent(remotePlayers[remotePlayerIndex].name,'BID',data));
+            let remotePlayer=remotePlayers[remotePlayerIndex];
+            remotePlayer._setBid(logReceivedEvent(remotePlayer.name,'BID',data));
             if(typeof callback==='function')callback();else gameEngineLog("No callback on BID event.");
-            remotePlayers[remotePlayerIndex].game.sendBidMadeEvent(data); // MDH@20JAN2020: same with a bid (as with a card below), which can then be displayed
+            remotePlayer.game.sendBidMadeEvent(remotePlayer.index,data); // MDH@20JAN2020: same with a bid (as with a card below), which can then be displayed
         });
         client.on('CARD',(data,callback)=>{
             let remotePlayerIndex=getIndexOfRemotePlayerOfClient(client);
