@@ -5,16 +5,16 @@ const favicon      = require('serve-favicon');
 const logger       = require('morgan');
 const cookieParser = require('cookie-parser');
 const bodyParser   = require('body-parser');
-const session = require("express-session");
-const bcrypt = require("bcryptjs");
-const passport = require("passport");
-const ensureLogin = require("connect-ensure-login");
-const flash = require("connect-flash");
-const hbs = require("hbs");
+const session      = require("express-session");
+const bcrypt       = require("bcryptjs");
+const passport     = require("passport");
+const ensureLogin  = require("connect-ensure-login");
+const flash        = require("connect-flash");
+const hbs          = require("hbs");
 
 // MONGOOSE SETUP
 const mongoose     = require('mongoose');
-mongoose.connect('mongodb://localhost/rikken-the-game-online');
+mongoose.connect(process.env.MONGODB_CONNECTION_STRING);
 
 //AUTH DATABASE CONNECT
 mongoose.Promise = Promise;
@@ -60,7 +60,7 @@ app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'hbs');
 
 // default value for title local
-app.locals.title = 'Rikken - het spel';
+app.locals.title = "Rikken";
 
 // uncomment after placing your favicon in /public
 //app.use(favicon(path.join(__dirname, 'public', 'favicon.ico')));
@@ -93,13 +93,22 @@ hbs.registerPartials(__dirname + '/views/partials');
 app.use("/private-page", require("./routes/private-profile"));
 app.use('/', require("./routes/auth-routes"));
 
+// routes rendering
 app.get('/', (req, res, next) => {
   res.render('home');
 });
 
-
 app.get('/waiting', (req, res, next) => {
   res.render('waiting');
+});
+
+// MDH@23JAN2020: if we really want to go gameplaying...
+app.get('/gameplaying',(req,res,next)=>{
+  // gameplaying.hbs assumes the name of the user is in the username variable!!!!
+  if(req.user&&req.user.username)
+    res.render('gameplaying',{username:req.user.username});
+  else
+    next(new Error("Log in first!"));
 });
 
 // catch 404 and forward to error handler
@@ -120,11 +129,10 @@ app.use((err, req, res, next) => {
   res.render('error');
 });
 
-
 server.listen(3000,()=>{
   console.log("Express server listening on port 3000.");
-  console.log("Google client ID: "+process.env.googleClientId+".");
-  console.log("Google client secret: '"+process.env.googleClientSecret+".");
+  console.log("Google client ID: "+process.env.GOOGLE_CLIENT_ID+".");
+  console.log("Google client secret: '"+process.env.GOOGLE_CLIENT_SECRET+".");
 });
 
 module.exports = app;

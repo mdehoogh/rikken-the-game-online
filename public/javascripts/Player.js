@@ -70,6 +70,11 @@ class PlayerGame extends PlayerEventListener{
     getTrickAtIndex(trickIndex){} // get the last trick played
     getTeamName(player){}
     get fourthAcePlayer(){}
+    _askPlayerForBid(){}
+    _askPlayerForTrumpSuite(){}
+    _askPlayerForPartnerSuite(){}
+    _askPlayerForCard(){}
+    _cardPlayedAccepted(){} // MDH@23JAN2020: the empty method to be called when a card was played successfully
 }
 
 const CHOICE_IDS=["a","b","c","d","e","f","g","h","i","j","k","l","m"];

@@ -96,8 +96,12 @@ class CardHolder{
      * @param {*} rank 
      */
     getSuitesWithoutRank(rank){
-        let suites=[0,1,2,3];
-        this._cards.forEach((card)=>{if(card.rank===rank)suites[card.suite]=-1;});
+        // ah this is an issue, because if you do not have a certain suite the suite should NOT be returned!!!!!
+        let suites=[];
+        this._cards.forEach((card)=>{
+            if(suites.indexOf(card.suite)<0)suites.push(card.suite); // if suite not present yet, add it to suites
+            if(card.rank===rank)suites[card.suite]=-1; // not removing it but setting to -1 if we locate the rank
+        });
         return suites;
     }
     /**

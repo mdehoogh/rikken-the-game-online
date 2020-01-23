@@ -211,7 +211,10 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
 
         addPendingEvents(pendingEvents){
             // append all received pending events
-            if(pendingEvents&&pendingEvents.length>0)this._pendingEvents.push(...pendingEvents);
+            if(pendingEvents&&pendingEvents.length>0){
+                this._unacknowledgedEvents.length=0; // force send the pending events!!!!
+                this._pendingEvents.push(...pendingEvents);
+            }
             this._sendPendingEvents();
         }
         
@@ -221,7 +224,13 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
             let interval=(typeof sendInterval==='number'&&sendInterval>0?sendInterval:null);
             let sendEvent=new SendEvent((interval?RemotePlayer.getUniqueEventId():null),this.name,'over',event,data,interval);
             // if we succeed in sending the event when it is not supposed to get acknowledged, no need to store in the pending event queue
-            if(!interval)if(sendEvent.sendto(this._client))return true;
+            if(!interval){
+                if(sendEvent.sendto(this._client)){
+                    gameEngineLog("WARNING: Event "+event+" sent immediately i.e. not queued!");
+                    return true;
+                }
+                gameEngineLog("ERROR: Failed to send event "+event+" immediately! Will be queued subsequently.");
+            }
             if(this._pendingEvents.push(sendEvent)<=numberOfPendingEvents)return false;
             this._sendPendingEvents(); // try to send some pending events now
             return true;
@@ -309,15 +318,14 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
             // MDH@20JAN2020: this is a nuisance though
             if(trick&&trick.numberOfCards===0){
                 if(this._game){
-                    gameEngineLog("Start of a new trick!");
+                    gameEngineLog(">>>>>>>>>>>>>> Start of a new trick!");
                     this._game.sendNewTrickEvent();
                 }else
-                    gameEngineLog("ERROR: No game to play a trick in!");
-            }else
-                gameEngineLog("Not a new trick!");
+                    gameEngineLog(">>>>>>>>>>>>>> ERROR: No game to play a trick in!");
+            }/*else gameEngineLog(">>>>>>>>>>>>>>>>> Not a new trick!");*/
             this._game.sendNewPlayerEvent(); // ask the game to send who's playing next
             // MDH@13JAN2020: let's send player info over before asking for the card to play
-            this._sendNewEvent('PLAYER_INFO',this._getPlayerInfo());
+            this._sendNewEvent('PLAYER_INFO',this._getPlayerInfo(),5);
             // can we send all the trick information this way??????? I guess not
             // MDH@18JAN2020: instead of sending the trick info with PLAY_A_CARD
             //                we send it after each card that is played!!
@@ -475,7 +483,8 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
             // by sending each bid to all players, they can update their bids
             this.sendToAllPlayers('BID_MADE',{player:player,bid:bid});
         }
-        sendCardPlayedEvent(){
+        // MDH@23JAN2020: when a played card was accepted we can send the card played to all players
+        _cardPlayedAccepted(){
             // MDH@20JAN2020: after each card is played, we're going to send along all partner indices
             let partnerIds=this._players.map((player)=>player.partner);
             let cardPlayed=this._trick.getLastCard();
@@ -488,6 +497,7 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
                     rank:cardPlayed.rank,
                     partners:partnerIds,
                 });
+                gameEngineLog("Card played by "+this._players[this._player].name+": '"+cardPlayed.toString()+"'.");
             }
         }
 
@@ -541,8 +551,8 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
                     // we should pass the tricks played, and the points and deltaPoints over to each player
                     // we also want to send who won the tricks...
                     {
-                        this.sendToAllPlayers('TRICKS',getTricksInfo(this._tricks));
-                        // TODO send the number of tricks each player one as well??????
+                        // MDH@23JAN2020 all the tricks are collected by the client (player)s themselves: this.sendToAllPlayers('TRICKS',getTricksInfo(this._tricks));
+                        // MDH@23JAN2020: this.deltaPoints will compute the delta points JIT
                         this.sendToAllPlayers('RESULTS',{'deltapoints':this.deltaPoints});
                     }
                     break;
@@ -574,10 +584,14 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
             super.partnerSuiteChosen(chosenPartnerSuite);
             gameEngineLog("Partner card suite chosen by "+this._players[this._player].name+": '"+Card.SUITE_NAMES[chosenPartnerSuite]+"'.");
         }
+        /*
         cardPlayed(card,askingForPartnerCard){
             super.cardPlayed(card,askingForPartnerCard);
+            // MDH@23JAN2020: on the last trick this._player is removed, so we change that!!!!!
+            //                moving the line below to cardPlayedAccepted(), so we don't need this method override anymore
             gameEngineLog("Card played by "+this._players[this._player].name+": '"+card.toString()+"'.");
         }
+        */
         // end PlayerEventListener implementation
 
     }
@@ -638,7 +652,8 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
         // all remote players with tableId equal to '' are still logged in but not playing anymore
         // first collect all the players that can play at all (those with a userId and no tableId)
         showRemotePlayersInfo("Checking for new game players");
-        let idleRemotePlayers=remotePlayers.filter((remotePlayer,remotePlayerIndex)=>{return(remotePlayer.status==="IDLE");});
+        // MDH@23JAN2020: remote players DO need a name!!!! TODO no idea how to could've lost the name though???
+        let idleRemotePlayers=remotePlayers.filter((remotePlayer,remotePlayerIndex)=>(remotePlayer.name?remotePlayer.status==="IDLE":false));
         gameEngineLog("Idle remote players: "+idleRemotePlayers.length+".");
         while(idleRemotePlayers.length>=4){
             let newGamePlayers=[];
@@ -740,14 +755,14 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
                 let remotePlayer=remotePlayers[indexOfRemotePlayerOfClient]; // the associated player
                 let indexOfRemotePlayerWithName=getIndexOfRemotePlayerWithName(data);
                 if(indexOfRemotePlayerWithName<0){ // haven't got a player with the same name
-                    remotePlayer.name=data;
+                    if(data)remotePlayer.name=data;
                     gameEngineLog("Name of remote player #"+(indexOfRemotePlayerOfClient+1)+" set to '"+remotePlayer.name+"'.");
                     checkForStartingNewGames();
                     return;
                 }else{ // there's already a registered player with that name
                     // it's possible we received the name twice??????
                     if(indexOfRemotePlayerOfClient!==indexOfRemotePlayerWithName){
-                        remotePlayer.name=data;
+                        if(data)remotePlayer.name=data;
                         // now we have two remote players with the same name
                         // delete the OLD one, and get it's game instance so we can assign that to the new one
                         let removedRemotePlayer=remotePlayers.splice(indexOfRemotePlayerWithName,1)[0];
@@ -755,6 +770,16 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
                             remotePlayer.index=removedRemotePlayer.index;
                             remotePlayer.game=removedRemotePlayer.game;
                             remotePlayer.addPendingEvents(removedRemotePlayer.pendingEvents);
+                            // MDH@23JAN2020: we can do a bit more if this is the current player!!!!
+                            if(remotePlayer.index===this._player){
+                                gameEngineLog("********************** Prompting the reconnected player ********************************");
+                                switch(this.state){
+                                    case PlayerGame.BIDDING:remotePlayer.game._askPlayerForBid();break;
+                                    case PlayerGame.CHOOSE_TRUMP_SUITE:remotePlayer.game._askPlayerForTrumpSuite();break;
+                                    case PlayerGame.CHOOSE_PARTNER_SUITE:remotePlayer.game._askPlayerForPartnerSuite();break;
+                                    case PlayerGame.PLAYING:remotePlayer.game._askPlayerForCard();break;
+                                }
+                            }
                         }
                     }else
                         gameEngineLog("WARNING: Player name '"+data+"' received again!");
@@ -782,12 +807,14 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
             let eventData=logReceivedEvent(player.name,'CARD',data);
             let cardPlayed=player.getCard(eventData[0],eventData[1],eventData[2]);
             if(cardPlayed){
+                // MDH@23JAN2020: because _setCard will call _cardPlayed on the game itself
+                //                it's better to move calling sendCardPlayedEvent() there instead of here!!!!!
                 player._setCard(cardPlayed); // will update the current trick as well!!
                 if(typeof callback==='function')callback();else gameEngineLog("No callback on CARD event.");    
                 // MDH@20JAN2020: on receipt of a card we simply send it back to all players
                 //                along with the current winner and whether or not asking for the partner card
                 //                TODO acknowledging probably not needed in that case!!!!!!
-                player.game.sendCardPlayedEvent();
+                // moved over to the game itself (now in response to the _cardPlayedAccepted() method call!): player.game.sendCardPlayedEvent();
             }else
                 gameEngineLog("****** BUG: Card played not registered with current player!");
         });

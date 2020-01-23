@@ -217,9 +217,7 @@ td, th {
 /* #game-info{
     margin:0 10px;
 } */
-#trick-info{
-    display:flex;
-}
+
 /*
 #page-playing {
     background:black;
@@ -274,4 +272,8 @@ td, th {
     
 .active-bid-button:after {
     content: "\2796"; /* Unicode character for "minus" sign (-) */
+}
+
+#play-card-prompt{
+    color:blue;
 }

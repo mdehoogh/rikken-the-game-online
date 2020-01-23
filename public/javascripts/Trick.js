@@ -113,9 +113,9 @@ class Trick extends CardHolder{
             this._setWinnerCard(0);
     }
     getCardPlayer(suite,rank){
-        for(let player=0;player<this._cards.length;player++)
-            if(this._cards[player].suite===suite&&this._cards[player].rank===rank)
-                return (this._firstPlayer+player)%4; // TODO can we assume 4 players in total?????
+        for(let cardIndex=0;cardIndex<this._cards.length;cardIndex++)
+            if(this._cards[cardIndex].suite===suite&&this._cards[cardIndex].rank===rank)
+                return (this._firstPlayer+cardIndex)%4; // TODO can we assume 4 players in total?????
         return -1;
     }
 

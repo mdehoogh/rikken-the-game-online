@@ -101,7 +101,7 @@
           <div class='page-header'>
             <p class='page-title'>Spelers</p>
             <div class="page-button-group">
-                <input type='button' class="cancel" value='Afbreken'>
+                <input type='button' class="stop" value='Stoppen met spelen'>
             </div>
           </div>
           <!-- now in header... <div>Spel id: <span id='game-id'></span></div> -->
@@ -227,7 +227,7 @@
                     <table id='bids-table'>
                         <thead>
                             <tr>
-                                <th>Speler</th>
+                                <th align='right'>Speler</th>
                                 <!-- headers to show the bid index -->
                                 <th></th>
                                 <th></th>
@@ -241,10 +241,10 @@
                         </thead>
                         <tbody>
                             <!-- maximum number of bids equal the number of bids divided by two players i.e. 8) -->
-                            <tr><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></tdn></tr>
-                            <tr><td></td><td></td><td></td><td></td><td></td><td></td><td></tdn><td></td><td></td></tr>
-                            <tr><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
-                            <tr><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+                            <tr><td align='right'></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></tdn></tr>
+                            <tr><td align='right'></td><td></td><td></td><td></td><td></td><td></td><td></tdn><td></td><td></td></tr>
+                            <tr><td align='right'></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+                            <tr><td align='right'></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -356,7 +356,7 @@
             <!-- at most eight cards to choose from -->
             <!-- but either an ace or a king (never both) -->
             <div id='partner-suite-input'>
-                <div>Welke <span id='partner-rank'></span> vraag je mee?</div>
+                <div>Welke <span class='partner-rank'></span> vraag je mee?</div>
                 <div id='partner-suite-buttons'>
                     <input type='button' data-suite='0' class='diamond suite bid-partner' value='\u2666'>
                     <input type='button' data-suite='1' class='club suite bid-partner' value='\u2663'>
@@ -468,11 +468,10 @@
             </div> --}}
             <!-- current player -->
             <div id='play-input'>
-                <div id='play-info'></div>
                 <div id='playing'>
-                    <div id='asking-for-partner-card-info'>De&nbsp;<span class='partner-suite'></span>&nbsp;<span class='partner-rank'></span>&nbsp;wordt gevraagd.</div>
-                    <div class='prompt'>Welke <span id='trick-playsuite'></span> wil je spelen?</div>
-                    <div id='ask-partner-card'>
+                    <div id='asking-for-partner-card-info'></div>
+                    <div id='play-card-prompt'></div>
+                    <div id='ask-partner-card' class='partner-card'>
                         <!-- a player can ask for the ace blind -->
                         <input type="checkbox" id='ask-partner-card-checkbox'><span>De&nbsp;<span class='partner-suite'></span>&nbsp;<span class='partner-rank'></span>&nbsp;<span id='ask-partner-card-blind'></span>vragen</span>
                     </div>
@@ -543,11 +542,7 @@
             </div>
             <div class="separator"></div>
             <div class='trick-cards'>
-                <div id='trick-info'>
-                    <div id='trick-id'></div>
-                    <input type='button' id='new-trick-button' value='Gezien'/>
-                    <div id='trick-winner-info'></div>
-                </div>
+                <div id='trick-id'></div>
                 <div>
                     <!-- showing trick information when a new trick is received!!!! -->
                     <table id='trick-cards-table'>
@@ -597,7 +592,7 @@
             <div class='page-header'>
                 <p class='page-title'>Spelresultaat</p>
                 <div class="page-button-group">
-                    <input type='button' value='Nog eens' class='new-game'>
+                    <input type='button' value='Gezien' class='new-game'>
                 </div>
             </div>
             <!-- information on the result of the game -->
