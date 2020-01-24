@@ -128,6 +128,46 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
     // we can run a clock for ticking
     var clock=null;
 
+    class EventSender{
+        constructor(client,interval){
+            this._client=client;
+            this._interval=interval;
+            this._intervalId=null;
+            this._sendAgain=this._sendAgain.bind(this);
+        }
+        _sendAgain(){
+            if(!this._eventToSend){gameEngineLog("BUG: No event to send again!");return;}
+            if(!this._client)gameEngineLog("ERROR: No client to resend an event to!");
+            if(!this._eventToSend.sendto(this._client))gameEngineLog("ERROR: Failed to resend an event!");
+        }
+        setEventToSend(eventToSend){
+            if(eventToSend&&this._eventToSend){gameEngineLog("BUG: Can only send one event at a time!");return false;} // can't send a new event when another event is still pending!!!!
+            if(eventToSend&&!eventToSend.sendto(this._client)){gameEngineLog("ERROR: Failed to send an event!");return false;} // if we fail to send the event the first time we failed
+            this._eventToSend=eventToSend; // register the accepted event
+            // either schedule for resending or stop resending
+            if(this._eventToSend&&!this._intervalId)this._intervalId=setInterval(this._sendAgain,this._interval);
+            if(!this._eventToSend&&this._intervalId){clearInterval(this._intervalId);this._intervalId=null;}
+            return true;
+        }
+        getEventToSend(){return this._eventToSend;}
+        // call setClient to change the client, in which case the new client will become the client to which the event is to be send
+        setClient(client){
+            // if we receive a new client, we have to start over
+            // so when we have an event to send
+            this._client=client;
+            if(this._client){
+                let eventToSend=this._eventToSend;
+                // start over with whatever event we have
+                if(eventToSend){this.setEventToSend(null);this.setEventToSend(eventToSend);}
+            }
+        }
+        getClient(){return this._client;}
+        acknowledged(eventId){
+            // if the given event id matches the id of the event to send we get rid of the event
+            if(this._eventToSend&&this._eventToSend._id==eventId)this.setEventToSend(null);
+            return(!this._eventToSend);
+        }
+    }
     /* replacing:
     var sendEventQueue=[]; // keep a send event queue
     // sendEvents should be executed every second using 
@@ -167,29 +207,25 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
 
         constructor(client){
             super(null); // for now nameless
-            this._pendingEvents=[]; // keep track of all pending events
-            this._unacknowledgedEvents=[]; // keep track of all unacknowledged events
-            this._client=client;
+            this._eventsToSend=[]; // all events that we have yet to send
+            // we can wrap the client in the event sender
+            this._eventSender=new EventSender(client,10000); // ten seconds is a long time for receiving acknowledgements!!!
         }
-
-        // if the associated client goes down, both the unacknowledged events need to be registered on the new client (after the reconnect)
-        getUnacknowledgedEvents(){return this._unacknowledgedEvents;}
-        getPendingEvents(){return this._pendingEvents;}
 
         // _sendPendingEvents will send any events that couldn't be send due to missing client
-        _sendPendingEvents(){
-            if(this._unacknowledgedEvents.length>0)return; // can't send while waiting for event acknowledgements
-            // what if the client disappears while sending? we wouldn't want that now would we?????
-            while(this._pendingEvents.length>0&&this._pendingEvents[0].sendto(this._client)){
-                // if the event has an id it needs to be acknowledged BEFORE it can be removed
-                // if not it can be removed immediately!!!!!
-                // if we fail to send the pending event we break (can only happen when the client is now null)
-                let pendingEvent=this._pendingEvents.shift();
-                // until the event is acknowledged, we're going to resend it if need be!!!!
-                if(pendingEvent.id)this._unacknowledgedEvents.push(pendingEvent);
-            }
+        _sendEvent(){
+            let eventToSend=(this._eventsToSend.length>0?this._eventsToSend[0]:null);
+            if(!eventToSend)return;
+            if(this._eventSender.getEventToSend())return; // if there's still an event being sent can't comply
+            if(this._eventSender.setEventToSend(eventToSend))this._eventsToSend.shift();
         }
 
+        get client(){return this._eventSender.getClient();}
+        set client(client){
+            this._eventSender.setClient(client); // will immediately send the event on a new client!!!!
+            this._sendEvent(); // send any pending event we have
+        }
+        /*
         // MDH@15JAN2020: tick() should be called on EVERY registered remote player
         //                by the main ticker for every lapsed 'second', so it can update the
         //                _sendAfter counter on every sent event waiting to be acknowledged
@@ -209,7 +245,8 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
                         unacknowledgedEvent._sendAfter=unacknowledgedEvent._sendInterval;
             }
         }
-
+        */
+        /*
         // call eventsAcknowledged with the received event ids
         eventsAcknowledged(acknowledgedEventIds){
             // remove all the pending events with those ids
@@ -230,7 +267,15 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
             // when events have been removed, new events could be ready for sending...
             if(someEventsAcknowledged)this._sendPendingEvents();
         }
-
+        */
+        // should only be one at a time
+        acknowledgeEvent(acknowledgedEventId){
+            if(this._eventSender.acknowledged(acknowledgedEventId))
+                this._sendEvent();
+            else
+                gameEngineLog("ERROR: Unrecognized event id "+acknowledgedEventId+".");
+        }
+        /*
         consumePendingEvents(pendingEvents){
             // append all received pending events
             if(!pendingEvents)return;
@@ -238,10 +283,9 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
             while(pendingEvents.length>0)this._pendingEvents.push(pendingEvents.shift());
             this._sendPendingEvents();
         }
-        
+        */
         _sendNewEvent(event,data,sendInterval){
             // if we fail to append the new event
-            let numberOfPendingEvents=this._pendingEvents.length;
             let interval=(typeof sendInterval==='number'&&sendInterval>0?sendInterval:null);
             // MDH@24JAN2020: prepending the name of the game (sender) as the from and name of the player as the to (destination)
             let sendEvent=new SendEvent((interval?RemotePlayer.getUniqueEventId():null),"GAME\t"+this.game.name,"PLAYER\t"+this.name,event,data,interval);
@@ -253,15 +297,10 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
                 }
                 gameEngineLog("ERROR: Failed to send event "+event+" immediately! Will be queued subsequently.");
             }
-            if(this._pendingEvents.push(sendEvent)<=numberOfPendingEvents)return false;
-            this._sendPendingEvents(); // try to send some pending events now
+            let numberOfEventsToSend=this._eventsToSend.length;
+            if(this._eventsToSend.push(sendEvent)<=numberOfEventsToSend)return false;
+            this._sendEvent(); // try to send an event
             return true;
-        }
-
-        get client(){return this._client;}
-        set client(client){
-            this._client=client;
-            this._sendPendingEvents(); // send any pending events we have
         }
 
         get status(){
@@ -321,19 +360,19 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
 
         sendCards(){
             gameEngineLog("Sending cards to client of remote player "+(this.name?this.name:"?")+".");
-            this._sendNewEvent('CARDS',getCardsInfo(this),5);
+            this._sendNewEvent('CARDS',getCardsInfo(this));
         }
 
         // copied over from OnlinePlayer() in main.js 
         // METHODS CALLED BY THE GAME
         makeABid(playerBidObjects,possibleBids){
-            this._sendNewEvent('MAKE_A_BID',{'playerBidObjects':playerBidObjects,'possibleBids':possibleBids},5);
+            this._sendNewEvent('MAKE_A_BID',{'playerBidObjects':playerBidObjects,'possibleBids':possibleBids});
         }
         chooseTrumpSuite(suites){
-            this._sendNewEvent('CHOOSE_TRUMP_SUITE',suites,10);
+            this._sendNewEvent('CHOOSE_TRUMP_SUITE',suites);
         }
         choosePartnerSuite(suites,partnerRankName){
-            this._sendNewEvent('CHOOSE_PARTNER_SUITE',{'suites':suites,'partnerRankName':partnerRankName},10);
+            this._sendNewEvent('CHOOSE_PARTNER_SUITE',{'suites':suites,'partnerRankName':partnerRankName});
         }
         // almost the same as the replaced version except we now want to receive the trick itself
         playACard(trick){
@@ -347,17 +386,17 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
             }/*else gameEngineLog(">>>>>>>>>>>>>>>>> Not a new trick!");*/
             this._game.sendNewPlayerEvent(); // ask the game to send who's playing next
             // MDH@13JAN2020: let's send player info over before asking for the card to play
-            this._sendNewEvent('PLAYER_INFO',this._getPlayerInfo(),5);
+            this._sendNewEvent('PLAYER_INFO',this._getPlayerInfo());
             // can we send all the trick information this way??????? I guess not
             // MDH@18JAN2020: instead of sending the trick info with PLAY_A_CARD
             //                we send it after each card that is played!!
-            this._sendNewEvent('PLAY_A_CARD',null,30); // replacing: getTrickInfo(trick),10);
+            this._sendNewEvent('PLAY_A_CARD',null); // replacing: getTrickInfo(trick),10);
         }
 
         setNumberOfTricksToWin(numberOfTricksToWin){
             super.setNumberOfTricksToWin(numberOfTricksToWin);
             // send the number of tricks to win over
-            this._sendNewEvent('TRICKS_TO_WIN',this.numberOfTricksToWin,5);
+            this._sendNewEvent('TRICKS_TO_WIN',this.numberOfTricksToWin);
         }
         // END METHODS CALLED BY THE GAME
         // METHODS CALLED BY THE PLAYER ITSELF TO BE PASSED ON TO THE GAME
@@ -439,6 +478,7 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
             //      know the room the client is joining we can do it here!!
         }
         */
+        /*
         joinGame(){
             if(this.tableId){
                 gameEngineLog("Player "+this.userId+" joining "+this.tableId+".");
@@ -449,6 +489,7 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
             }else
                 gameEngineLog("ERROR: No game to join!");
         }
+        */
     }
     
     // we need to RikkenTheGameServer to send certain data to all its player clients e.g. when the state changes
@@ -578,7 +619,7 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
             switch(this._state){
                 case PlayerGame.IDLE:
                     // make all players join the game 'room'
-                    this._players.forEach((player)=>{player.joinGame();});
+                    // not anymore: this._players.forEach((player)=>{player.joinGame();});
                     // and now we can emit the game name, the game players and the current dealer index...
                     this.sendToAllPlayers("GAME",this._tableId);
                     this.sendToAllPlayers("PLAYERS",this.getPlayerNames());
@@ -776,7 +817,8 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
                         return acknowledgedEvent.id;
                     });
                     gameEngineLog("Acknowledged event ids: "+JSON.stringify(acknowledgedEventIds)+".");
-                    remotePlayer.eventsAcknowledged(acknowledgedEventIds);
+                    while(acknowledgedEventIds.length>0)remotePlayer.acknowledgeEvent(acknowledgedEventIds.shift());
+                    // replacing: remotePlayer.eventsAcknowledged(acknowledgedEventIds);
                     result=true;
                 }else
                     console.log("ERROR: Unable to find the player to process ACK event data "+JSON.stringify(data)+".");
@@ -809,6 +851,11 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
                 }else{ // there's already a registered player with that name
                     // it's possible we received the name twice??????
                     if(indexOfRemotePlayerOfClient!==indexOfRemotePlayerWithName){
+                        // simply plug the new client associated with the player into the original player
+                        remotePlayers[indexOfRemotePlayerWithName].client=client;
+                        // and remove the new client player we created before we knew that it wasn't a new player at all!!!
+                        remotePlayers.splice(indexOfRemotePlayerOfClient,1);
+                        /* replacing (which was much harder and complex):
                         if(data)remotePlayer.name=data;
                         // now we have two remote players with the same name
                         // delete the OLD one, and get it's game instance so we can assign that to the new one
@@ -831,6 +878,7 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
                                 }
                             }
                         }
+                        */
                     }else
                         gameEngineLog("WARNING: Player name '"+data+"' received again!");
                 }
