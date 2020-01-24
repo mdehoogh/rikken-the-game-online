@@ -172,7 +172,8 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
             this._client=client;
         }
 
-        // expose pending events TODO we might clone them though
+        // if the associated client goes down, both the unacknowledged events need to be registered on the new client (after the reconnect)
+        getUnacknowledgedEvents(){return this._unacknowledgedEvents;}
         getPendingEvents(){return this._pendingEvents;}
 
         // _sendPendingEvents will send any events that couldn't be send due to missing client
@@ -230,12 +231,11 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
             if(someEventsAcknowledged)this._sendPendingEvents();
         }
 
-        addPendingEvents(pendingEvents){
+        consumePendingEvents(pendingEvents){
             // append all received pending events
-            if(pendingEvents&&pendingEvents.length>0){
-                this._unacknowledgedEvents.length=0; // force send the pending events!!!!
-                this._pendingEvents.push(...pendingEvents);
-            }
+            if(!pendingEvents)return;
+            // no need to do this as events are only consumed on start: this._unacknowledgedEvents.length=0;
+            while(pendingEvents.length>0)this._pendingEvents.push(pendingEvents.shift());
             this._sendPendingEvents();
         }
         
@@ -817,7 +817,9 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
                             remotePlayer.index=removedRemotePlayer.index;
                             remotePlayer.game=removedRemotePlayer.game;
                             // TODO all events sent to this player that have not been acknowledged yet have to be sent immediately
-                            remotePlayer.addPendingEvents(removedRemotePlayer.pendingEvents);
+                            //      to do so we need to add the unacknowledged events AGAIN FIRST
+                            remotePlayer.consumePendingEvents(removedRemotePlayer.getUnacknowledgedEvents());
+                            remotePlayer.consumePendingEvents(removedRemotePlayer.getPendingEvents());
                             // MDH@23JAN2020: we can do a bit more if this is the current player!!!!
                             if(remotePlayer.index===this._player){
                                 gameEngineLog("********************** Prompting the reconnected player ********************************");
