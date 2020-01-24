@@ -1546,7 +1546,7 @@ function prepareForPlaying(){
 
     // MDH@09JAN2020: check for a user name
     var urlParams = new URLSearchParams(window.location.search);
-    // MDH@24JAN2020: changed 'player' to 'als'!!!
+    // MDH@24JAN2020: changed 'player' to 'als'!!! NOTE this is a back-door
     let initialPlayerName=(urlParams.has("als")?urlParams.get("als").trim():null);
     if(initialPlayerName)setPlayerName(initialPlayerName,(err)=>{});
 

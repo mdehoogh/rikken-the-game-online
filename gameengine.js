@@ -13,7 +13,13 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
 
     // be able to request all the events exchanged between two parties in the proper order
     function getExchangedEvents(one,another){
-        return loggedEvents.filter((loggedEvent)=>(loggedEvent[0]===one&&loggedEvent[0]===another)||(loggedEvent[0]===another&&loggedEvent[1]===one));
+        console.log("Extracting the events exchanged between '"+one+"' and '"+another+"' from a total of "+loggedEvents.length+" events...");
+        let exchangedEvents=loggedEvents.filter(
+            (loggedEvent)=>{
+                return(loggedEvent[2]===one&&loggedEvent[3]===another)||(loggedEvent[2]===another&&loggedEvent[3]===one);
+            });
+        console.log("\tNumber of exchanged events: "+exchangedEvents.length+".");
+        return exchangedEvents;
     }
     
     // the following methods we already had and we updated them to accomodate for event inspection by the user
@@ -29,7 +35,7 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
     }
 
     function logReceivedEvent(from,to,event,data){
-        let loggedEvent=[null,from,to,event,data];loggedEvent.unshift(loggedEvents.push(loggedEvent)); // MDH@24JAN2020: push the event on the queue
+        let loggedEvent=["",from,to,event,data];loggedEvent.unshift(loggedEvents.push(loggedEvent)); // MDH@24JAN2020: push the event on the queue
         gameEngineLog("Event "+event+" received by "+to+" from "+from+" with data "+JSON.stringify(data)+".");
         return data;
     }

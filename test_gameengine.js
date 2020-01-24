@@ -8,11 +8,17 @@ class RikkenGamesListener extends GamesListener{
     constructor(){
         super();
         this._games=[]; // keep track of a list of active games
+        this._gamesEvents=null;
         this._inspectingGameEvents=null; // the game of which events are being inspected
     }
     showGameEventPrompt(){
         console.log("What player to show next? (or type 0 to move to the next game)");
-        this._gamePlayerNames.forEach((playerName,index)=>console.log(String(index+1)+': '+playerName));
+        this._gamePlayerNames.forEach((playerName,index)=>{
+            if(this._gameEvents[playerName].length>0)
+                console.log(String(index+1)+': '+playerName);
+            else
+                console.log("No game events for player "+playerName+".");
+        });
     }
     inspectNextGameEvents(){
         this._inspectingGameEvents++;
@@ -23,31 +29,35 @@ class RikkenGamesListener extends GamesListener{
         // display the user names to choose from
         this._gamePlayerNames=Object.keys(this._gameEvents);
         this.showGameEventPrompt();
-    } 
+        return true;
+    }
     inspectGamePlayerEvents(gamePlayerIndex){
         let gamePlayerEvents=this._gameEvents[this._gamePlayerNames[gamePlayerIndex]];
+        console.log("Number of player events: "+gamePlayerEvents.length+".");
         // write all the game player events to the log
         gamePlayerEvents.forEach((gamePlayerEvent)=>console.log(gamePlayerEvent.join('\t')));
         this.showGameEventPrompt();
     }
     inspectGameEvents(){
         this._inspectingGameEvents=-1; // the game of which events are being inspected
-        let gamesEvents={};
-        this._games.forEach((game)=>{gamesEvents[game.name]=game.getEvents();});
-        this._gameNames=Object.keys(gamesEvents);
+        this._gamesEvents={};
+        this._games.forEach((game)=>{this._gamesEvents[game.name]=game.getEvents();});
+        this._gameNames=Object.keys(this._gamesEvents);
         if(this._gameNames.length===0)return false;
-        // now write the events to the console so we can inspect them
+        /* now write the events to the console so we can inspect them
         for(let gameName in gamesEvents){
             console.log("Events of game "+gameName+".");
             let gameEvents=gamesEvents[gameName];
             // assuming a game event is an array
+            // NO it is not, it's an object with the player names as keys
             gameEvents.forEach((gameEvent)=>console.log(gameEvent.join('\t')));
         }
+        */
         return this.inspectNextGameEvents();
     }
     doneInspectingGameEvents(){
         this._games.forEach((game)=>{
-            if(game.doneInspectingGameEvents())console.log("Done inspecting game events!");
+            if(game.doneInspectingEvents())console.log("Done inspecting game events!");
         });
     }
 
@@ -187,7 +197,7 @@ server.listen(3000,()=>{
 });
 
 var inspectingEventLog=false;
-/*
+///*
 console.log("Use the spacebar to start and end viewing game events.");
 
 // MDH@24JAN2020: I want to be able to view the event log real-time
@@ -207,40 +217,44 @@ stdin.setEncoding('utf8');
 
 // on any data into stdin
 stdin.on( 'data', function( key ){
-  // ctrl-c ( end of text )
-  if ( key === '\u0003' ) {
-    process.exit();
-  }
-  // write the key to stdout all normal like
-  process.stdout.write( key );
-  // MDH@24JAN2020: either toggle inspecting events with the space bar or view any of the four players
-  if(key==='\u0020'){
-      inspectingEventLog=!inspectingEventLog;
-      // in its simplest form
-      if(inspectingEventLog)rikkenGamesListener.inspectGameEvents();else rikkenGamesListener.doneInspectingGameEvents();
-      return;
-  }
-  if(key==='\u0030'){
-      if(inspectingEventLog){
-          if(!rikkenGamesListener.inspectNextGameEvents()){
-            rikkenGamesListener.doneInspectingGameEvents();
-            inspectingEventLog=false;
-          }
-          return;
-      }
-  }
-  if(key==='\u0031'){
-    if(inspectingEventLog)rikkenGamesListener.inspectGamePlayerEvents(1);
-    return;
-  }else
-  if(key==='\u0032'){
-    if(inspectingEventLog)rikkenGamesListener.inspectGamePlayerEvents(2);
-    return;
-  }else
-  if(key==='\u0033'){
-    if(inspectingEventLog)rikkenGamesListener.inspectGamePlayerEvents(3);
-    return;
-  }
-  console.log("Use the space bar to inspect game events.");
+    console.log(key); // replacing: process.stdout.write( key );
+    // ctrl-c ( end of text )
+    if ( key === '\u0003' ) {
+        process.exit();
+    }
+    // MDH@24JAN2020: either toggle inspecting events with the space bar or view any of the four players
+    if(inspectingEventLog){
+        if(key==='\x30'){
+            if(!rikkenGamesListener.inspectNextGameEvents()){
+                rikkenGamesListener.doneInspectingGameEvents();
+                inspectingEventLog=false;
+                console.log("Game event inspection finished!");
+            }
+            return;
+        }
+        if(key==='\x31'){
+            rikkenGamesListener.inspectGamePlayerEvents(0);
+            return;
+        }
+        if(key==='\x32'){
+            rikkenGamesListener.inspectGamePlayerEvents(1);
+            return;
+        }
+        if(key==='\x33'){
+            rikkenGamesListener.inspectGamePlayerEvents(2);
+            return;
+        }
+        if(key==='\x34'){
+            rikkenGamesListener.inspectGamePlayerEvents(3);
+            return;
+        }
+        rikkenGamesListener.doneInspectingGameEvents();
+        inspectingEventLog=false;
+        console.log("Game event inspection finished!");
+    }else // not yet inspecting the game events
+    if(rikkenGamesListener.inspectGameEvents())
+        inspectingEventLog=true;
+    else
+        console.log("ERROR: Failed to start inspecting the game events.");
 });
-*/
+//*/
