@@ -28,7 +28,7 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
     }
 
     function logEvent(from,to,id,event,data){
-        let loggedEvent=[id,from,to,event,data];loggedEvent.unshift(loggedEvents.push(loggedEvent)); // MDH@24JAN2020: push the event on the queue
+        let loggedEvent=[id,from,to,event,JSON.stringify(data)];loggedEvent.unshift(loggedEvents.push(loggedEvent)); // MDH@24JAN2020: push the event on the queue
         gameEngineLog(from+" sending event #"+id+":"+event+" with data "+JSON.stringify(data)+" to "+to+".");
         // if we have an id put the data in the payload, and the id in the id attribute
         return (id?[event,{'id':id,'payload':data}]:[event,data]);
@@ -42,7 +42,7 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
 
     function getCardsInfo(cardHolder){
         let cardsInfo=[];cardHolder._cards.forEach((card)=>{cardsInfo.push([card.suite,card.rank]);});return cardsInfo;
-    }
+    } 
     function getTrickInfo(trick){
         // TODO we'd probably have to send more information from the trick DONE
         // TODO should we use the trick getters instead???????
@@ -598,7 +598,9 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
                     {
                         // MDH@23JAN2020 all the tricks are collected by the client (player)s themselves: this.sendToAllPlayers('TRICKS',getTricksInfo(this._tricks));
                         // MDH@23JAN2020: this.deltaPoints will compute the delta points JIT
-                        this.sendToAllPlayers('RESULTS',{'deltapoints':this.deltaPoints});
+                        // MDH@24JAN2020: also sending over the points
+                        //                NOTE sending the state change will move to the finished page!!!
+                        this.sendToAllPlayers('RESULTS',{'deltapoints':this.deltaPoints,'points':this.points});
                     }
                     break;
             }

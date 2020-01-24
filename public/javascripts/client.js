@@ -342,6 +342,7 @@ function updatePlayerResultsTable(){
     let playerIndex=0;
     let deltaPoints=rikkenTheGame.deltaPoints;
     let points=rikkenTheGame.points;
+    if(!deltaPoints||!points){console.log("ERROR: Results now known yet!");return;}
     for(let playerResultsRow of document.getElementById("player-results-table").querySelector("tbody").getElementsByTagName("tr")){
         playerResultsRow.children[0].innerHTML=rikkenTheGame.getPlayerName(playerIndex);
         playerResultsRow.children[1].innerHTML=(deltaPoints?String(rikkenTheGame.getNumberOfTricksWonByPlayer(playerIndex)):"-");
@@ -363,7 +364,7 @@ function updateTricksPlayedTables(){
     let lastTrickPlayedIndex=rikkenTheGame.numberOfTricksPlayed-1; // getter changed to getMethod call
     if(lastTrickPlayedIndex>=0){
         let trick=rikkenTheGame._trick; // MDH@20JAN2020 replacing: getTrickAtIndex(lastTrickPlayedIndex);
-        if(trick)
+        if(!trick){console.log("ERROR: No trick to update the tricks table with!");return;}
         for(let tricksPlayedTable of document.getElementsByClassName("tricks-played-table")){
             let row=tricksPlayedTable.querySelector("tbody").children[lastTrickPlayedIndex]; // the row we're interested in filling
             row.children[0].innerHTML=String(lastTrickPlayedIndex+1);
@@ -847,6 +848,7 @@ function _gameStateChanged(fromstate,tostate){
         case PlayerGame.FINISHED:
             setInfo("Het spel is afgelopen!");
             clearCardsPlayedTable();
+            currentPlayer.game._numberOfTricksPlayed+=1; // QUICK FIX to get to see the last trick at the right position!!!!!
             updateTricksPlayedTables(); // so we get to see the last trick as well!!!
             updatePlayerResultsTable(); // show the player results so far
             setPage("page-finished");
@@ -1351,9 +1353,13 @@ class PlayerGameProxy extends PlayerGame {
                 {
                     // we won't be receiving a new trick event, but we still want to show the user that we're done
                     // TODO check if the page moved to the results page??????
+                    /* removed, as these things are done when the game over message is received...
                     clearCardsPlayedTable();
                     if(this._trick)updateTricksPlayedTables();
+                    */
                     this._deltaPoints=data.deltapoints;
+                    this._points=data.points;
+                    updatePlayerResultsTable();
                 }
                 break;
             case "GAMEOVER":
