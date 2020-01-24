@@ -32,17 +32,22 @@ var visitedPages=[]; // no pages visited yet
 
 var currentPlayer=null; // the current game player
 
+function stopPlaying(){
+    // ASSERT assuming not playing in a game anymore i.e. newGame() has been called before
+    // a NORMAL exit
+    if(currentPlayer)currentPlayer.exit('STOP');
+    // 'manually' move to the previous 'page' in the history...
+    window.history.back();
+}
+
 // MDH@10JAN2020: newGame() is a bid different than in the demo version in that we return to the waiting-page
 function newGame(){
     // by call playsTheGameAtIndex(null,?) we force clearing the game information being shown at the wait-for-players page
-    (!currentPlayer||currentPlayer.playsTheGameAtIndex(null,-1));
-}
-function stopPlaying(){
-    // ASSERT assuming not playing in a game anymore i.e. newGame() has been called before
-    if(currentPlayer&&currentPlayer.game)
-        alert("Stop eerst met spelen!");
-    else // force going back to the previous page in the history (where we came from originally)
-        window.history.back();
+    if(!currentPlayer){
+        console.log("WARNING: No player to start a new game with!");
+        stopPlaying();
+    }else
+        currentPlayer.playsTheGameAtIndex(null,-1);
 }
 
 var forceFocusId=null;
@@ -749,8 +754,15 @@ class OnlinePlayer extends Player{
         }
         */
     }
-    // exit should be called when a player leaves a game for some reason (typically by closing the tab)
-    exit(){(!this._game||this._game.exit(this.name+" leaving..."));}
+    // exit should be called when a player stops playing
+    // either by explicitly using the stop button(s) or leaving/closing the page
+    // TODO should we null the game????????
+    exit(reason){
+        if(this._game){
+            this._game.exit(reason);
+            this._game=null; // TODO or any other way to indicate to indicate that the player stopped playing
+        }
+    }
 }
 
 // button click event handlers
@@ -1065,9 +1077,11 @@ class PlayerGameProxy extends PlayerGame {
         return true;
     }
     exit(reason){
-        this._socket.emit(...this.getSendEvent('BYE',reason,function(){
-            console.log("BYE event receipt acknowledged!");
-            setPage("page-rules");
+        // player is exiting somehow...
+        let data=(reason?reason:(currentPlayer?currentPlayer.name:""));
+        this._socket.emit(...this.getSendEvent('EXIT',data,function(){
+            console.log("EXIT event "+data+" acknowledged!");
+            // we're NOT going anywhere anymore: setPage("page-rules");
         }));
     }
 
@@ -1364,7 +1378,7 @@ class PlayerGameProxy extends PlayerGame {
                 break;
             case "GAMEOVER":
                 // kill the game instance (returning to the rules page until assigned to a game again)
-                if(currentPlayer)currentPlayer.playsTheGameAtIndex(null,-1);
+                // wait for the new-game or stop button click!!!!! if(currentPlayer)currentPlayer.playsTheGameAtIndex(null,-1);
                 // this.exit("in response to '"+data+"'");
                 break;
             case "disconnect":
@@ -1496,7 +1510,7 @@ function prepareForPlaying(){
     window.onpopstate=function(){
         if(currentPlayer&&currentPlayer.game&&currentPlayer.game.state!==PlayerGame.FINISHED)
             console.log("WARNING: Player '"+currentPlayer.name+"' has stopped playing the game any further, effectively canceling it.");
-        (!currentPlayer||currentPlayer.exit()); // apparently the current player should exit!!!!
+        if(currentPlayer)currentPlayer.exit('EXIT'); // if we haven't done so yet!!!!
         setPlayerName(null,null); // without callback no page should be shown anymore...
     }
 

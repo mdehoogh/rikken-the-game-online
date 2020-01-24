@@ -786,10 +786,10 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
             }else
                 gameEngineLog("No callback on ACK event.");
         });
-        client.on('BYE',(data,callback)=>{
+        client.on('EXIT',(data,callback)=>{
             // we have to cancel the game because one of the player left
             // let's send the reason over?????
-            gameEngineLog("BYE event received"+JSON.stringify(data));
+            gameEngineLog("EXIT event received with data "+JSON.stringify(data)+".");
             unregisterClient(client);
             if(typeof callback==='function')callback();else gameEngineLog("No callback on BYE event.");
         });
@@ -816,6 +816,7 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
                         if(removedRemotePlayer&&removedRemotePlayer.game){
                             remotePlayer.index=removedRemotePlayer.index;
                             remotePlayer.game=removedRemotePlayer.game;
+                            // TODO all events sent to this player that have not been acknowledged yet have to be sent immediately
                             remotePlayer.addPendingEvents(removedRemotePlayer.pendingEvents);
                             // MDH@23JAN2020: we can do a bit more if this is the current player!!!!
                             if(remotePlayer.index===this._player){
