@@ -6,16 +6,31 @@ const {RikkenTheGameEventListener,Trick,RikkenTheGame}=require('./public/javascr
 
 module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
 
-    function gameEngineLog(tolog){console.log("GAME ENGINE >>> "+tolog);}
+    // keep a queue of logged messages during the time the user is inspecting events
+    var loggedMessages=[];
+    var loggedEvents=[]; // a log of all the events sent and received
+    var inspectingEvents=0; // how many games are inspecting events
+
+    // be able to request all the events exchanged between two parties in the proper order
+    function getExchangedEvents(one,another){
+        return loggedEvents.filter((loggedEvent)=>(loggedEvent[0]===one&&loggedEvent[0]===another)||(loggedEvent[0]===another&&loggedEvent[1]===one));
+    }
     
+    // the following methods we already had and we updated them to accomodate for event inspection by the user
+    function gameEngineLog(tolog){
+        if(inspectingEvents>0)loggedMessages.push(tolog);else console.log("GAME ENGINE >>> "+tolog);
+    }
+
     function logEvent(from,to,id,event,data){
-        gameEngineLog(from+" sending event #"+id+":"+event+" with data "+JSON.stringify(data)+" "+to+".");
+        let loggedEvent=[id,from,to,event,data];loggedEvent.unshift(loggedEvents.push(loggedEvent)); // MDH@24JAN2020: push the event on the queue
+        gameEngineLog(from+" sending event #"+id+":"+event+" with data "+JSON.stringify(data)+" to "+to+".");
         // if we have an id put the data in the payload, and the id in the id attribute
         return (id?[event,{'id':id,'payload':data}]:[event,data]);
     }
 
-    function logReceivedEvent(from,event,data){
-        gameEngineLog("Received event "+event+" with data "+JSON.stringify(data)+" from "+from+".");
+    function logReceivedEvent(from,to,event,data){
+        let loggedEvent=[null,from,to,event,data];loggedEvent.unshift(loggedEvents.push(loggedEvent)); // MDH@24JAN2020: push the event on the queue
+        gameEngineLog("Event "+event+" received by "+to+" from "+from+" with data "+JSON.stringify(data)+".");
         return data;
     }
 
@@ -222,7 +237,8 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
             // if we fail to append the new event
             let numberOfPendingEvents=this._pendingEvents.length;
             let interval=(typeof sendInterval==='number'&&sendInterval>0?sendInterval:null);
-            let sendEvent=new SendEvent((interval?RemotePlayer.getUniqueEventId():null),this.name,'over',event,data,interval);
+            // MDH@24JAN2020: prepending the name of the game (sender) as the from and name of the player as the to (destination)
+            let sendEvent=new SendEvent((interval?RemotePlayer.getUniqueEventId():null),"GAME\t"+this.game.name,"PLAYER\t"+this.name,event,data,interval);
             // if we succeed in sending the event when it is not supposed to get acknowledged, no need to store in the pending event queue
             if(!interval){
                 if(sendEvent.sendto(this._client)){
@@ -434,11 +450,34 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
     // MDH@09JAN2020: let's remove the methods that are already doing there thing in RikkenTheGame!!!
     class RikkenTheGameServer extends RikkenTheGame{
 
+        getEvents(){
+            inspectingEvents++; // from now on all logged messages will not be shown
+            // we want to return all events exchanged with any of it's players
+            let playerEvents={};
+            this._players.forEach((player)=>{playerEvents[player.name]=getExchangedEvents("GAME\t"+this.name,"PLAYER\t"+player.name);});
+            return playerEvents;
+        }
+        doneInspectingEvents(){
+            if(inspectingEvents>0)inspectingEvents--;
+            if(inspectingEvents>0)return false; // not all events inspected...
+            while(loggedMessages.length>0)gameEngineLog(loggedMessages.shift());
+            return true;
+        }
+
+        registerPlayerEvent(playerName,type,event,data){
+            let playerEvent=[new Date().toISOString(),type,event,data];
+            // prepending the player event with it's position in the player events queue
+            playerEvent.unshift(this._playerEvents[playerName].push(playerEvent));
+        }
+        // MDH@24JAN2020: END player event registration
+
         // MDH@07JAN2020: I've adapted the super constructor in such a way that you need to call start() to make it start
         //                that way we can set the _tableId before the game tries to reach the IDLE state
         //                and initialize the game by telling each player what game it will be playing and at what position
         constructor(tableId,players){
             super(players,null);
+            // keep track of ALL player events (IN and OUT)
+            this._logMessageQueue=[];this._playerEvents=[];this._players.forEach((player)=>{this._playerEvents[player.name]=[];});
             console.log("Players registered!");
             this._tableId=tableId;
             // now we're to wait for somebody to start the game
@@ -639,7 +678,7 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
         });
         delete tableGames[tableId]; // guess we can do it this way
         // inform the games listener that the game finished or got canceled!!!
-        if(gamesListener)if(canceled)gamesListener.gameCanceled(game);else gamesListeners.gameFinished(game);
+        if(gamesListener)if(canceled)gamesListener.gameCanceled(game);else gamesListener.gameFinished(game);
     }
 
     function showRemotePlayersInfo(info){
@@ -793,7 +832,7 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
         client.on('BID', (data,callback) => { 
             let remotePlayerIndex=getIndexOfRemotePlayerOfClient(client);
             let remotePlayer=remotePlayers[remotePlayerIndex];
-            remotePlayer._setBid(logReceivedEvent(remotePlayer.name,'BID',data));
+            remotePlayer._setBid(logReceivedEvent(this.name,remotePlayer.name,'BID',data));
             if(typeof callback==='function')callback();else gameEngineLog("No callback on BID event.");
             remotePlayer.game.sendBidMadeEvent(remotePlayer.index,data); // MDH@20JAN2020: same with a bid (as with a card below), which can then be displayed
         });
@@ -804,7 +843,7 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
             // given that we get the actual card played from the other side, we should call player._setCard here!!!!
             // passing in the actual card that the player has in his hands as returned by getCard() (defined in class CardHolder)
             // MDH@14JAN2020: we're receiving the card (suite first, rank second, askingForPartnerCard flag)
-            let eventData=logReceivedEvent(player.name,'CARD',data);
+            let eventData=logReceivedEvent(this.name,player.name,'CARD',data);
             let cardPlayed=player.getCard(eventData[0],eventData[1],eventData[2]);
             if(cardPlayed){
                 // MDH@23JAN2020: because _setCard will call _cardPlayed on the game itself
@@ -820,12 +859,12 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
         });
         client.on('TRUMPSUITE',(data,callback)=>{
             let remotePlayerIndex=getIndexOfRemotePlayerOfClient(client);
-            remotePlayers[remotePlayerIndex]._setTrumpSuite(logReceivedEvent(remotePlayers[remotePlayerIndex].name,'TRUMPSUITE',data));
+            remotePlayers[remotePlayerIndex]._setTrumpSuite(logReceivedEvent(this.name,remotePlayers[remotePlayerIndex].name,'TRUMPSUITE',data));
             if(typeof callback==='function')callback();else gameEngineLog("No callback on TRUMPSUITE event.");
         });
         client.on('PARTNERSUITE',(data,callback)=>{
             let remotePlayerIndex=getIndexOfRemotePlayerOfClient(client);
-            remotePlayers[remotePlayerIndex]._setPartnerSuite(logReceivedEvent(remotePlayers[remotePlayerIndex].name,'PARTNERSUITE',data));
+            remotePlayers[remotePlayerIndex]._setPartnerSuite(logReceivedEvent(this.name,remotePlayers[remotePlayerIndex].name,'PARTNERSUITE',data));
             if(typeof callback==='function')callback();else gameEngineLog("No callback on PARTNERSUITE event.");
         });
     });

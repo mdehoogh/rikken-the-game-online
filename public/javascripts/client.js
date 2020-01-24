@@ -846,6 +846,7 @@ function _gameStateChanged(fromstate,tostate){
             break;
         case PlayerGame.FINISHED:
             setInfo("Het spel is afgelopen!");
+            clearCardsPlayedTable();
             updateTricksPlayedTables(); // so we get to see the last trick as well!!!
             updatePlayerResultsTable(); // show the player results so far
             setPage("page-finished");
@@ -1545,7 +1546,8 @@ function prepareForPlaying(){
 
     // MDH@09JAN2020: check for a user name
     var urlParams = new URLSearchParams(window.location.search);
-    let initialPlayerName=(urlParams.has("player")?urlParams.get("player").trim():null);
+    // MDH@24JAN2020: changed 'player' to 'als'!!!
+    let initialPlayerName=(urlParams.has("als")?urlParams.get("als").trim():null);
     if(initialPlayerName)setPlayerName(initialPlayerName,(err)=>{});
 
 };
