@@ -172,12 +172,9 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
             this._client=client;
         }
 
-        // if the associated client goes down, both the unacknowledged events need to be registered on the new client (after the reconnect)
-        getUnacknowledgedEvents(){return this._unacknowledgedEvents;}
-        getPendingEvents(){return this._pendingEvents;}
-
         // _sendPendingEvents will send any events that couldn't be send due to missing client
         _sendPendingEvents(){
+            if(!this._client)return; // can't send if we don't have a client!!!!
             if(this._unacknowledgedEvents.length>0)return; // can't send while waiting for event acknowledgements
             // what if the client disappears while sending? we wouldn't want that now would we?????
             while(this._pendingEvents.length>0&&this._pendingEvents[0].sendto(this._client)){
@@ -230,7 +227,10 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
             // when events have been removed, new events could be ready for sending...
             if(someEventsAcknowledged)this._sendPendingEvents();
         }
-
+        /*
+        // if the associated client goes down, both the unacknowledged events need to be registered on the new client (after the reconnect)
+        getUnacknowledgedEvents(){return this._unacknowledgedEvents;}
+        getPendingEvents(){return this._pendingEvents;}
         consumePendingEvents(pendingEvents){
             // append all received pending events
             if(!pendingEvents)return;
@@ -238,7 +238,7 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
             while(pendingEvents.length>0)this._pendingEvents.push(pendingEvents.shift());
             this._sendPendingEvents();
         }
-        
+        */
         _sendNewEvent(event,data,sendInterval){
             // if we fail to append the new event
             let numberOfPendingEvents=this._pendingEvents.length;
@@ -261,7 +261,14 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
         get client(){return this._client;}
         set client(client){
             this._client=client;
-            this._sendPendingEvents(); // send any pending events we have
+            if(this._client){
+                // in order to get the unacknowledged events resend we need to move them back into the
+                // pending events queue in the proper order of course
+                // i.e. pop the last unacknowledged event and insert it at the start
+                while(this._unacknowledgedEvents.length>0)
+                    this._pendingEvents.unshift(this._unacknowledgedEvents.pop());
+                this._sendPendingEvents(); // send any pending events we have
+            }
         }
 
         get status(){
@@ -791,7 +798,7 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
             // let's send the reason over?????
             gameEngineLog("EXIT event received with data "+JSON.stringify(data)+".");
             unregisterClient(client);
-            if(typeof callback==='function')callback();else gameEngineLog("No callback on BYE event.");
+            if(typeof callback==='function')callback();else gameEngineLog("No callback on EXIT event.");
         });
         // when a client sends in it's ID which it should
         client.on('PLAYER',(data,callback)=>{
@@ -809,6 +816,12 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
                 }else{ // there's already a registered player with that name
                     // it's possible we received the name twice??????
                     if(indexOfRemotePlayerOfClient!==indexOfRemotePlayerWithName){
+                        // MDH@25JAN2020: we're going to do it a bit different!!!!!
+                        // simply plug the new client associated with the player into the original player
+                        remotePlayers[indexOfRemotePlayerWithName].client=client;
+                        // and remove the new client player we created before we knew that it wasn't a new player at all!!!
+                        remotePlayers.splice(indexOfRemotePlayerOfClient,1);
+                        /* replacing:
                         if(data)remotePlayer.name=data;
                         // now we have two remote players with the same name
                         // delete the OLD one, and get it's game instance so we can assign that to the new one
@@ -831,6 +844,7 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
                                 }
                             }
                         }
+                        */
                     }else
                         gameEngineLog("WARNING: Player name '"+data+"' received again!");
                 }

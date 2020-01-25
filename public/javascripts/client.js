@@ -1012,10 +1012,10 @@ function newTrickButtonClicked(){
 // MDH@07JAN2020: additional stuff that we're going to need to make this stuff work
 class PlayerGameProxy extends PlayerGame {
 
-    getSendEvent(event,data,callback){
-        console.log("Sending event "+event+" with data "+JSON.stringify(data)+".");
-        return [event,data,callback];
-    }
+    // getSendEvent(event,data){
+    //     console.log("Sending event "+event+" with data "+JSON.stringify(data)+".");
+    //     return [event,data];
+    // }
 
     // MDH@23JAN2020: called from updateBidsTable
     getPlayerIndex(playerName){
@@ -1027,17 +1027,41 @@ class PlayerGameProxy extends PlayerGame {
 
     get numberOfPlayers(){return this._playerNames.length;}
 
-    // what the player will be calling when (s)he made a bid, played a card, choose trump or partner suite
-    bidMade(bid){
-        if(this._state===PlayerGame.OUT_OF_ORDER)return false;
-        this._socket.emit(...this.getSendEvent('BID',bid,function(){
-                forceFocus(null); // a bit crude to get rid of the Bieden page name though
-                console.log("BID event receipt acknowledged!");
-                document.getElementById("bidding").style.visibility="hidden"; // hide the bidding element again
-            })); // no need to send the player id I think... {'by':this._playerIndex,'bid':bid}));
+    // MDH@25JAN2020: game cannot continue until succeeding in getting the action over to the game server
+    //                to guarantee delivery we run a resend timer that will continue sending until the callback gets called
+    // _eventSent will get called when the event was received by the game server
+    _sentEventReceived(){
+        if(this._eventToSendIntervalId){clearInterval(this._eventToSendIntervalId);this._eventToSendIntervalId=null;}
+        forceFocus(null);
+        console.log("Event "+this._eventToSend[0]+" received by game server.");
+        this._eventToSend=null;
+        this._eventSentCallback();
+    }
+    _sendEvent(){
+        try{
+            this._socket.emit(this._eventToSend[0],this._eventToSend[1],this._sentEventReceived);
+            this._eventToSend[2]++;
+            console.log("Event "+this._eventToSend[0]+" with data "+JSON.stringify(data)+" sent (attempt: "+this._eventToSend[2]+").");
+            return true;
+        }catch(error){
+            console.log("ERROR: Failed to send event "+this._eventToSend[0]+" to the game server (reason: "+error.message+").");
+        }
+        return false;
+    }
+    _setEventToSend(event,data,callback){
+        this._eventSentCallback=callback;
+        this._eventToSend=[event,data,0]; // keep track of the send event count
+        if(!this._sendEvent())return false; // user must make their choice again
+        // schedule next resends
+        this._eventToSendIntervalId=setInterval(this._sendEvent,5000);
         return true;
     }
 
+    // what the player will be calling when (s)he made a bid, played a card, choose trump or partner suite
+    bidMade(bid){
+        if(this._state===PlayerGame.OUT_OF_ORDER)return false;
+        return this._setEventToSend('BID',bid,function(){document.getElementById("bidding").style.visibility="hidden";}); // hide the bidding element again
+    }
     // MDH@13JAN2020: we're sending the exact card over that was played (and accepted at this end as it should I guess)
     // MDH@14JAN2020: passing in the askingForPartnerCard 'flag' as well!!!!
     //                because we're overriding the base RikkenTheGame implementation
@@ -1046,43 +1070,31 @@ class PlayerGameProxy extends PlayerGame {
         if(this._state===PlayerGame.OUT_OF_ORDER)return false;
         // MDH@17JAN2020: disable the buttons once the card is accepted (to be played!!!)
         //                TODO perhaps hiding the cards should also be done here!!!
-        updatePlayableCardButtonClickHandlers(false);
         /* replacing:
         document.getElementById("wait-for-play").style.visibility="visible"; // hide the bidding element again
         document.getElementById("playing").style.visibility="hidden"; // hide the bidding element again
         */
         console.log("Sending card played: "+card.toString()+" to the server.");
-        this._socket.emit(...this.getSendEvent('CARD',[card.suite,card.rank,askingForPartnerCard],function(){
-                forceFocus(null);
-                console.log("CARD played receipt acknowledged.");
-            })); // replacing: {'player':this._playerIndex,'card':[card.suite,card.rank]}));
+        if(!this._setEventToSend('CARD',[card.suite,card.rank,askingForPartnerCard]))return false;
+        updatePlayableCardButtonClickHandlers(false);
         return true;
     }
     trumpSuiteChosen(trumpSuite){
         if(this._state===PlayerGame.OUT_OF_ORDER)return false;
-        this._socket.emit(...this.getSendEvent('TRUMPSUITE',trumpSuite,function(){
-                forceFocus(null);
-                console.log("Trump suite event receipt acknowledged.");
-                document.getElementById("trump-suite-input").style.visibility="hidden"; // ascertain to hide the trump suite input element
-            })); // same here: {'player':this._playerIndex,'suite':trumpSuite}));
-        return true;
+        return this._setEventToSend('TRUMPSUITE',trumpSuite,function(){document.getElementById("trump-suite-input").style.visibility="hidden";});
     }
     partnerSuiteChosen(partnerSuite){
         if(this._state===PlayerGame.OUT_OF_ORDER)return false;
-        this._socket.emit(...this.getSendEvent('PARTNERSUITE',partnerSuite,function(){
-                forceFocus(null);
-                console.log("Partner suite event receipt acknowledged!");
-                document.getElementById("partner-suite-input").style.visibility="hidden"; // ascertain to hide the partner suite input element
-            })); // replacing: {'player':this._playerIndex,'suite':partnerSuite}));
-        return true;
+        return this._setEventToSend('PARTNERSUITE',partnerSuite,function(){document.getElementById("partner-suite-input").style.visibility="hidden";});
+         // replacing: {'player':this._playerIndex,'suite':partnerSuite}));
     }
     exit(reason){
         // player is exiting somehow...
         let data=(reason?reason:(currentPlayer?currentPlayer.name:""));
-        this._socket.emit(...this.getSendEvent('EXIT',data,function(){
+        return this._setEventToSend('EXIT',data,function(){
             console.log("EXIT event "+data+" acknowledged!");
             // we're NOT going anywhere anymore: setPage("page-rules");
-        }));
+        });
     }
 
     set state(newstate){
@@ -1436,6 +1448,7 @@ class PlayerGameProxy extends PlayerGame {
         // OOPS didn't like forgetting this!!! 
         // but PlayerGame does NOT have an explicit constructor (i.e. no required arguments)
         super();
+        this._sentEventReceived=this._sentEventReceived.bind(this);this._sendEvent=this._sendEvent.bind(this);
         this._eventsReceived=[];
         this._trickWinner=null;
         this._state=PlayerGame.OUT_OF_ORDER;
