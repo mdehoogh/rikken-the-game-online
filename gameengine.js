@@ -239,12 +239,16 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
             this._sendPendingEvents();
         }
         */
+       // MDH@25JAN2020: utility function to get a send event on behalf of the current player so we can pass that to the game 
+        _getNewSendEvent(event,data,interval){
+            return new SendEvent((interval?RemotePlayer.getUniqueEventId():null),"GAME\t"+this.game.name,"PLAYER\t"+this.name,event,data,interval);
+        }
         _sendNewEvent(event,data,sendInterval){
             // if we fail to append the new event
             let numberOfPendingEvents=this._pendingEvents.length;
             let interval=(typeof sendInterval==='number'&&sendInterval>0?sendInterval:null);
             // MDH@24JAN2020: prepending the name of the game (sender) as the from and name of the player as the to (destination)
-            let sendEvent=new SendEvent((interval?RemotePlayer.getUniqueEventId():null),"GAME\t"+this.game.name,"PLAYER\t"+this.name,event,data,interval);
+            let sendEvent=this._getNewSendEvent(event,data,interval);
             // if we succeed in sending the event when it is not supposed to get acknowledged, no need to store in the pending event queue
             if(!interval){
                 if(sendEvent.sendto(this._client)){
@@ -333,14 +337,18 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
 
         // copied over from OnlinePlayer() in main.js 
         // METHODS CALLED BY THE GAME
+        // MDH@25JAN2020: these prompting events (i.e. that require an explicit response), are now delegated to the game itself
         makeABid(playerBidObjects,possibleBids){
-            this._sendNewEvent('MAKE_A_BID',{'playerBidObjects':playerBidObjects,'possibleBids':possibleBids},5);
+            this._game.promptPlayer('MAKE_A_BID',{'playerBidObjects':playerBidObjects,'possibleBids':possibleBids});
+            // replacing: this._sendNewEvent('MAKE_A_BID',{'playerBidObjects':playerBidObjects,'possibleBids':possibleBids},5);
         }
         chooseTrumpSuite(suites){
-            this._sendNewEvent('CHOOSE_TRUMP_SUITE',suites,10);
+            this._game.promptPlayer('CHOOSE_TRUMP_SUITE',suites);
+            // replacing: this._sendNewEvent('CHOOSE_TRUMP_SUITE',suites,10);
         }
         choosePartnerSuite(suites,partnerRankName){
-            this._sendNewEvent('CHOOSE_PARTNER_SUITE',{'suites':suites,'partnerRankName':partnerRankName},10);
+            this._game.promptPlayer('CHOOSE_PARTNER_SUITE',{'suites':suites,'partnerRankName':partnerRankName});
+            // replacing: this._sendNewEvent('CHOOSE_PARTNER_SUITE',{'suites':suites,'partnerRankName':partnerRankName},10);
         }
         // almost the same as the replaced version except we now want to receive the trick itself
         playACard(trick){
@@ -358,7 +366,8 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
             // can we send all the trick information this way??????? I guess not
             // MDH@18JAN2020: instead of sending the trick info with PLAY_A_CARD
             //                we send it after each card that is played!!
-            this._sendNewEvent('PLAY_A_CARD',null,30); // replacing: getTrickInfo(trick),10);
+            this._game.promptPlayer('PLAY_A_CARD',null);
+            // replacing: this._sendNewEvent('PLAY_A_CARD',null,30); // replacing: getTrickInfo(trick),10);
         }
 
         setNumberOfTricksToWin(numberOfTricksToWin){
@@ -489,6 +498,7 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
         //                and initialize the game by telling each player what game it will be playing and at what position
         constructor(tableId,players){
             super(players,null);
+            this._sendEvent=this._sendEvent.bind(this);
             // keep track of ALL player events (IN and OUT)
             this._logMessageQueue=[];this._playerEvents=[];this._players.forEach((player)=>{this._playerEvents[player.name]=[];});
             console.log("Players registered!");
@@ -537,6 +547,7 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
         }
         // MDH@23JAN2020: when a played card was accepted we can send the card played to all players
         _cardPlayedAccepted(){
+            this._promptEventResponseReceived();
             // MDH@20JAN2020: after each card is played, we're going to send along all partner indices
             let partnerIds=this._players.map((player)=>player.partner);
             let cardPlayed=this._trick.getLastCard();
@@ -553,11 +564,60 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
             }
         }
 
+        // MDH@25JAN2020: the 'events' that actually require an explicit response from a player should BLOCK all communication
+        //                are always sequential so a single approach can be used to take care of these 
+        //                similar to that used in client.js:
+        // MDH@25JAN2020: game cannot continue until succeeding in getting the action over to the game server
+        //                to guarantee delivery we run a resend timer that will continue sending until the callback gets called
+        // _eventSent will get called when the event was received by the game server
+        _promptEventResponseReceived(){
+            clearTimeout();
+            this._promptedPlayer=null;
+            gameEngineLog("Response to prompt event "+this._eventToSend[0]+" received.");
+            this._eventToSend=null;
+        }
+        _sendEvent(){
+            if(!this._eventToSend){gameEngineLog("ERROR: Trying to send the prompting event, when it is no longer there to send!");return;}
+            let sendEventCount=this._eventToSend[2];
+            try{
+                // if we haven't been able to send the event for the first time we check whether we can now!!!
+                if(sendEventCount<0)
+                    if(this._promptedPlayer._unacknowledgedEvents.length+this._promptedPlayer._pendingEvents.length==0)
+                        sendEventCount=0;
+                // can we send now??????
+                if(sendEventCount>=0){ // yes we can!!!!
+                    this._eventToSend[2]=sendEventCount+1;
+                    gameEngineLog("Sending prompting event "+this._eventToSend[0]+" (attempt: "+this._eventToSend[2]+") to "+this._promptedPlayer.name+".");
+                    // send to the remote player without a callback function
+                    this._promptedPlayer.client.emit(this._eventToSend[0],this._eventToSend[1]);
+                }
+            }catch(error){
+                sendEventCount=-1; // force attempting to send again in 500 ms
+                gameEngineLog("ERROR: Failed to send prompting event "+this._eventToSend[0]+" to "+this._promptingPlayer.name+" (reason: "+error.message+").");
+            }finally{
+                // try again in a while depending
+                setTimeout(this._sendEvent,sendEventCount<0?500:5000);
+            }
+        }
+        // main entry point of prompting the current player with event and data
+        promptPlayer(event,data){
+            // can't emit the event until all events sent to the current player are acknowledged
+            this._promptedPlayer=this._players[this._player];
+            let sendEventCount=(this._promptedPlayer._unacknowledgedEvents.length+this._promptedPlayer._pendingEvents.length>0?-1:0);
+            this._eventToSend=[event,data,sendEventCount];            
+            if(sendEventCount<0) // check in half a second
+                setTimeout(this._sendEvent,500);
+            else // send immediately
+                this._sendEvent();
+        }
+        // END special event sending
+
         // MDH@10JAN2020: overriding to be able to send this information to all players
         askPlayerForBid(){
-            super.askPlayerForBid();
             // tell all players who's bidding right now
             this.sendToAllPlayers('TO_BID',this.getPlayerName(this._player));
+            // go for it
+            super.askPlayerForBid();
         }
 
         // MDH@07JAN2020: whenever the state changes, we tell the game players
@@ -625,16 +685,19 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
         
         // PlayerEventListener implementation
         bidMade(bid){
+            this._promptEventResponseReceived();
             // 1. register the bid
             ////////now passed in as argument: let bid=this._players[this._player].bid; // collect the bid made by the current player
-            gameEngineLog("Bid by "+this._players[this._player].name+": "+PlayerGame.BID_NAMES[bid]+".");
             super.bidMade(bid);
+            gameEngineLog("Bid by "+this._players[this._player].name+": "+PlayerGame.BID_NAMES[bid]+".");
         }
         trumpSuiteChosen(chosenTrumpSuite){
+            this._promptEventResponseReceived();
             super.trumpSuiteChosen(chosenTrumpSuite);
             gameEngineLog("Trump suite chosen by "+this._players[this._player].name+": '"+Card.SUITE_NAMES[chosenTrumpSuite]+"'.");
         }
         partnerSuiteChosen(chosenPartnerSuite){
+            this._promptEventResponseReceived();
             super.partnerSuiteChosen(chosenPartnerSuite);
             gameEngineLog("Partner card suite chosen by "+this._players[this._player].name+": '"+Card.SUITE_NAMES[chosenPartnerSuite]+"'.");
         }

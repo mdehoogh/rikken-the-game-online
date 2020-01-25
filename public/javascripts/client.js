@@ -1231,9 +1231,9 @@ class PlayerGameProxy extends PlayerGame {
     processEvent(event,eventData,acknowledge){
         // log every event
         this.logEvent(event,eventData);
-        if(!eventData)return;
+        if(!event)return; // NOTE the eventData can be null!!!!!!
         // if data has an id it needs to be acknowledged
-        let eventId=(eventData.hasOwnProperty("id")?eventData.id:null);
+        let eventId=(eventData&&eventData.hasOwnProperty("id")?eventData.id:null);
         // if there's an event id in this event, and we're supposed to send acknowledgements, do so
         if(eventId){
             // MDH@17JAN2020: now push the event name as well so the server can log that and we can see what's acknowlegded!!!
