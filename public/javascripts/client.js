@@ -207,6 +207,7 @@ function clearCardsPlayedTable(){
 function showTrick(trick/*,playerIndex*/){
     
     let rikkenTheGame=currentPlayer.game;if(!rikkenTheGame)throw new Error("No game being played!"); // MDH@03JAN2020: rikkenTheGame should now point to the _game property of the current player
+    
     console.log("Showing trick ",trick);
     
     let playerIndex=rikkenTheGame._playerIndex;
@@ -674,6 +675,8 @@ class OnlinePlayer extends Player{
                 // theoretically the card can be played but it might be the card with which the partner card is asked!!
                 // is this a game where there's a partner card that hasn't been played yet
                 // alternatively put: should there be a partner and there isn't one yet?????
+                // BUG FIX: still using getTrumpPlayer() here although it wasn't defined at all here!!!!
+                //          now copied over from RikkenTheGame.js!!! (as it is computed)
                 if(this._game.getTrumpPlayer()==this._index){ // this is trump player playing the first card
                     console.log("******************************************************");
                     console.log(">>>> CHECKING WHETHER ASKING FOR THE PARTNER CARD <<<<");
@@ -735,7 +738,7 @@ class OnlinePlayer extends Player{
         if(this._game){
             if(!game){
                 if(this._game.state!==PlayerGame.FINISHED){
-                    setInfo("Programmafout: Het spel kan niet worden verlaten, als het niet afgelopen is.");
+                    setInfo("Programmafout: Het spel kan niet worden verlaten, als het niet afgelopen is (toestand: "+this._game.state+").");
                     return;
                 }
                 if(!this._game.done()){
@@ -902,8 +905,12 @@ function setPage(newPage){
             if(showPage){
                 // cut off the page- prefix
                 switch(_page.substring(5)){
-                    case "rules":setInfo("De regels van het online spel.");break;
-                    case "settings":setInfo("Kies de speelwijze.");break;
+                    case "rules":
+                        // setInfo("De regels van het online spel.");
+                        break;
+                    case "settings":
+                        // setInfo("Kies de speelwijze.");
+                        break;
                     case "setup-game": // when playing in demo mode, the user should enter four player names
                         {
                             showDefaultPlayerNames();
@@ -911,10 +918,10 @@ function setPage(newPage){
                         }
                         break;
                     case "auth": // page-auth
-                        setInfo("Geef de naam op waaronder U wilt spelen!");
+                        // setInfo("Geef de naam op waaronder U wilt spelen!");
                         break;
                     case "wait-for-players": // page-wait-for-players
-                        setInfo("Even geduld aub. We wachten tot er genoeg medespelers zijn!");
+                        // setInfo("Even geduld aub. We wachten tot er genoeg medespelers zijn!");
                         break;
                     case "bidding": // page-bidding
                         // setInfo("Wacht om de beurt op een verzoek tot het doen van een bod.");
@@ -930,11 +937,11 @@ function setPage(newPage){
                         clearCardsPlayedTable(); // just in case!!
                         clearTricksPlayedTables();
                         // setInfo("Wacht op het verzoek tot het opgeven van de troefkleur en/of de mee te vragen aas/heer.");
-                        setInfo("Het spelen begint!");
+                        // setInfo("Het spelen begint!");
                         break;
                     case "finished":
                         document.getElementById("trick-id").innerHTML="";
-                        setInfo("Het spel is afgelopen.");
+                        // setInfo("Het spel is afgelopen.");
                         break;
                 }
             }
@@ -1038,6 +1045,14 @@ class PlayerGameProxy extends PlayerGame {
     }
 
     get numberOfPlayers(){return this._playerNames.length;}
+
+    // MDH@26JAN2020: needed this as well to determine the trump player (using bidders stead of bidPlayers here)
+    getTrumpPlayer(){
+        // only when playing a 'rik' game (with trump, played with a partner, but not troela, we have a trump player)
+        if(this._highestBid!==PlayerGame.BID_RIK&&this._highestBid!==PlayerGame.BID_RIK_BETER)return -1;
+        if(!this._highestBidders||this._highestBidders.length==0)return -1;
+        return this._highestBidders[0];
+    }
 
     // MDH@25JAN2020: game cannot continue until succeeding in getting the action over to the game server
     //                to guarantee delivery we run a resend timer that will continue sending until the callback gets called
@@ -1205,6 +1220,11 @@ class PlayerGameProxy extends PlayerGame {
         // create a new trick with the information in the trick info
         this._trick=new Trick(trickInfo.firstPlayer,this._trumpSuite,this._partnerSuite,this._partnerRank,trickInfo.canAskForPartnerCard,trickInfo.firstPlayerCanPlaySpades);
     
+        // we do the following because it is essential that the checkbox that tells the player whether or not
+        // the partner card can be asked should be in the right state to start with (for the right player)
+        // NOTE newTrick() is being called BEFORE a player is asked to play a card, so that's the right moment!!!!
+        showTrick(this._trick); // TODO should this be here?????
+
     }
 
     // MDH@20JAN2020: if we receive all partners we can extract the partner of the current player
@@ -1214,6 +1234,7 @@ class PlayerGameProxy extends PlayerGame {
         currentPlayer.partner=(this._partnerIds&&this._playerIndex>=0&&this._playerIndex<this._partnerIds.length?this._partnerIds[this._playerIndex]:null);
     }
     newCard(cardInfo){
+        this._trick.askingForPartnerCard=cardInfo.askingForPartnerCard; // MDH@26JAN2020: shouldn't forget this!!!!
         // I don't think we can do that????? this._trick.winner=cardInfo.winner;
         this._trick.addCard(new HoldableCard(cardInfo.suite,cardInfo.rank));
         // MDH@20JAN2020: every card played contains the partners as well!!!
@@ -1502,7 +1523,7 @@ class PlayerGameProxy extends PlayerGame {
         this._partnerSuite=-1;this._partnerRank=-1;
         this._numberOfTricksWon=[0,0,0,0]; // assume no tricks won by anybody
         this._numberOfTricksPlayed=0;this._trick=null;
-        this._highestBid=-1;this._highestBidders=[]; // no highest bidders yet
+        this._highestBid=-1;this._highestBidders=[];this.trumpPlayer=-1; // no highest bidders yet
         this._playersBids=[[],[],[],[]]; // MDH@21JAN2020: keep track of all the bids to show
         this._deltaPoints=null;
         this._points=null;

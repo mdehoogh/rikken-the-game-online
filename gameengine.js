@@ -561,7 +561,8 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
                     // partners:partnerIds,
                 });
                 gameEngineLog("Card played by "+this._players[this._player].name+": '"+cardPlayed.toString()+"'.");
-            }
+            }else
+                gameEngineLog("ERROR: No last card in trick!");
         }
 
         // MDH@25JAN2020: the 'events' that actually require an explicit response from a player should BLOCK all communication
@@ -573,6 +574,7 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
         _promptEventResponseReceived(){
             clearTimeout();
             this._promptedPlayer=null;
+            if(!this._eventToSend)return;
             gameEngineLog("Response to prompt event "+this._eventToSend[0]+" received.");
             this._eventToSend=null;
         }
@@ -934,33 +936,41 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
             let remotePlayerIndex=getIndexOfRemotePlayerOfClient(client);
             let remotePlayer=remotePlayers[remotePlayerIndex];
             let error=remotePlayer._setBid(logReceivedEvent(this.name,remotePlayer.name,'BID',data));
+            // if(error)if(!(error instanceof Error))error=null;
             console.log("BOD RESULTAAT: ("+JSON.stringify(error)+").");
             if(typeof callback==='function')callback(error&&error instanceof Error?{'error':error.message}:null);else gameEngineLog("No callback on BID event.");
             if(!error)remotePlayer.game.sendBidMadeEvent(remotePlayer.index,data); // MDH@20JAN2020: same with a bid (as with a card below), which can then be displayed
         });
         client.on('CARD',(data,callback)=>{
-            let remotePlayerIndex=getIndexOfRemotePlayerOfClient(client);
-            // we may assume that the card played is one from the given player AND we need to get that one
-            let player=remotePlayers[remotePlayerIndex];
-            // given that we get the actual card played from the other side, we should call player._setCard here!!!!
-            // passing in the actual card that the player has in his hands as returned by getCard() (defined in class CardHolder)
-            // MDH@14JAN2020: we're receiving the card (suite first, rank second, askingForPartnerCard flag)
-            let eventData=logReceivedEvent(this.name,player.name,'CARD',data);
-            let cardPlayed=player.getCard(eventData[0],eventData[1]);
             let error=null;
-            if(cardPlayed){
-                // MDH@23JAN2020: because _setCard will call _cardPlayed on the game itself
-                //                it's better to move calling sendCardPlayedEvent() there instead of here!!!!!
-                // MDH@26JAN2020: unlikely that an error will occur but _setCard will now return false if that happens, true when successful!
-                error=player._setCard(cardPlayed,eventData[2]);
-                if(error&&error instanceof Error)gameEngineLog("BUG: Card played NOT accepted! ("+JSON.stringify(error)+")");
-                // MDH@20JAN2020: on receipt of a card we simply send it back to all players
-                //                along with the current winner and whether or not asking for the partner card
-                //                TODO acknowledging probably not needed in that case!!!!!!
-                // moved over to the game itself (now in response to the _cardPlayedAccepted() method call!): player.game.sendCardPlayedEvent();
-            }else
-                error=new Error("Card played not of current player.");
-            if(typeof callback==='function')callback(error&&error instanceof Error?{'error':error.message}:null);else gameEngineLog("No callback on CARD event.");    
+            try{
+                /////// this._promptEventResponseReceived(); // TODO perhaps this should go somewhere else????
+                let remotePlayerIndex=getIndexOfRemotePlayerOfClient(client);
+                // we may assume that the card played is one from the given player AND we need to get that one
+                let player=remotePlayers[remotePlayerIndex];
+                // given that we get the actual card played from the other side, we should call player._setCard here!!!!
+                // passing in the actual card that the player has in his hands as returned by getCard() (defined in class CardHolder)
+                // MDH@14JAN2020: we're receiving the card (suite first, rank second, askingForPartnerCard flag)
+                let eventData=logReceivedEvent(this.name,player.name,'CARD',data);
+                let cardPlayed=player.getCard(eventData[0],eventData[1]);
+                if(cardPlayed){
+                    // MDH@23JAN2020: because _setCard will call _cardPlayed on the game itself
+                    //                it's better to move calling sendCardPlayedEvent() there instead of here!!!!!
+                    // MDH@26JAN2020: unlikely that an error will occur but _setCard will now return false if that happens, true when successful!
+                    error=player._setCard(cardPlayed,eventData[2]);
+                    if(error&&error instanceof Error)console.log("BUG: Card played NOT accepted!",error);
+                    // MDH@20JAN2020: on receipt of a card we simply send it back to all players
+                    //                along with the current winner and whether or not asking for the partner card
+                    //                TODO acknowledging probably not needed in that case!!!!!!
+                    // moved over to the game itself (now in response to the _cardPlayedAccepted() method call!): player.game.sendCardPlayedEvent();
+                }else
+                    error=new Error("Card played not of current player.");
+            }catch(err){
+                error=err;
+                console.log("ERROR ERROR ERROR",err);
+            }finally{
+                if(typeof callback==='function')callback(error&&error instanceof Error?{'error':error.message}:null);else gameEngineLog("No callback on CARD event.");
+            }
         });
         client.on('TRUMPSUITE',(data,callback)=>{
             let remotePlayerIndex=getIndexOfRemotePlayerOfClient(client);

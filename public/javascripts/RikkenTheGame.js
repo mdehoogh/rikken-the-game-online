@@ -837,10 +837,10 @@ class RikkenTheGame extends PlayerGame{
     cardPlayed(card,askingForPartnerCard){
         
         let player=this._player;
-
+/*
         if(card.holder!==this._players[player])
             return new Error("Card supposedly played not in hand of current player!");
-
+*/
         this.log("Card played (asking for partner card: "+askingForPartnerCard+").");
         let numberOfPlayerCards=this._players[this._player].numberOfCards;
         
