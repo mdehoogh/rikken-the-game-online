@@ -856,12 +856,24 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
             }else
                 gameEngineLog("No callback on ACK event.");
         });
+        // MDH@26JAN2020: when the user leaves the game (by using 'Nog eens' button), he's available for new game playing!!!!
+        client.on('DONE',(data,callback)=>{
+            let indexOfRemotePlayerOfClient=getIndexOfRemotePlayerOfClient(client);
+            if(indexOfRemotePlayerOfClient>=0){ // we should have this client registered (of course)
+                gameEngineLog("DONE event received!");
+                // simply get rid of the game that player has ended playing, so (s)he is available for playing in new games again
+                remotePlayers[indexOfRemotePlayerOfClient].playsTheGameAtIndex(null,-1);
+                checkForStartingNewGames();
+                if(typeof callback==='function')callback();else gameEngineLog("WARNING: No callback on LEFT event.");
+            }else
+                gameEngineLog("ERROR: DONE event received of an associated player.");
+        });
         client.on('EXIT',(data,callback)=>{
             // we have to cancel the game because one of the player left
             // let's send the reason over?????
             gameEngineLog("EXIT event received with data "+JSON.stringify(data)+".");
             unregisterClient(client);
-            if(typeof callback==='function')callback();else gameEngineLog("No callback on EXIT event.");
+            if(typeof callback==='function')callback();else gameEngineLog("WARNING: No callback on EXIT event.");
         });
         // when a client sends in it's ID which it should
         client.on('PLAYER',(data,callback)=>{

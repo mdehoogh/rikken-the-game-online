@@ -732,9 +732,21 @@ class OnlinePlayer extends Player{
         return false;
     }
     playsTheGameAtIndex(game,index){
+        if(this._game){
+            if(!game){
+                if(this._game.state!==PlayerGame.FINISHED){
+                    setInfo("Programmafout: Het spel kan niet worden verlaten, als het niet afgelopen is.");
+                    return;
+                }
+                if(!this._game.done()){
+                    setInfo("Verlaten van het spel mislukt! Probeer het nog eens.");
+                    return;
+                }
+                // if sending the DONE event succeeds ready again to play in a next game (without leaving the game playing)
+                setPage("page-wait-for-players");
+            }
+        }
         super.playsTheGameAtIndex(game,index);
-        // TODO should we do this here??
-        if(this.game)setPage("page-wait-for-players");else setPage("page-rules");
     }
     // call renderCards just after the set of cards change
     renderCards(){
@@ -1087,6 +1099,12 @@ class PlayerGameProxy extends PlayerGame {
         if(this._state===PlayerGame.OUT_OF_ORDER)return false;
         return this._setEventToSend('PARTNERSUITE',partnerSuite,function(){document.getElementById("partner-suite-input").style.visibility="hidden";});
          // replacing: {'player':this._playerIndex,'suite':partnerSuite}));
+    }
+    // MDH@26JAN2020: when the user finished reading the results, and wants to continue playing done() should be called
+    done(){
+        return this._setEventToSend('DONE',function(){
+            console.log("DONE event acknowledged.");
+        });
     }
     exit(reason){
         // player is exiting somehow...
