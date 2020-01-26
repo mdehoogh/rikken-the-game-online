@@ -1072,7 +1072,14 @@ class PlayerGameProxy extends PlayerGame {
     // what the player will be calling when (s)he made a bid, played a card, choose trump or partner suite
     bidMade(bid){
         if(this._state===PlayerGame.OUT_OF_ORDER)return false;
-        return this._setEventToSend('BID',bid,function(){document.getElementById("bidding").style.visibility="hidden";}); // hide the bidding element again
+        document.getElementById("bidding").style.visibility="hidden";
+        return this._setEventToSend('BID',bid,function(result){
+            if(result){
+                setInfo("Bod niet geaccepteerd"+
+                (result.hasOwnProperty('error')?" (fout: "+result.error+")":"")+"!");
+                // TODO what now???
+            }
+        }); // hide the bidding element again
     }
     // MDH@13JAN2020: we're sending the exact card over that was played (and accepted at this end as it should I guess)
     // MDH@14JAN2020: passing in the askingForPartnerCard 'flag' as well!!!!
@@ -1087,17 +1094,36 @@ class PlayerGameProxy extends PlayerGame {
         document.getElementById("playing").style.visibility="hidden"; // hide the bidding element again
         */
         console.log("Sending card played: "+card.toString()+" to the server.");
-        if(!this._setEventToSend('CARD',[card.suite,card.rank,askingForPartnerCard]))return false;
         updatePlayableCardButtonClickHandlers(false);
-        return true;
+        return this._setEventToSend('CARD',[card.suite,card.rank,askingForPartnerCard],function(result){
+                if(result){
+                    setInfo("Gespeelde kaart niet geaccepteerd"+
+                    (result.hasOwnProperty('error')?" (fout: "+result.error+")":"")+"!");
+                    // TODO what to do now?
+                }
+            });
     }
     trumpSuiteChosen(trumpSuite){
         if(this._state===PlayerGame.OUT_OF_ORDER)return false;
-        return this._setEventToSend('TRUMPSUITE',trumpSuite,function(){document.getElementById("trump-suite-input").style.visibility="hidden";});
+        document.getElementById("trump-suite-input").style.visibility="hidden";
+        return this._setEventToSend('TRUMPSUITE',trumpSuite,function(result){
+                if(result){
+                    setInfo("Gekozen troefkleur niet geaccepteerd"+
+                    (result.hasOwnProperty('error')?" (fout: "+result.error+")":"")+"!");
+                    // TODO what to do now?
+                }
+            });
     }
     partnerSuiteChosen(partnerSuite){
         if(this._state===PlayerGame.OUT_OF_ORDER)return false;
-        return this._setEventToSend('PARTNERSUITE',partnerSuite,function(){document.getElementById("partner-suite-input").style.visibility="hidden";});
+        document.getElementById("partner-suite-input").style.visibility="hidden";
+        return this._setEventToSend('PARTNERSUITE',partnerSuite,function(result){
+                if(result){
+                    setInfo("Gekozen partner kleur niet geaccepteerd!"+
+                    (result.hasOwnProperty('error')?" (fout: "+result.error+")":"")+"!");
+                    // TODO what to do now?
+                }
+            });
          // replacing: {'player':this._playerIndex,'suite':partnerSuite}));
     }
     // MDH@26JAN2020: when the user finished reading the results, and wants to continue playing done() should be called

@@ -549,7 +549,7 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
         _cardPlayedAccepted(){
             this._promptEventResponseReceived();
             // MDH@20JAN2020: after each card is played, we're going to send along all partner indices
-            let partnerIds=this._players.map((player)=>player.partner);
+            // let partnerIds=this._players.map((player)=>player.partner);
             let cardPlayed=this._trick.getLastCard();
             if(cardPlayed){
                 this.sendToAllPlayers('CARD_PLAYED',
@@ -558,7 +558,7 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
                     winner:this._trick._winner,
                     suite:cardPlayed.suite,
                     rank:cardPlayed.rank,
-                    partners:partnerIds,
+                    // partners:partnerIds,
                 });
                 gameEngineLog("Card played by "+this._players[this._player].name+": '"+cardPlayed.toString()+"'.");
             }
@@ -928,13 +928,15 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
             showRemotePlayersInfo("Player ID");
             if(typeof callback==='function')callback();else console.log("No callback on PLAYER event");
         });
+
         // what's coming back from the players are bids, cards played, trump and/or partner suites choosen
         client.on('BID', (data,callback) => { 
             let remotePlayerIndex=getIndexOfRemotePlayerOfClient(client);
             let remotePlayer=remotePlayers[remotePlayerIndex];
-            remotePlayer._setBid(logReceivedEvent(this.name,remotePlayer.name,'BID',data));
-            if(typeof callback==='function')callback();else gameEngineLog("No callback on BID event.");
-            remotePlayer.game.sendBidMadeEvent(remotePlayer.index,data); // MDH@20JAN2020: same with a bid (as with a card below), which can then be displayed
+            let error=remotePlayer._setBid(logReceivedEvent(this.name,remotePlayer.name,'BID',data));
+            console.log("BOD RESULTAAT: ("+JSON.stringify(error)+").");
+            if(typeof callback==='function')callback(error&&error instanceof Error?{'error':error.message}:null);else gameEngineLog("No callback on BID event.");
+            if(!error)remotePlayer.game.sendBidMadeEvent(remotePlayer.index,data); // MDH@20JAN2020: same with a bid (as with a card below), which can then be displayed
         });
         client.on('CARD',(data,callback)=>{
             let remotePlayerIndex=getIndexOfRemotePlayerOfClient(client);
@@ -944,28 +946,31 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
             // passing in the actual card that the player has in his hands as returned by getCard() (defined in class CardHolder)
             // MDH@14JAN2020: we're receiving the card (suite first, rank second, askingForPartnerCard flag)
             let eventData=logReceivedEvent(this.name,player.name,'CARD',data);
-            let cardPlayed=player.getCard(eventData[0],eventData[1],eventData[2]);
+            let cardPlayed=player.getCard(eventData[0],eventData[1]);
+            let error=null;
             if(cardPlayed){
                 // MDH@23JAN2020: because _setCard will call _cardPlayed on the game itself
                 //                it's better to move calling sendCardPlayedEvent() there instead of here!!!!!
-                player._setCard(cardPlayed); // will update the current trick as well!!
-                if(typeof callback==='function')callback();else gameEngineLog("No callback on CARD event.");    
+                // MDH@26JAN2020: unlikely that an error will occur but _setCard will now return false if that happens, true when successful!
+                error=player._setCard(cardPlayed,eventData[2]);
+                if(error&&error instanceof Error)gameEngineLog("BUG: Card played NOT accepted! ("+JSON.stringify(error)+")");
                 // MDH@20JAN2020: on receipt of a card we simply send it back to all players
                 //                along with the current winner and whether or not asking for the partner card
                 //                TODO acknowledging probably not needed in that case!!!!!!
                 // moved over to the game itself (now in response to the _cardPlayedAccepted() method call!): player.game.sendCardPlayedEvent();
             }else
-                gameEngineLog("****** BUG: Card played not registered with current player!");
+                error=new Error("Card played not of current player.");
+            if(typeof callback==='function')callback(error&&error instanceof Error?{'error':error.message}:null);else gameEngineLog("No callback on CARD event.");    
         });
         client.on('TRUMPSUITE',(data,callback)=>{
             let remotePlayerIndex=getIndexOfRemotePlayerOfClient(client);
-            remotePlayers[remotePlayerIndex]._setTrumpSuite(logReceivedEvent(this.name,remotePlayers[remotePlayerIndex].name,'TRUMPSUITE',data));
-            if(typeof callback==='function')callback();else gameEngineLog("No callback on TRUMPSUITE event.");
+            let error=remotePlayers[remotePlayerIndex]._setTrumpSuite(logReceivedEvent(this.name,remotePlayers[remotePlayerIndex].name,'TRUMPSUITE',data));
+            if(typeof callback==='function')callback(error&&error instanceof Error?{'error':error.message}:null);else gameEngineLog("No callback on TRUMPSUITE event.");
         });
         client.on('PARTNERSUITE',(data,callback)=>{
             let remotePlayerIndex=getIndexOfRemotePlayerOfClient(client);
-            remotePlayers[remotePlayerIndex]._setPartnerSuite(logReceivedEvent(this.name,remotePlayers[remotePlayerIndex].name,'PARTNERSUITE',data));
-            if(typeof callback==='function')callback();else gameEngineLog("No callback on PARTNERSUITE event.");
+            let error=remotePlayers[remotePlayerIndex]._setPartnerSuite(logReceivedEvent(this.name,remotePlayers[remotePlayerIndex].name,'PARTNERSUITE',data));
+            if(typeof callback==='function')callback(error&&error instanceof Error?{'error':error.message}:null);else gameEngineLog("No callback on PARTNERSUITE event.");
         });
     });
 

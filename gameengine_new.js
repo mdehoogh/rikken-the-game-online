@@ -904,17 +904,22 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
             // MDH@14JAN2020: we're receiving the card (suite first, rank second, askingForPartnerCard flag)
             let eventData=logReceivedEvent(this.name,player.name,'CARD',data);
             let cardPlayed=player.getCard(eventData[0],eventData[1],eventData[2]);
+            let success=false;
             if(cardPlayed){
                 // MDH@23JAN2020: because _setCard will call _cardPlayed on the game itself
                 //                it's better to move calling sendCardPlayedEvent() there instead of here!!!!!
-                player._setCard(cardPlayed); // will update the current trick as well!!
-                if(typeof callback==='function')callback();else gameEngineLog("No callback on CARD event.");    
+                // MDH@26JAN2020: unlikely that an error will occur but _setCard will now return false if that happens, true when successful!
+                if(!player._setCard(cardPlayed))
+                    gameEngineLog("BUG: Card played NOT accepted!");
+                else 
+                    success=true;
                 // MDH@20JAN2020: on receipt of a card we simply send it back to all players
                 //                along with the current winner and whether or not asking for the partner card
                 //                TODO acknowledging probably not needed in that case!!!!!!
                 // moved over to the game itself (now in response to the _cardPlayedAccepted() method call!): player.game.sendCardPlayedEvent();
             }else
                 gameEngineLog("****** BUG: Card played not registered with current player!");
+            if(typeof callback==='function')callback(success);else gameEngineLog("No callback on CARD event.");    
         });
         client.on('TRUMPSUITE',(data,callback)=>{
             let remotePlayerIndex=getIndexOfRemotePlayerOfClient(client);

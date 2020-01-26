@@ -209,41 +209,58 @@ class Player extends CardHolder{
         card.holder=trick; // move the card to the trick
     }
 
+    // MDH: all methods that deal with processing a bid, a card, trump or partner suite choice
     // to signal having made a bid
     _bidMade(bid){
-        if(this._eventListeners) // catch any error thrown by event listeners
-            this._eventListeners.forEach((eventListener)=>{try{(!eventListener||eventListener.bidMade(this._bid));}catch(error){}});
-        if(this._game){
-            console.log("Passing bid "+this._bid+" of player '"+this.name+"' to the game!");
-            this._game.bidMade(this._bid);
-        }else
-            console.log("ERROR: No game to pass bid "+this._bid+" of player '"+this.name+"'.");
+        if(!this._game)return new Error("No game for player "+this.name+" to bid in!");
+        console.log("Passing bid "+bid+" of player '"+this.name+"' to the game!");
+        return this._game.bidMade(bid);
     }
-    _setBid(bid){this._bidMade(this._bid=bid);}
+    // MDH@26JAN2020: returning true on success (when _bidMade did not return an error)
+    _setBid(bid){
+        let error=this._bidMade(bid);
+        if(error)return error;
+        this._bid=bid;
+        if(this._eventListeners)this._eventListeners.forEach((eventListener)=>{try{(!eventListener||eventListener.bidMade(this._bid));}catch(error){}});
+    }
 
+    // cardPlayed in RikkenTheGame can now return an error (instead of throwing one)
     _cardPlayed(card,askingForPartnerCard){
-        if(this._eventListeners)this._eventListeners.forEach((eventListener)=>{eventListener.cardPlayed(card,askingForPartnerCard);});
-        if(this._game)this._game.cardPlayed(card,askingForPartnerCard);
+        if(!this._game)return new Error("No game for "+this.name+" to play the card in!");
+        return this._game.cardPlayed(card,askingForPartnerCard);
     }
     // TODO a bid setter will allow subclasses to pass a bid by setting the property
     _setCard(card,askingForPartnerCard){
         // technically checking whether the played card is valid should be done here, or BEFORE calling setCard
-        this._cardPlayed(this._card=card,askingForPartnerCard);
+        let error=this._cardPlayed(card,askingForPartnerCard);
+        if(error)return error;
+        this._card=card;
+        if(this._eventListeners)this._eventListeners.forEach((eventListener)=>{try{eventListener.cardPlayed(this._card,askingForPartnerCard);}catch(error){};});
     }
 
     // to signal having choosen a trump suite
-    trumpSuiteChosen(trumpSuite){
-        if(this._eventListeners)this._eventListeners.forEach((eventListener)=>{try{eventListener.trumpSuiteChosen(trumpSuite);}catch(error){};});
-        if(this._game)this._game.trumpSuiteChosen(trumpSuite);
+    _trumpSuiteChosen(trumpSuite){
+        if(!this._game)return new Error("No game for player "+this.name+" to choose trump suite in!");
+        return this._game.trumpSuiteChosen(trumpSuite);
     }
-    _setTrumpSuite(trumpSuite){this.trumpSuiteChosen(this._trumpSuite=trumpSuite);}
+    _setTrumpSuite(trumpSuite){
+        let error=this._trumpSuiteChosen(trumpSuite);
+        if(error)return error;
+        this._trumpSuite=trumpSuite;
+        if(this._eventListeners)this._eventListeners.forEach((eventListener)=>{try{eventListener.trumpSuiteChosen(this._trumpSuite);}catch(error){};});
+    }
 
     // to signal having chosen a partner
-    partnerSuiteChosen(partnerSuite){
-        if(this._eventListeners)this._eventListeners.forEach((eventListener)=>{try{eventListener.partnerSuiteChosen(partnerSuite);}catch(error){};});
-        if(this._game)this._game.partnerSuiteChosen(partnerSuite);
+    _partnerSuiteChosen(partnerSuite){
+        if(!this._game)return new Error("No game for player "+this.name+" to choose partner suite in!");
+        return this._game.partnerSuiteChosen(partnerSuite);
     }
-    _setPartnerSuite(partnerSuite){this.partnerSuiteChosen(this._partnerSuite=partnerSuite);}
+    _setPartnerSuite(partnerSuite){
+        let error=this._partnerSuiteChosen(partnerSuite);
+        if(error)return error;
+        this._partnerSuite=partnerSuite;
+        if(this._eventListeners)this._eventListeners.forEach((eventListener)=>{try{eventListener.partnerSuiteChosen(this._partnerSuite);}catch(error){};});
+    }
 
     // can be asked to make a bid passing in the highest bid so far
     // NOTE this would be an 'abstract' method in classical OO
@@ -339,8 +356,6 @@ class Player extends CardHolder{
         }
     }
 
-    set partner(partner){this._partner=(typeof partner==='number'?partner:-1);} // to set the partner once the partner suite/rank card is in the trick!!!!
-
     // can be asked to play a card and add it to the given trick
     // NOTE this would be an 'abstract' method in classical OO
     playACard(trick){
@@ -358,6 +373,8 @@ class Player extends CardHolder{
         }
         this._setCard(this._cards[cardPlayIndex]);
     }
+
+    set partner(partner){this._partner=(typeof partner==='number'?partner:-1);} // to set the partner once the partner suite/rank card is in the trick!!!!
 
     trickWon(trickIndex){
         this._tricksWon.push(trickIndex);
