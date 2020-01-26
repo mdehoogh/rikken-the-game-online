@@ -668,9 +668,8 @@ class OnlinePlayer extends Player{
             ////////////this._trick.askingForPartnerCard=0; // -1 when asking blind, 0 not asking, 1 if asking
             // CAN'T call _setCard (in base class Player) if the card cannot be played!!!
             let trick=this.game._trick; // MDH@19JAN2020: easiest way to get the current trick
-            if(!trick){
-                debugger
-            }else
+            if(!trick)return new Error("Geen slag om een kaart in bij te spelen.");
+            let askingForPartnerCard=0;
             if(trick.numberOfCards==0){ // first card in the trick played
                 // theoretically the card can be played but it might be the card with which the partner card is asked!!
                 // is this a game where there's a partner card that hasn't been played yet
@@ -685,7 +684,7 @@ class OnlinePlayer extends Player{
                     if(trick.canAskForPartnerCard>0){ // non-blind
                         // TODO should be detected by the game preferably
                         if(suite==this._game.getPartnerSuite()){
-                            trick.askingForPartnerCard=1;
+                            askingForPartnerCard=1;
                             ////alert("\tNON_BLIND");
                         }
                     }else
@@ -695,7 +694,7 @@ class OnlinePlayer extends Player{
                         // MDH@14JAN2020 BUG FIX: was using ask-partner-card-blind instead of ask-partner-card-checkbox!!!
                         if(document.getElementById("ask-partner-card-checkbox").checked&&
                             (suite!=this._game.getTrumpSuite()||confirm("Wilt U de "+Language.DUTCH_SUITE_NAMES[this._game.getPartnerSuite()]+" "+Language.DUTCH_RANK_NAMES[this._game.getPartnerRank()]+" (blind) vragen met een troef?"))){
-                            trick.askingForPartnerCard=-1; // yes, asking blind!!
+                            askingForPartnerCard=-1; // yes, asking blind!!
                             /////alert("\tBLIND!");
                         }
                     }else
@@ -703,36 +702,31 @@ class OnlinePlayer extends Player{
                 }else{
                     // check whether or not the first player can play spades
                     if(!trick._firstPlayerCanPlaySpades&&suite===Card.SUITE_SPADE){ // spade is being played by the first player whereas that is not allowed
-                        if(this.getNumberOfCardsWithSuite(Card.SUITE_SPADE)<this.numberOfCards){
-                            alert("Je kunt niet met schoppen uitkomen, want de schoppen vrouw is nog niet opgehaald.");
-                            return;
-                        }
+                        if(this.getNumberOfCardsWithSuite(Card.SUITE_SPADE)<this.numberOfCards)
+                            return new Error("Je kunt niet met schoppen uitkomen, want de schoppen vrouw is nog niet opgehaald.");
                     }
                 }
             }else{ // not the first card in the trick played
                 // the card needs to be the same suite as the play suite (if the player has any)
-                if(suite!==trick.playSuite&&this.getNumberOfCardsWithSuite(trick.playSuite)>0){
-                    alert("Je kunt "+card.getTextRepresentation()+" niet spelen, want "+Language.DUTCH_SUITE_NAMES[trick.playSuite]+" is gevraagd.");
-                    return;
-                }
+                if(suite!==trick.playSuite&&this.getNumberOfCardsWithSuite(trick.playSuite)>0)
+                    return new Error("Je kunt "+card.getTextRepresentation()+" niet spelen, want "+Language.DUTCH_SUITE_NAMES[trick.playSuite]+" is gevraagd.");
                 // when being asked for the partner card that would be the card to play!
                 if(trick.askingForPartnerCard!=0){
                     let partnerSuite=this._game.getPartnerSuite(),partnerRank=this._game.getPartnerRank();
                     if(this.containsCard(partnerSuite,partnerRank)){
-                        if(card.suite!=partnerSuite||card.rank!=partnerRank){
-                            alert("Je kunt "+card.getTextRepresentation()+" niet spelen, want de "+Language.DUTCH_SUITE_NAMES[partnerSuite]+" "+Language.DUTCH_RANK_NAMES[partnerRank]+" is gevraagd.");
-                            return;
-                        }
+                        if(card.suite!=partnerSuite||card.rank!=partnerRank)
+                            return new Error("Je kunt "+card.getTextRepresentation()+" niet spelen, want de "+Language.DUTCH_SUITE_NAMES[partnerSuite]+" "+Language.DUTCH_RANK_NAMES[partnerRank]+" is gevraagd.");
                     }
                 }
             }
             // MDH@14JAN2020: we have to also return whatever trick value that might've changed
             //                which in this case could wel be the asking for partner card 'flag'
-            this._setCard(card,trick.askingForPartnerCard);
-            return true;
-        }else
-            alert("Invalid card suite "+String(suite)+" and suite index "+String(index)+".");
-        return false;
+            let error=this._setCard(card,askingForPartnerCard);
+            if(error)return new Error("Er is een fout opgetreden bij het versturen van de gespeelde kaart.");
+            trick.askingForPartnerCard=askingForPartnerCard;
+            return null;
+        }
+        return new Error("Ongeldige kaart kleur "+DUTCH_SUITE_NAMES[suite]+" en/of kaart kleur positie ("+String(index)+").");
     }
     playsTheGameAtIndex(game,index){
         if(this._game){
@@ -788,7 +782,11 @@ class OnlinePlayer extends Player{
 function bidButtonClicked(event){
     let bid=parseInt(event.currentTarget.getAttribute("data-bid"));
     console.log("Bid chosen: ",bid);
-    currentPlayer._setBid(bid); // the value of the button is the made bid
+    let error=currentPlayer._setBid(bid); // the value of the button is the made bid
+    if(!error)
+        document.getElementById("bidding").style.visibility="hidden"; // hide the bidding element
+    else
+        alert(error.message);
 }
 /**
  * clicking a trump suite button registers the chosen trump suite with the current player 
@@ -814,20 +812,25 @@ function partnerSuiteButtonClicked(event){
     currentPlayer._setPartnerSuite(partnerSuite);
 }
 
+var playablecardCell,playablecardCellContents;
 /**
  * clicking a partner suite button registers the chosen partner suite with the current player 
  * @param {*} event 
  */
 function playablecardButtonClicked(event){
-    let playablecardCell=event.currentTarget;
+    playablecardCell=event.currentTarget;
     let cardSuite=parseInt(playablecardCell.getAttribute("data-suite-id"));
     let cardRank=parseInt(playablecardCell.getAttribute("data-suite-index"));
     ////////if(playablecardCell.style.border="0px")return; // empty 'unclickable' cell
-    if(currentPlayer._cardPlayedWithSuiteAndIndex(cardSuite,cardRank)){ // card accepted!!!
+    let error=currentPlayer._cardPlayedWithSuiteAndIndex(cardSuite,cardRank);
+    if(!error){ // card accepted!!!
         forceFocus(null); // get rid of the focus request
+        updatePlayableCardButtonClickHandlers(false); // disable the card buttons
+        document.getElementById("play-card-prompt").innerHTML="Gespeelde kaart verzonden naar de spel server"; // MDH@23JAN2020: get rid of the play card prompt!
+        playablecardCellContents=playablecardCell.innerHTML; // in case sending the card fails
         playablecardCell.innerHTML="";
-        document.getElementById("play-card-prompt").innerHTML=""; // MDH@23JAN2020: get rid of the play card prompt!
-    }
+    }else // report the error to the end user
+        alert(error.message);
 }
 
 /**
@@ -1087,11 +1090,11 @@ class PlayerGameProxy extends PlayerGame {
     // what the player will be calling when (s)he made a bid, played a card, choose trump or partner suite
     bidMade(bid){
         if(this._state===PlayerGame.OUT_OF_ORDER)return false;
-        document.getElementById("bidding").style.visibility="hidden";
+        // document.getElementById("bidding").style.visibility="hidden";
         return this._setEventToSend('BID',bid,function(result){
             if(result){
                 setInfo("Bod niet geaccepteerd"+
-                (result.hasOwnProperty('error')?" (fout: "+result.error+")":"")+"!");
+                            (result.hasOwnProperty('error')?" (fout: "+result.error+")":"")+"!");
                 // TODO what now???
             }
         }); // hide the bidding element again
@@ -1109,12 +1112,15 @@ class PlayerGameProxy extends PlayerGame {
         document.getElementById("playing").style.visibility="hidden"; // hide the bidding element again
         */
         console.log("Sending card played: "+card.toString()+" to the server.");
-        updatePlayableCardButtonClickHandlers(false);
+        // updatePlayableCardButtonClickHandlers(false);
         return this._setEventToSend('CARD',[card.suite,card.rank,askingForPartnerCard],function(result){
                 if(result){
-                    setInfo("Gespeelde kaart niet geaccepteerd"+
-                    (result.hasOwnProperty('error')?" (fout: "+result.error+")":"")+"!");
+                    document.getElementById("play-card-prompt").innerHTML="Gespeelde kaart niet geaccepteerd"+
+                                (result.hasOwnProperty('error')?" (fout: "+result.error+")":"")+"!";
+                    playablacardCell.innerHTML=playablecardCellContents;
                     // TODO what to do now?
+                }else{ // card played accepted!!!
+                    document.getElementById("play-card-prompt").innerHTML="Gespeelde kaart geaccepteerd.";
                 }
             });
     }

@@ -594,7 +594,7 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
                     this._promptedPlayer.client.emit(this._eventToSend[0],this._eventToSend[1]);
                 }
             }catch(error){
-                sendEventCount=-1; // force attempting to send again in 500 ms
+                // sendEventCount=-1; // force attempting to send again in 500 ms
                 gameEngineLog("ERROR: Failed to send prompting event "+this._eventToSend[0]+" to "+this._promptingPlayer.name+" (reason: "+error.message+").");
             }finally{
                 // try again in a while depending

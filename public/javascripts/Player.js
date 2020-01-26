@@ -98,10 +98,11 @@ class Player extends CardHolder{
     // whenever a game is started, call newGame!!
     newGame(){
         if(this._index<0||!this._game)
-            throw new Error("Player "+this.name+" unable to prepare for playing: not associated with a game yet.");
-        if(this.numberOfCards>0){
-            console.error("BUG: Player "+this.name+" still has "+this.numberOfCards+" cards.");
+            return new Error("Geen spel om voor te bereiden om te spelen.");
+        let numberOfCards=this.numberOfCards;
+        if(numberOfCards>0){
             this._removeCards(); // better done this way instead of this._cards=[]
+            return new Error("Nog "+numberOfCards+" kaarten in de hand.");
         }
         // default player remembering its choices
         this._bid=-1; // the last bid of this player
@@ -119,7 +120,8 @@ class Player extends CardHolder{
         this._name=name;
         this._eventListeners=[];
         if(playerEventListener){
-            if(!(playerEventListener instanceof PlayerEventListener))throw new Error("Player event listener of wrong type.");
+            if(!(playerEventListener instanceof PlayerEventListener))
+                throw new Error("Player event listener of wrong type.");
             this.addEventListener(playerEventListener);
         }
         // wait for receiving game and index
@@ -162,9 +164,9 @@ class Player extends CardHolder{
     set game(game){
         if(this._game===game)return;
         if(game&&!(game instanceof PlayerGame))
-            throw new Error("Game instance supplied to player "+(this.name||"?")+" not of type PlayerGame.");
+            return new Error("Spel niet van het juiste type.");
         if(this._index<0)
-            throw new Error("Position index of player "+(this.name||"?")+" unknown!");
+            return new Error("Positie van speler onbekend.");
         this._removeCards(); // MDH@11JAN2020: if the game changes we should remove the cards
         this._game=game;
         // sync _index
@@ -203,16 +205,17 @@ class Player extends CardHolder{
 
     // can be asked to play a card of a given card suite (or any card if cardSuite is undefined)
     contributeToTrick(trick) {
-        if(this._cards.length==0)throw new Error("No cards left to play!");
+        if(this._cards.length==0)return new Error("Geen kaarten meer om te spelen!");
         let cardsOfSuite=this._getCardsOfSuite(cardSuite);
         let card=(cardsOfSuite&&cardsOfSuite.length>0?cardsOfSuite[0]:this._cards[0]);
         card.holder=trick; // move the card to the trick
+        return null;
     }
 
     // MDH: all methods that deal with processing a bid, a card, trump or partner suite choice
     // to signal having made a bid
     _bidMade(bid){
-        if(!this._game)return new Error("No game for player "+this.name+" to bid in!");
+        if(!this._game)return new Error("Geen spel om in te bieden!");
         console.log("Passing bid "+bid+" of player '"+this.name+"' to the game!");
         return this._game.bidMade(bid);
     }
@@ -222,11 +225,12 @@ class Player extends CardHolder{
         if(error)return error;
         this._bid=bid;
         if(this._eventListeners)this._eventListeners.forEach((eventListener)=>{try{(!eventListener||eventListener.bidMade(this._bid));}catch(error){}});
+        return null;
     }
 
     // cardPlayed in RikkenTheGame can now return an error (instead of throwing one)
     _cardPlayed(card,askingForPartnerCard){
-        if(!this._game)return new Error("No game for "+this.name+" to play the card in!");
+        if(!this._game)return new Error("Geen spel om een kaart in te spelen!");
         return this._game.cardPlayed(card,askingForPartnerCard);
     }
     // TODO a bid setter will allow subclasses to pass a bid by setting the property
@@ -240,7 +244,7 @@ class Player extends CardHolder{
 
     // to signal having choosen a trump suite
     _trumpSuiteChosen(trumpSuite){
-        if(!this._game)return new Error("No game for player "+this.name+" to choose trump suite in!");
+        if(!this._game)return new Error("Geen spel om een troefkleur in te kiezen!");
         return this._game.trumpSuiteChosen(trumpSuite);
     }
     _setTrumpSuite(trumpSuite){
@@ -252,7 +256,7 @@ class Player extends CardHolder{
 
     // to signal having chosen a partner
     _partnerSuiteChosen(partnerSuite){
-        if(!this._game)return new Error("No game for player "+this.name+" to choose partner suite in!");
+        if(!this._game)return new Error("Geen spel om een partner (kaartkleur) te kiezen.");
         return this._game.partnerSuiteChosen(partnerSuite);
     }
     _setPartnerSuite(partnerSuite){
