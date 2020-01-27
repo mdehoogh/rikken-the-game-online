@@ -550,16 +550,20 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
             this._promptEventResponseReceived();
             // MDH@20JAN2020: after each card is played, we're going to send along all partner indices
             // let partnerIds=this._players.map((player)=>player.partner);
+            // MDH@27JAN2020: I don't think winner is actually used at the other end!!!!
             let cardPlayed=this._trick.getLastCard();
             if(cardPlayed){
-                this.sendToAllPlayers('CARD_PLAYED',
-                {
-                    askingForPartnerCard:this._trick._askingForPartnerCard,
-                    winner:this._trick._winner,
+                let cardInfo={
                     suite:cardPlayed.suite,
                     rank:cardPlayed.rank,
-                    // partners:partnerIds,
-                });
+                    // winner:this._trick._winner,
+                };
+                // send the play suite along as well (once) when it differs from the suite of the first card
+                // BUT it's preferred to only do that when asking for partner card is negative, so the effect
+                // will be that client.js will also make asking for partner card -1 (as it cannot itself determine that)
+                if(this._trick.numberOfCards==1&&this._trick.askingForPartnerCard<0)
+                    cardInfo.playSuite=this._trick.playSuite;
+                this.sendToAllPlayers('CARD_PLAYED',cardInfo);
                 gameEngineLog("Card played by "+this._players[this._player].name+": '"+cardPlayed.toString()+"'.");
             }else
                 gameEngineLog("ERROR: No last card in trick!");

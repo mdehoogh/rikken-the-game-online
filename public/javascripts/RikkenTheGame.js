@@ -845,11 +845,22 @@ class RikkenTheGame extends PlayerGame{
         let numberOfPlayerCards=this._players[this._player].numberOfCards;
         
         // MDH@14JAN2020: if the user didn't uncheck the ask-partner-card (s)he is asking for the partner card
-        this._trick.askingForPartnerCard=askingForPartnerCard;
+        // MDH@27JAN2020: askingForPartnerCard should actually only be set ONCE
+        if(askingForPartnerCard!=0){
+            if(this._trick.numberOfCards===0){
+                if(askingForPartnerCard>0)
+                    this.log("WARNING: Asking for the partner card flag ignored, because it will be set automatically!");
+                else // the partner card is being asked blind (which is the only change we allow at this point!!!)
+                    this._trick.askingForPartnerCard=-1;
+            }else
+                this.log("ERROR: Setting the asking for partner card flag ignored, because only allowed to set the asking for partner card flag on the first card!");
+        }
         
         ////////////////// now passed in as argument!!!! let card=this._players[this._player].card;
         // move the card into the trick (effectively removing it from the player cards)
-        this._trick.addCard(card);
+        // MDH@27JAN2020: addCard changed to NOT throw an error but return it (or null on success)
+        let error=this._trick.addCard(card);
+        if(error)return error;
         if(card._holder!==this._trick)
             return new Error("Failed to add the card to the trick!");
         if(this._players[player].numberOfCards>=numberOfPlayerCards)

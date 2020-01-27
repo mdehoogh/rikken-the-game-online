@@ -213,7 +213,7 @@ function showTrick(trick/*,playerIndex*/){
     let playerIndex=rikkenTheGame._playerIndex;
 
     // if this is the trump player that is can ask for the partner card (either non-blind or blind) flag the checkbox
-    if(trick.canAskForPartnerCard!=0){
+    if(trick.firstPlayer===playerIndex&&trick.canAskForPartnerCard!=0){
         document.getElementById('ask-partner-card-checkbox').checked=true;
         document.getElementById('ask-partner-card-blind').innerHTML=(trick.canAskForPartnerCard<0?"blind ":"");
         document.getElementById("ask-partner-card").style.display="block";
@@ -721,10 +721,18 @@ class OnlinePlayer extends Player{
             }
             // MDH@14JAN2020: we have to also return whatever trick value that might've changed
             //                which in this case could wel be the asking for partner card 'flag'
+            // MDH@27JAN2020: I suggest changing askingForPartnerCard to askingForPartnerCard<0 i.e. blind request!!!
+            //                we're taking care of that when CARD is sent (so not to interfere with RikkenTheGame.js itself)
             let error=this._setCard(card,askingForPartnerCard);
+            return error;
+            /* MDH@27JAN2020: removing the following might be wrong BUT by passing askingForPartnerCard to the server
+                              all players including myself will receive the card played and update askingForPartnerCard
+                              accordingly, basically addCard() will set it to 1 if it so detects, but cannot set it to -1
+                              so technically askingForPartnerCard only needs to be send when the partner card is asked blind
             if(error)return new Error("Er is een fout opgetreden bij het versturen van de gespeelde kaart.");
             trick.askingForPartnerCard=askingForPartnerCard;
             return null;
+            */
         }
         return new Error("Ongeldige kaart kleur "+DUTCH_SUITE_NAMES[suite]+" en/of kaart kleur positie ("+String(index)+").");
     }
@@ -1103,6 +1111,7 @@ class PlayerGameProxy extends PlayerGame {
     // MDH@14JAN2020: passing in the askingForPartnerCard 'flag' as well!!!!
     //                because we're overriding the base RikkenTheGame implementation
     //                askingForPartnerCard doesn't end up in the local RikkenTheGame trick
+    // MDH@27JAN2020: we're receiving true for askingForPartnerCardBlind when the player is doing so
     cardPlayed(card,askingForPartnerCard){
         if(this._state===PlayerGame.OUT_OF_ORDER)return false;
         // MDH@17JAN2020: disable the buttons once the card is accepted (to be played!!!)
@@ -1113,7 +1122,12 @@ class PlayerGameProxy extends PlayerGame {
         */
         console.log("Sending card played: "+card.toString()+" to the server.");
         // updatePlayableCardButtonClickHandlers(false);
-        return this._setEventToSend('CARD',[card.suite,card.rank,askingForPartnerCard],function(result){
+        // MDH@27JAN2020: we send the askingForPartnerCard flag along every time although it will be ignored
+        //                on any trick card except the first card played, and non-negative values are ignored as well
+        //                because the only thing that the other side cannot determine is whether the partner card is asked blind!!!!
+        let cardPlayedInfo=[card.suite,card.rank,askingForPartnerCard];
+        // replacing: if(askingForPartnerCard<0)cardPlayedInfo.push(true); // set the asking for partner card blind flag!!!
+        return this._setEventToSend('CARD',cardPlayedInfo,function(result){
                 if(result){
                     document.getElementById("play-card-prompt").innerHTML="Gespeelde kaart niet geaccepteerd"+
                                 (result.hasOwnProperty('error')?" (fout: "+result.error+")":"")+"!";
@@ -1226,6 +1240,18 @@ class PlayerGameProxy extends PlayerGame {
         // create a new trick with the information in the trick info
         this._trick=new Trick(trickInfo.firstPlayer,this._trumpSuite,this._partnerSuite,this._partnerRank,trickInfo.canAskForPartnerCard,trickInfo.firstPlayerCanPlaySpades);
     
+        /* stupid me: I already moved doing this to showTrick() but there earlier incorrect (i.e. NOT checking the first player!!!)
+        // MDH@27JAN2020: hiding or showing the asking for partner card checkbox can be determined here and now
+        //                because the necessary information for deciding is completely known at the start of a new trick
+        if(trickInfo.firstPlayer===currentPlayer.index&&trickInfo.canAskForPartnerCard!=0){
+            document.getElementById("ask-partner-card").style.display="block";
+            // the next decision is a little harder, because should we always turn on the checkbox????????
+            // BUT note that the user will be prompted to acknowledge asking the partner card blind
+            document.getElementById("ask-partner-card-checkbox").selected=;
+        }else
+            document.getElementById("ask-partner-card").style.display="none";
+        */
+
         // we do the following because it is essential that the checkbox that tells the player whether or not
         // the partner card can be asked should be in the right state to start with (for the right player)
         // NOTE newTrick() is being called BEFORE a player is asked to play a card, so that's the right moment!!!!
@@ -1240,16 +1266,37 @@ class PlayerGameProxy extends PlayerGame {
         currentPlayer.partner=(this._partnerIds&&this._playerIndex>=0&&this._playerIndex<this._partnerIds.length?this._partnerIds[this._playerIndex]:null);
     }
     newCard(cardInfo){
-        this._trick.askingForPartnerCard=cardInfo.askingForPartnerCard; // MDH@26JAN2020: shouldn't forget this!!!!
+        // MDH@27JAN2020: cardInfo does not need to contain the askingForPartnerCard flag per se
+        //                it actually only need to contain it when asking for the partner card blind as in all
+        //                other cases the trick can determine it itself and should NOT rely on information sent by the server
+        //                it would be better to change it to askingForPartnerCardBlind on the other server end!!
+        //                this is solved by sending playSuite along with cardInfo when so needed!!!
+        /* replacing:
+        if(cardInfo.hasOwnProperty("askingForPartnerCard"))
+            this._trick.askingForPartnerCard=cardInfo.askingForPartnerCard; // MDH@26JAN2020: shouldn't forget this!!!!
+        */
         // I don't think we can do that????? this._trick.winner=cardInfo.winner;
-        this._trick.addCard(new HoldableCard(cardInfo.suite,cardInfo.rank));
+        let error=this._trick.addCard(new HoldableCard(cardInfo.suite,cardInfo.rank));
+        if(error)return error;
+
+        // MDH@27JAN2020: if we're receiving the play suite we can determine askingForPartnerCard ourselves
+        if(cardInfo.hasOwnProperty("playSuite")){
+            // if the play suite provided differs from the 'automatic' play suite, the partner card is being asked blindly
+            if(cardInfo.playSuite!==this._trick.playSuite){
+                this._trick.playSuite=cardInfo.playSuite;
+                this._trick.askingForPartnerCard=-1;
+            }
+        }
+
         // MDH@20JAN2020: every card played contains the partners as well!!!
-        if(cardInfo.hasOwnProperty("partners"))this._setPartnerIds(cardInfo.partners); 
+        if(cardInfo.hasOwnProperty("partners"))this._setPartnerIds(cardInfo.partners);
+
         // if all the cards in the trick have been played, the winner is definite, and wins the trick
         if(this._trick.numberOfCards===4)this._numberOfTricksWon[this._trick.winner]++;
         // do nothing...
         // showTrickCard(this._trick.getLastCard(),this._trick.numberOfCards);
         showTrick(this._trick);//if(this._trickWinner){this._trickWinner=null;showTrick(this._trick);}
+        return null;
     }
     /* replacing:
     parseTrick(trickInfo){
@@ -1424,7 +1471,8 @@ class PlayerGameProxy extends PlayerGame {
                 // we're receiving trick info in data
                 // MDH@20JAN2020: NOT anymore
                 if(!this._trick){
-                    alert("Programmafout: U wordt om een kaart gevraagd in een ongedefinieerde slag!");
+                    alert("Programmafout: U wordt om een kaart gevraagd in een ongedefinieerde slag! We wachten even op slaginformatie.");
+                    return; // MDH@27JAN2020: doing this and hoping the next request is received AFTER receiving a new trick!!!
                 }
                 // MDH@22JAN2020: occassionally we may receive the request to play BEFORE actually having received the state change!!
                 if(currentPage!=="page-playing")setPage("page-playing");

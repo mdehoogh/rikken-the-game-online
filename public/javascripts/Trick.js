@@ -77,11 +77,12 @@ class Trick extends CardHolder{
         let numberOfCardsNow=this.numberOfCards;
          // if the flag of asking for the partner card blind is set, preset the 
         card.holder=this; // move the card to this trick by setting the holder property (will take care of adding/removing the card)
+        // MDH@27JAN2020: should consider returning an Error instead of throwing an error
         if(this.numberOfCards<=numberOfCardsNow)
-            throw new Error("Failed to add the card to the trick.");
+            return new Error("Failed to add the card to the trick.");
         // ASSERT card added successfully
         if(this._askingForPartnerCard!=0&&this._trumpSuite<0)
-            throw new Error("BUG: Asking for the partner card, but playing a game without trump.");
+            return new Error("BUG: Asking for the partner card, but playing a game without trump.");
         
         // if the partner card is being asked for blind everyone has to play the partner card suite
         // MDH@09DEC2019: OOPS I was already using this._partnerSuite here BUT still after actually taking it out (now in again)
@@ -96,7 +97,7 @@ class Trick extends CardHolder{
                 }
             }else{
                 if(this._askingForPartnerCard!==0)
-                    throw new Error("Cannot ask for the partner card when you can't ask for it anymore!");
+                    return new Error("Cannot ask for the partner card when you can't ask for it anymore!");
             }
             this._playSuite=(this._askingForPartnerCard<0?this._partnerSuite:card.suite);
         }
@@ -111,6 +112,7 @@ class Trick extends CardHolder{
                 this._setWinnerCard(numberOfCardsNow);
         }else // after the first card the first player is the winner of course
             this._setWinnerCard(0);
+        return null;
     }
     getCardPlayer(suite,rank){
         for(let cardIndex=0;cardIndex<this._cards.length;cardIndex++)
