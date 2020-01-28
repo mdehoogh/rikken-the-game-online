@@ -27,7 +27,7 @@
     "serve-favicon": "^2.5.0",
     "socket.io": "^2.3.0"
   },
-  "description": "Multiplayer version of the card game rikken",
+  "description": "Multiplayer version of the Dutch card game rikken",
   "main": "app.js",
   "repository": {
     "type": "git",

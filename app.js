@@ -98,12 +98,12 @@ app.get('/', (req, res, next) => {
   res.render('home');
 });
 
-app.get('/waiting', (req, res, next) => {
+app.get('/wachten', (req, res, next) => {
   res.render('waiting');
 });
 
 // MDH@23JAN2020: if we really want to go gameplaying...
-app.get('/gameplaying',(req,res,next)=>{
+app.get('/spelen',(req,res,next)=>{
   // gameplaying.hbs assumes the name of the user is in the username variable!!!!
   if(req.user&&req.user.username)
     res.render('gameplaying',{username:req.user.username});

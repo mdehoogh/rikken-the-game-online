@@ -284,9 +284,9 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
         // if the game sets the partner (index) we need to send it over
         set partner(partner){
             super.partner=partner;
-            // send the partner over...
-            this._sendNewEvent('PARTNER',this._partner,2);
-        } // to set the partner once the partner suite/rank card is in the trick!!!!
+            // it's particularly useful for the player with the partner suite to see in the UI that he's partner of the trump player
+            this._sendNewEvent('PARTNER',this._partner,10);
+        }
 
         /*
         get userId(){return this._userId;}
@@ -520,6 +520,17 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
             /* replacing sending the given event to all players through the 'room' they are in
             socket_io_server.to(this._tableId).emit(...logEvent(this._tableId,"to all players",event,data));
             */
+        }
+
+        // overriding _tellPlayersWhoTheirPartnerIs because we want to send this information over
+        //            at this exact moment
+        _tellPlayersWhoTheirPartnerIs(){
+            super._tellPlayersWhoTheirPartnerIs();
+            // if a partner is set, all partners should be known????????
+            console.log("**************************************************************");
+            console.log("**************************** PARTNERS ************************");
+            console.log("**************************************************************");
+            this.sendToAllPlayers('PARTNERS',this._players.map((player)=>player.partner));
         }
 
         // MDH@20JAN2020: whenever a new trick starts, we're going to send
@@ -866,11 +877,13 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
         client.on('DONE',(data,callback)=>{
             let indexOfRemotePlayerOfClient=getIndexOfRemotePlayerOfClient(client);
             if(indexOfRemotePlayerOfClient>=0){ // we should have this client registered (of course)
-                gameEngineLog("DONE event received!");
+                let remotePlayer=remotePlayers[indexOfRemotePlayerOfClient];
+                gameEngineLog("DONE event received from "+remotePlayer.name+".");
                 // simply get rid of the game that player has ended playing, so (s)he is available for playing in new games again
-                remotePlayers[indexOfRemotePlayerOfClient].playsTheGameAtIndex(null,-1);
+                remotePlayer.playsTheGameAtIndex(null,-1);
+                gameEngineLog("Player "+remotePlayer.name+" now in state "+remotePlayer.status+".");
                 checkForStartingNewGames();
-                if(typeof callback==='function')callback();else gameEngineLog("WARNING: No callback on LEFT event.");
+                if(typeof callback==='function')callback();else gameEngineLog("WARNING: No callback on DONE event.");
             }else
                 gameEngineLog("ERROR: DONE event received of an associated player.");
         });

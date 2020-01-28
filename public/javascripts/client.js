@@ -747,6 +747,12 @@ class OnlinePlayer extends Player{
                     setInfo("Verlaten van het spel mislukt! Probeer het nog eens.");
                     return;
                 }
+                this._partner=-1;
+                // other things to do???????
+                if(this.numberOfCards>0){
+                    setInfo("De overgebleven kaarten in je hand worden verwijderd!");
+                    this._removeCards();
+                }
                 // if sending the DONE event succeeds ready again to play in a next game (without leaving the game playing)
                 setPage("page-wait-for-players");
             }
@@ -1073,7 +1079,7 @@ class PlayerGameProxy extends PlayerGame {
         forceFocus(null);
         console.log("Event "+this._eventToSend[0]+" received by game server.");
         this._eventToSend=null;
-        this._eventSentCallback();
+        if(this._eventSendCallback)this._eventSentCallback();
     }
     _sendEvent(){
         try{
@@ -1163,7 +1169,7 @@ class PlayerGameProxy extends PlayerGame {
     }
     // MDH@26JAN2020: when the user finished reading the results, and wants to continue playing done() should be called
     done(){
-        return this._setEventToSend('DONE',function(){
+        return this._setEventToSend('DONE',null,function(){
             console.log("DONE event acknowledged.");
         });
     }
@@ -1176,6 +1182,7 @@ class PlayerGameProxy extends PlayerGame {
         });
     }
 
+    get state(){return this._state;}
     set state(newstate){
         let oldstate=this._state;
         this._state=newstate;
@@ -1218,7 +1225,12 @@ class PlayerGameProxy extends PlayerGame {
     }
 
     getNumberOfTricksWonByPlayer(playerIndex){
-        return(playerIndex>=0&&playerIndex<this._numberOfTricksWon.length?this._numberOfTricksWon[playerIndex]:0);
+        if(playerIndex<0||playerIndex>=this._playerNames.length)return -1;
+        let numberOfTricksWonByPlayer=this._numberOfTricksWon[playerIndex];
+        // we don't have no players and should get the partner ids from the server itself
+        let partnerIndex=(this._partnerIds?this._partnerIds[playerIndex]:-1);
+        if(partnerIndex<0)return numberOfTricksWonByPlayer; // no partner known yet
+        return numberOfTricksWonByPlayer+this._numberOfTricksWon[partnerIndex];
     }
 
     // MDH@20JAN2020: will be receiving the new trick event when a new trick starts
@@ -1263,7 +1275,10 @@ class PlayerGameProxy extends PlayerGame {
     _setPartnerIds(partnerIds){
         this._partnerIds=partnerIds;
         // update the partner of the current player
-        currentPlayer.partner=(this._partnerIds&&this._playerIndex>=0&&this._playerIndex<this._partnerIds.length?this._partnerIds[this._playerIndex]:null);
+        let currentPartner=(this._partnerIds&&this._playerIndex>=0&&this._playerIndex<this._partnerIds.length?this._partnerIds[this._playerIndex]:-1);
+        if(currentPlayer.partner>=0&&currentPartner.partner!=currentPartner)
+            return alert("Rapporteer de volgende ernstige programmafout: 'Je partner is veranderd'.");
+        currentPlayer.partner=currentPartner;
     }
     newCard(cardInfo){
         // MDH@27JAN2020: cardInfo does not need to contain the askingForPartnerCard flag per se
@@ -1464,6 +1479,9 @@ class PlayerGameProxy extends PlayerGame {
             case "NEW_TRICK":
                 this.newTrick(data);
                 break;
+            case "PARTNERS":
+                this._setPartnerIds(data);
+                break;
             case "CARD_PLAYED":
                 this.newCard(data);
                 break;
@@ -1587,7 +1605,7 @@ class PlayerGameProxy extends PlayerGame {
         // things we can store internally that we receive over the connection
         this._name=null; // the name of the game
         this._playerNames=null; // the names of the players
-        this._partnerIds=null; // the partner
+        this._partnerIds=null; // the partners
         this.prepareForCommunication();
     }
 
@@ -1616,12 +1634,19 @@ class PlayerGameProxy extends PlayerGame {
     get fourthAcePlayer(){return this._fourthAcePlayer;}
     getTeamName(playerIndex){
         // computing the team name on the fly
+        // ok, I've change sending the partnerIds over to the game, instead now partner is being set
+        // this means that we need to go through the player again
+        /*
+        let player=this._players[playerIndex];
+        let partnerIndex=player.partner;
+        return player.name+(partnerIndex>=0?" & "+this.getPlayerName(partnerIndex):"");
+        */
+        // NOT replacing:
         let teamName=this.getPlayerName(playerIndex);
         let partnerIndex=(this._partnerIds?this._partnerIds[playerIndex]:-1); // NOTE could be null!!!
         if(partnerIndex&&partnerIndex>=0)teamName+=" & "+this.getPlayerName(partnerIndex);
         return teamName;
     }
-
 }
 
 var preparedForPlaying=false;

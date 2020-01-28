@@ -277,7 +277,10 @@ class RikkenTheGame extends PlayerGame{
     }
     _tellPlayersWhoTheirPartnerIs(){
         this._arePartnersKnown=true;
-        this._players.forEach((player)=>{player.partner=(this._partners?this._partners[player._index]:-1);});
+        this._players.forEach((player)=>{
+            player.partner=(this._partners?this._partners[player._index]:-1);
+            console.log(">>>>>>>>>>>>> Partner of "+player.name+" (at index "+player._index+") set to "+player.partner+".");
+        });
     }
 
     // after dealing the cards, the game can be played
@@ -293,7 +296,7 @@ class RikkenTheGame extends PlayerGame{
             // NOTE we're skipping the entire process of asking for the partner card as we know all that already
             // partners are known to
             // obsolete because done by _setPartnerSuite() as well: this._setPartners(this.fourthAcePlayer,this._highestBidPlayers[0]);
-            this._tellPlayersWhoTheirPartnerIs(); // ascertain that all players known there partner
+            ///////// NOT HERE (see below!!!) this._tellPlayersWhoTheirPartnerIs(); // ascertain that all players known there partner
             this._partnerRank=12; // MUST BE SET otherwise can't set the partner suite!!!
             // the player with the three aces will be the trump player
             this._setPartnerSuite(this._highestBidPlayers[0],this.getTrumpSuite()); // of course the partner card suite is the trump suite
@@ -870,15 +873,15 @@ class RikkenTheGame extends PlayerGame{
             // 1. determine whether this trick contains the partner card of the highest bidder
             if(this._partners){ // a non-solitary game
                 let partnerCardPresentInTrick=this._trick.containsCard(this.getPartnerSuite(),this.getPartnerRank());
-                ////////if(partnerCardPresentInTrick)this.log(">>>> Partner card detected! <<<<");
-                // serious error if it should have been there and it wasn't!!
-                if(this._trick.askingForPartnerCard!=0) // it was asked for
-                    if(!partnerCardPresentInTrick)
-                        return new Error("The partner card was asked for, but was not present in the trick though.");
-                if(partnerCardPresentInTrick){
+                if(partnerCardPresentInTrick){ // partner card present in trick
                     // if the partners are now known yet (in a regular rik situation then)
                     if(!this._arePartnersKnown)this._tellPlayersWhoTheirPartnerIs();
+                }else{ // partner card NOT present in trick
+                    if(this._trick.askingForPartnerCard!=0) // it was asked for
+                        return new Error("The partner card was asked for, but was not present in the trick though.");
                 }
+                ////////if(partnerCardPresentInTrick)this.log(">>>> Partner card detected! <<<<");
+                // serious error if it should have been there and it wasn't!!
             }else{
                 if(this._highestBid===PlayerGame.BID_LAATSTE_SLAG_EN_SCHOPPEN_VROUW){
                     if(this._trick._firstPlayerCanPlaySpades)
