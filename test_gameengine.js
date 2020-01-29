@@ -1,8 +1,18 @@
+require('dotenv').config();
+
 // gameengine requires plugging in a sockets.io server and a GamesListener
 const GamesListener=require('./gameslistener.js');
 
 const User=require('./models/user.js');
 const Game=require('./models/game.js');
+
+const mongoose=require('mongoose');
+mongoose.connect(process.env.MONGODB_CONNECTION_STRING,{useNewUrlParser:true,useUnifiedTopology:true})
+  .then(() => {
+    console.log('Connected to MongoDB!')
+  }).catch(err => {
+    console.error('Error connecting to MongoDB.',err);
+  });
 
 class RikkenGamesListener extends GamesListener{
     constructor(){
@@ -69,11 +79,15 @@ class RikkenGamesListener extends GamesListener{
     }
     gameFinished(game){
         super.gameFinished(game);
+        console.log("Game '"+game.name+"' finished!");
         // TODO store the game results
         // MDH@24JAN2020: NOT all users need to be registered users per se
         let playerNames=game.getPlayerNames();
+        if(!playerNames){console.log("No players in the game!");return;}
+        console.log("Looking for the players",playerNames);
         User.find({'username':{$in:playerNames}})
             .then((users)=>{
+                console.log("Number of users in the finished game: "+users.length+".");
                 // MDH@24JAN2020: calling deltaPoints
                  if(users.length>=playerNames.length){
                     let playerScores=game.deltaPoints; // returns the game points JIT computed
@@ -84,6 +98,7 @@ class RikkenGamesListener extends GamesListener{
                         while(--userIndex>=0&&users[userIndex].username!==playerName);
                         return(userIndex>=0?{'user_id':users[userIndex]._id,'score':playerScores[userIndex]}:null);
                     });
+                    console.log("Registering game results!");
                     // replacing: users.map((user,index)=>{return {"user_id":user._id,"score":playerScores[index]};});
                     Game.create({name:game.name,scores:gameScores})
                         .then((game)=>{

@@ -52,19 +52,25 @@ function newGame(){
         currentPlayer.playsTheGameAtIndex(null,-1);
 }
 
+// MDH@29JAN2020: deciding to always show the user name in the document title, and to blink it when
+//                user input is required
 var forceFocusId=null;
+var forceFocusText=null;
 function stopForceFocus(){clearInterval(forceFocusId);forceFocusId=null;}
 function checkFocus(state){
     // MDH@23JAN2020: we should keep blinking when not in focus until forced to stop
     //                instead of stopping when the focus was got
-    if(document.hasFocus())showGameState(state);else toggleGameState(state);
-    // replacing: if(document.hasFocus()){showGameState(state);stopForceFocus();}else toggleGameState(state);
+    // MDH@29JAN2020 removing this should suffice: if(document.hasFocus())showGameState(state);else 
+    //////// toggleGameState(forceFocusText);
+    if(document.hasFocus()){showGameState(state);stopForceFocus();}else toggleGameState(state);
 }
 function forceFocus(state){
-    showGameState(state); // either to show state or remove what's currently shown
+    // if(state)
+    forceFocusText=state;
+    showGameState(forceFocusText); // ascertain to start with the given non-null 'state'
     if(state){ // focus requested
         // start getting the focus by blinking 'state' IFF we haven't got it yet...
-        if(!forceFocusId)forceFocusId=setInterval(()=>{checkFocus(state);},500);
+        if(!forceFocusId)forceFocusId=setInterval(()=>{checkFocus(state)},500);
     }else{ // end of focus request
         if(forceFocusId)stopForceFocus();
     }
@@ -727,7 +733,7 @@ class OnlinePlayer extends Player{
             // MDH@27JAN2020: I suggest changing askingForPartnerCard to askingForPartnerCard<0 i.e. blind request!!!
             //                we're taking care of that when CARD is sent (so not to interfere with RikkenTheGame.js itself)
             let error=this._setCard(card,askingForPartnerCard);
-            return error;
+            return(error instanceof Error?error:null);
             /* MDH@27JAN2020: removing the following might be wrong BUT by passing askingForPartnerCard to the server
                               all players including myself will receive the card played and update askingForPartnerCard
                               accordingly, basically addCard() will set it to 1 if it so detects, but cannot set it to -1
@@ -799,11 +805,9 @@ class OnlinePlayer extends Player{
 function bidButtonClicked(event){
     let bid=parseInt(event.currentTarget.getAttribute("data-bid"));
     console.log("Bid chosen: ",bid);
+    document.getElementById("bidding").style.visibility="hidden"; // hide the bidding element
     let error=currentPlayer._setBid(bid); // the value of the button is the made bid
-    if(!error)
-        document.getElementById("bidding").style.visibility="hidden"; // hide the bidding element
-    else
-        alert(error.message);
+    if(error instanceof Error)alert(error);
 }
 /**
  * clicking a trump suite button registers the chosen trump suite with the current player 
@@ -840,14 +844,14 @@ function playablecardButtonClicked(event){
     let cardRank=parseInt(playablecardCell.getAttribute("data-suite-index"));
     ////////if(playablecardCell.style.border="0px")return; // empty 'unclickable' cell
     let error=currentPlayer._cardPlayedWithSuiteAndIndex(cardSuite,cardRank);
-    if(!error){ // card accepted!!!
+    if(!(error instanceof Error)){ // card accepted!!!
         forceFocus(null); // get rid of the focus request
         updatePlayableCardButtonClickHandlers(false); // disable the card buttons
         document.getElementById("play-card-prompt").innerHTML="Gespeelde kaart verzonden naar de spel server"; // MDH@23JAN2020: get rid of the play card prompt!
         playablecardCellContents=playablecardCell.innerHTML; // in case sending the card fails
         playablecardCell.innerHTML="";
     }else // report the error to the end user
-        alert(error.message);
+        alert(error);
 }
 
 /**
@@ -893,11 +897,11 @@ function _gameStateChanged(fromstate,tostate){
             setPage("page-playing");
             break;
         case PlayerGame.FINISHED:
-            setInfo("Het spel is afgelopen!");
-            clearCardsPlayedTable();
             currentPlayer.game._numberOfTricksPlayed+=1; // QUICK FIX to get to see the last trick at the right position!!!!!
             updateTricksPlayedTables(); // so we get to see the last trick as well!!!
             updatePlayerResultsTable(); // show the player results so far
+            setInfo("Het spel is afgelopen!");
+            clearCardsPlayedTable();
             setPage("page-finished");
             break;
     }
@@ -1174,6 +1178,7 @@ class PlayerGameProxy extends PlayerGame {
     done(){
         return this._setEventToSend('DONE',null,function(){
             console.log("DONE event acknowledged.");
+            this._playerIndex=-1; // MDH@29JAN2020: I have to do this otherwise I won't be able to play in a new game (see set playerNames!!!!)
         });
     }
     exit(reason){
@@ -1215,7 +1220,7 @@ class PlayerGameProxy extends PlayerGame {
 
         if(!currentPlayer)return;
 
-        if(this._playerIndex>=0)return; // already playing the game
+        if(this._playerIndex>=0)return; // already playing the game A HA I have to kill the player index somewhere...
 
         let playerIndex=(!playerNames||playerNames.length<4?-1:playerNames.indexOf(currentPlayer.name));
         
@@ -1309,7 +1314,7 @@ class PlayerGameProxy extends PlayerGame {
         */
         // I don't think we can do that????? this._trick.winner=cardInfo.winner;
         let error=this._trick.addCard(new HoldableCard(cardInfo.suite,cardInfo.rank));
-        if(error)return error;
+        if(error instanceof Error)return error;
 
         // MDH@27JAN2020: if we're receiving the play suite we can determine askingForPartnerCard ourselves
         if(cardInfo.hasOwnProperty("playSuite")){
@@ -1572,6 +1577,7 @@ class PlayerGameProxy extends PlayerGame {
                 // kill the game instance (returning to the rules page until assigned to a game again)
                 // wait for the new-game or stop button click!!!!! if(currentPlayer)currentPlayer.playsTheGameAtIndex(null,-1);
                 // this.exit("in response to '"+data+"'");
+                if(currentPage!=="page-finished")setPage("page-finished"); // if we aren't there yet!!!
                 break;
             case "disconnect":
                 // MDH@22JAN2020: better not to go out of order when this happens!!!!!!

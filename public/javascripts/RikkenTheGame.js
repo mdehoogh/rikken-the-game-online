@@ -244,9 +244,7 @@ class RikkenTheGame extends PlayerGame{
     }
 
     // MDH@08JAN2020: useful to have as well
-    getPlayerNames(){
-        let playerNames=[];this._players.forEach((player)=>{playerNames.push(player.name);});return playerNames;
-    }
+    getPlayerNames(){return this._players.map((player)=>player.name);}
 
     // MDH@08JAN2020: should be sending this after every trick I suppose????
     getPartnerIndices(){return this._players.map((player)=>{return player.partner;});}
@@ -390,8 +388,8 @@ class RikkenTheGame extends PlayerGame{
                     // let's NOT rely on the trump player if this is TROELA
                     // NOTE with troela there is no trump player in the sense that the trump ace cannot be requested!!!!! because it's trump!!!!!!!
                     //      so the idea is that getTrumpPlayer() returns the player that can ask for the fourth ace
-                    if(this._highestBid===BID_TROELA)
-                        player.setNumberOfTricksToWin(playerIndex===this._fourthAcePlayer||playerIndex===this.this._highestBidPlayers[0]?8:6);
+                    if(this._highestBid===PlayerGame.BID_TROELA)
+                        player.setNumberOfTricksToWin(playerIndex===this._fourthAcePlayer||playerIndex===this._highestBidPlayers[0]?8:6);
                     else
                         player.setNumberOfTricksToWin(player.isFriendly(this.getTrumpPlayer())>0?8:6);
                 }else // a solitary game

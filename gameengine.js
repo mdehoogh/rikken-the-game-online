@@ -241,7 +241,7 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
         */
        // MDH@25JAN2020: utility function to get a send event on behalf of the current player so we can pass that to the game 
         _getNewSendEvent(event,data,interval){
-            return new SendEvent((interval?RemotePlayer.getUniqueEventId():null),"GAME\t"+this.game.name,"PLAYER\t"+this.name,event,data,interval);
+            return new SendEvent((interval?RemotePlayer.getUniqueEventId():null),"GAME\t"+(this.game?this.game.name:"?"),"PLAYER\t"+this.name,event,data,interval);
         }
         _sendNewEvent(event,data,sendInterval){
             // if we fail to append the new event
@@ -685,6 +685,9 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
                         // MDH@24JAN2020: also sending over the points
                         //                NOTE sending the state change will move to the finished page!!!
                         this.sendToAllPlayers('RESULTS',{'deltapoints':this.deltaPoints,'points':this.points});
+                        // see gameOver(): this.sendToAllPlayers('GAMEOVER',null);
+                        // you can call gameOver BUT in gameOver do NOT remove the games from the players!!!!!
+                        gameOver(this.name,false); // MDH@29JAN2020: to get the game results stored in the database
                     }
                     break;
             }
@@ -765,15 +768,26 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
         gameEngineLog((canceled?"Cancelling":"Finishing")+" game '"+tableId+"'.");
         // remove the players from the game (in effect the player should disconnect or send id in again)
         // NOTE I'm not going to disconnect
-        socket_io_server.to(tableId).emit('GAMEOVER'); // send a single game over to each of the players
         // TODO how about keeping the game around until all players abort the game????????
         // so we can wait doing the following until ALL players have canceled playing in the game
+        // BEFORE killing the game on the players!!!!!!
+        // NOTE the player responsible for leaving the game probably won't have a game associated with it anymore!!!!
+        game.sendToAllPlayers('GAMEOVER',null); // replacing using the 'room': socket_io_server.to(tableId).emit('GAMEOVER'); // send a single game over to each of the players
+        /* do NOT do this, otherwise they will be IDLE again, they have to send a DONE event themselves!!!!
         game._players.forEach((remotePlayer)=>{
             remotePlayer.game=null; // clear the table id thus releasing the remote player to play another game
         });
+        */
         delete tableGames[tableId]; // guess we can do it this way
         // inform the games listener that the game finished or got canceled!!!
-        if(gamesListener)if(canceled)gamesListener.gameCanceled(game);else gamesListener.gameFinished(game);
+        if(gamesListener){
+            gameEngineLog("Informing the games listener about the finished game!");
+            try{
+                if(canceled)gamesListener.gameCanceled(game);else gamesListener.gameFinished(game);
+            }catch(err){
+                gameEngineLog("ERROR: "+JSON.stringify(err)+" trying to inform the games listener about the end of game "+game.name+".");
+            }
+        }
     }
 
     function showRemotePlayersInfo(info){

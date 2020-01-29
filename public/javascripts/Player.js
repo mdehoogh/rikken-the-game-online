@@ -162,19 +162,22 @@ class Player extends CardHolder{
 
     get game(){return this._game;}
     set game(game){
-        if(this._game===game)return;
-        if(game&&!(game instanceof PlayerGame))
-            return new Error("Spel niet van het juiste type.");
-        if(this._index<0)
-            return new Error("Positie van speler onbekend.");
+        if(this._game!==game){
+
+        }
+        if(game&&!(game instanceof PlayerGame))return new Error("Spel niet van het juiste type.");
+        if(game)if(this._index<0)return new Error("Positie van speler onbekend.");
         this._removeCards(); // MDH@11JAN2020: if the game changes we should remove the cards
         this._game=game;
         // sync _index
         if(this._game){
+            console.log("Game on!");
             // prepare for playing the game
             this.partner=-1; // my partner (once I now who it is)
             this.tricksWon=[]; // storing the tricks won
-        }
+        }else
+            console.log("Game over!");
+        return null;
     }
 
     get index(){return this._index;} // MDH@22JAN2020: no harm in adding a getter!!!
@@ -184,7 +187,6 @@ class Player extends CardHolder{
         console.log("Registering the game played at index "+index+".");
         this.index=index;
         this.game=game;
-        console.log("Game registered!");
     }
     /*
     addCard(card){
@@ -222,7 +224,7 @@ class Player extends CardHolder{
     // MDH@26JAN2020: returning true on success (when _bidMade did not return an error)
     _setBid(bid){
         let error=this._bidMade(bid);
-        if(error)return error;
+        if(error&&error!==true)return error;
         this._bid=bid;
         if(this._eventListeners)this._eventListeners.forEach((eventListener)=>{try{(!eventListener||eventListener.bidMade(this._bid));}catch(error){}});
         return null;
