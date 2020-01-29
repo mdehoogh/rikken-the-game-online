@@ -197,8 +197,12 @@ class RikkenTheGame extends PlayerGame{
     // MDH@06DEC2019: the trump player is the player that can ask for the partner suite and rank              
     getTrumpPlayer(){
         // only when playing a 'rik' game (with trump, played with a partner, but not troela, we have a trump player)
+        // MDH@29JAN2020: with TROELA there is also a trump player i.e. the person with three aces!!!!!
+        //                NOTE the trump player is to be considered the person that can ask for the ace BUT 
+        //                     if the three ace player comes out with trump does the ace need to be thrown????????
+        //               SOLUTION: NOT using getTrumpPlayer() in determining how many tricks to win!!!!
         if(this._highestBid!==PlayerGame.BID_RIK&&this._highestBid!==PlayerGame.BID_RIK_BETER){
-            this.log("Not playing an ordinary (two-person) trump game!");
+            this.log("Not playing an ordinary trump game!");
             return -1;
         }
         if(!this._highestBidPlayers||this._highestBidPlayers.length==0){
@@ -383,7 +387,13 @@ class RikkenTheGame extends PlayerGame{
             // MDH@19JAN2020: !== changed to <
             if(this._highestBid<PlayerGame.BID_LAATSTE_SLAG_EN_SCHOPPEN_VROUW){ // at least one person is 'playing' something
                 if(this._partnerSuite>=0){ // some game that involves working together
-                    player.setNumberOfTricksToWin(player.isFriendly(this.getTrumpPlayer())>0?8:6);
+                    // let's NOT rely on the trump player if this is TROELA
+                    // NOTE with troela there is no trump player in the sense that the trump ace cannot be requested!!!!! because it's trump!!!!!!!
+                    //      so the idea is that getTrumpPlayer() returns the player that can ask for the fourth ace
+                    if(this._highestBid===BID_TROELA)
+                        player.setNumberOfTricksToWin(playerIndex===this._fourthAcePlayer||playerIndex===this.this._highestBidPlayers[0]?8:6);
+                    else
+                        player.setNumberOfTricksToWin(player.isFriendly(this.getTrumpPlayer())>0?8:6);
                 }else // a solitary game
                 if(this._highestBidPlayers.indexOf(playerIndex)>=0){ // one of the 'players'
                     switch(this._highestBid){

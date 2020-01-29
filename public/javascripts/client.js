@@ -32,6 +32,8 @@ var visitedPages=[]; // no pages visited yet
 
 var currentPlayer=null; // the current game player
 
+var currentGame=null; // we remember the game until we no longer need it
+
 function stopPlaying(){
     // ASSERT assuming not playing in a game anymore i.e. newGame() has been called before
     // a NORMAL exit
@@ -439,7 +441,8 @@ function getGameInfo(){
            let highestBidder=highestBidders[0];
             if(highestBid==PlayerGame.BID_TROELA){
                 let troelaPlayerName=rikkenTheGame.getPlayerName(highestBidder);
-                gameInfo=troelaPlayerName+" heeft troela, en ";
+                gameInfo=troelaPlayerName+" heeft troela, ";
+                gameInfo+=Language.DUTCH_SUITE_NAMES[trumpSuite]+" is troef, en ";
                 gameInfo+=rikkenTheGame.getPlayerName(rikkenTheGame.fourthAcePlayer)+" is mee.";
             }else{
                 if(highestBid==PlayerGame.BID_RIK||highestBid==PlayerGame.BID_RIK_BETER){
@@ -740,11 +743,11 @@ class OnlinePlayer extends Player{
         if(this._game){
             if(!game){
                 if(this._game.state!==PlayerGame.FINISHED){
-                    setInfo("Programmafout: Het spel kan niet worden verlaten, als het niet afgelopen is (toestand: "+this._game.state+").");
+                    alert("Programmafout: Het spel kan niet worden verlaten, als het niet afgelopen is (toestand: "+this._game.state+").");
                     return;
                 }
                 if(!this._game.done()){
-                    setInfo("Verlaten van het spel mislukt! Probeer het nog eens.");
+                    alert("Verlaten van het spel mislukt! Probeer het nog eens.");
                     return;
                 }
                 this._partner=-1;
@@ -1085,7 +1088,7 @@ class PlayerGameProxy extends PlayerGame {
         try{
             this._socket.emit(this._eventToSend[0],this._eventToSend[1],this._sentEventReceived);
             this._eventToSend[2]++;
-            console.log("Event "+this._eventToSend[0]+" with data "+JSON.stringify(data)+" sent (attempt: "+this._eventToSend[2]+").");
+            console.log("Event "+this._eventToSend[0]+(this._eventToSend[1]?" with data "+JSON.stringify(data):"")+" sent (attempt: "+this._eventToSend[2]+").");
             return true;
         }catch(error){
             console.log("ERROR: Failed to send event "+this._eventToSend[0]+" to the game server (reason: "+error.message+").");
@@ -1207,11 +1210,22 @@ class PlayerGameProxy extends PlayerGame {
     
     set playerNames(playerNames){
 
-        this._playerNames=playerNames;
+        // MDH@29JAN2020: wait with actually playing the game with these players until we found out that the
+        //                current player is actually in the game!!!!!
 
-        this._playerIndex=(!this._playerNames||this._playerNames.length<4?-1:this._playerNames.indexOf(currentPlayer.name));
-        currentPlayer.index=this._playerIndex;
-        if(this._playerIndex>=0){
+        if(!currentPlayer)return;
+
+        if(this._playerIndex>=0)return; // already playing the game
+
+        let playerIndex=(!playerNames||playerNames.length<4?-1:playerNames.indexOf(currentPlayer.name));
+        
+        if(playerIndex>=0){
+            // MDH@29JAN2020: at the moment that the player names are received the game actually starts
+            //                CAREFUL we should consider receiving the player names more than once??????
+            this._initializeGame(); // (re)initialize ALL the properties of playing the game
+            this._playerNames=playerNames;
+            currentPlayer.playsTheGameAtIndex(this,playerIndex); // register with the playe
+            this._playerIndex=currentPlayer._index; // remember the index of the current player
             updateGamePlayerNames();
             showPlayerNames();
             // we only need to show the current player name on page-playing ONCE as it will always stay the same
@@ -1219,7 +1233,7 @@ class PlayerGameProxy extends PlayerGame {
             // replacing: showPlayerName(document.getElementById("player-name"),this.getPlayerName(this._playerIndex),-2);
         }else{
             console.log("ERROR: Current player '"+currentPlayer.name+"' not found.");
-            if(this._playerNames)
+            if(playerNames)
                 alert("Ernstige programmafout: Uw naam komt niet voor in de spelerlijst van het te spelen spel!");
         }
     }
@@ -1228,7 +1242,7 @@ class PlayerGameProxy extends PlayerGame {
         if(playerIndex<0||playerIndex>=this._playerNames.length)return -1;
         let numberOfTricksWonByPlayer=this._numberOfTricksWon[playerIndex];
         // we don't have no players and should get the partner ids from the server itself
-        let partnerIndex=(this._partnerIds?this._partnerIds[playerIndex]:-1);
+        let partnerIndex=(this._partners?this._partners[playerIndex]:-1);
         if(partnerIndex<0)return numberOfTricksWonByPlayer; // no partner known yet
         return numberOfTricksWonByPlayer+this._numberOfTricksWon[partnerIndex];
     }
@@ -1271,6 +1285,7 @@ class PlayerGameProxy extends PlayerGame {
 
     }
 
+    /* MDH@29JAN2020: NOT receiving the partner ids directly from the server anymore BUT deriving them from any partner id we receive!!!!!
     // MDH@20JAN2020: if we receive all partners we can extract the partner of the current player
     _setPartnerIds(partnerIds){
         this._partnerIds=partnerIds;
@@ -1280,6 +1295,8 @@ class PlayerGameProxy extends PlayerGame {
             return alert("Rapporteer de volgende ernstige programmafout: 'Je partner is veranderd'.");
         currentPlayer.partner=currentPartner;
     }
+    */
+
     newCard(cardInfo){
         // MDH@27JAN2020: cardInfo does not need to contain the askingForPartnerCard flag per se
         //                it actually only need to contain it when asking for the partner card blind as in all
@@ -1302,10 +1319,10 @@ class PlayerGameProxy extends PlayerGame {
                 this._trick.askingForPartnerCard=-1;
             }
         }
-
+        /* MDH@29JAN2020: NOT expecting to receive the partner ids anymore!!!
         // MDH@20JAN2020: every card played contains the partners as well!!!
         if(cardInfo.hasOwnProperty("partners"))this._setPartnerIds(cardInfo.partners);
-
+        */
         // if all the cards in the trick have been played, the winner is definite, and wins the trick
         if(this._trick.numberOfCards===4)this._numberOfTricksWon[this._trick.winner]++;
         // do nothing...
@@ -1360,6 +1377,30 @@ class PlayerGameProxy extends PlayerGame {
         return playerBidsObjects;
     }
 
+    _setPartners(partner1,partner2){
+        console.log("Player #"+(partner1)+" and #"+(partner2)+" are partners!");
+        // MDH@08DEC2019: instead of directly setting the partner property of each player
+        //                we wait with doing so as soon as the partner is known (by playing the partner card)
+        this._partners=[-1,-1,-1,-1];
+        let teams=[[partner1,partner2],[]];
+        // MDH@29JAN2020: at this end we do not have _players only _playerNames and their _index is their position in the array of player names!!!!
+        this._playerNames.forEach((playerName,index)=>{if(index!==partner1&&index!==partner2)teams[1].push(index);});
+        teams.forEach((team)=>{
+            console.log("Team: ",team);
+            this._partners[team[0]]=team[1];
+            this._partners[team[1]]=team[0];
+        });
+        console.log("Partners known: ",this._partners);
+    }
+
+    // MDH@29JAN2020: _setPartner() is called when the PARTNER event is received
+    //                if the partner of the current player is known, all partners are known
+    //                and the partner ids can be derived!!!!
+    _setPartner(partner){
+        currentPlayer.partner=partner;
+        if(currentPlayer.partner>=0)if(!this._partners)this._setPartners(currentPlayer._index,currentPlayer.partner);
+    }
+
     // generic method for processing any event, every
     processEvent(event,eventData,acknowledge){
         // log every event
@@ -1377,6 +1418,7 @@ class PlayerGameProxy extends PlayerGame {
             this.acknowledgeEvents();
         }
         let data=(eventId?eventData.payload:eventData);
+        console.log("**************************** PROCESSING EVENT "+event+" >>>"+JSON.stringify(data));
         switch(event){
             case "STATECHANGE":
                 this.state=data.to;
@@ -1385,7 +1427,7 @@ class PlayerGameProxy extends PlayerGame {
                 // console.log("Game information received by '"+currentPlayer.name+"'.",data);
                 // we can set the name of the game now
                 this.name=data;
-                // if(data.hasOwnProperty('players'))this.playerNames=data.players;
+                // wait for the player names!!!!!
                 break;
             case "PLAYERS":
                 this.playerNames=data;
@@ -1400,7 +1442,7 @@ class PlayerGameProxy extends PlayerGame {
                 currentPlayer.renderCards();
                 break;
             case "PARTNER":
-                currentPlayer.partner=data;
+                this._setPartner(data);
                 break;
             case "GAME_INFO":
                 {
@@ -1480,7 +1522,8 @@ class PlayerGameProxy extends PlayerGame {
                 this.newTrick(data);
                 break;
             case "PARTNERS":
-                this._setPartnerIds(data);
+                console.log("Partner ids received BUT no longer used!");
+                // this._setPartnerIds(data);
                 break;
             case "CARD_PLAYED":
                 this.newCard(data);
@@ -1539,7 +1582,7 @@ class PlayerGameProxy extends PlayerGame {
         }
     }
 
-    prepareForCommunication(){
+    _prepareForCommunication(){
         console.log("Preparing for communication");
         // this._socket.on('connect',()=>{
         //     this._state=IDLE;
@@ -1580,16 +1623,12 @@ class PlayerGameProxy extends PlayerGame {
         });
     }
 
-    // MDH@08JAN2020: socket should represent a connected socket.io instance!!!
-    constructor(socket){
-        // OOPS didn't like forgetting this!!! 
-        // but PlayerGame does NOT have an explicit constructor (i.e. no required arguments)
-        super();
-        this._sentEventReceived=this._sentEventReceived.bind(this);this._sendEvent=this._sendEvent.bind(this);
+    // MDH@29JAN2020: if we want to be able to make this player play more than one game with the same Game instance
+    //                (this one), we need to take all initialization out of the constructor and put it in here
+    _initializeGame(){
+        this._state=PlayerGame.OUT_OF_ORDER;
         this._eventsReceived=[];
         this._trickWinner=null;
-        this._state=PlayerGame.OUT_OF_ORDER;
-        this._socket=socket;
         this._dealer=-1;
         this._trumpSuite=-1;//this._trumpPlayer=-1;
         this._partnerSuite=-1;this._partnerRank=-1;
@@ -1605,8 +1644,18 @@ class PlayerGameProxy extends PlayerGame {
         // things we can store internally that we receive over the connection
         this._name=null; // the name of the game
         this._playerNames=null; // the names of the players
-        this._partnerIds=null; // the partners
-        this.prepareForCommunication();
+        this._partners=null; // the partners (using the same name as in (server-side) RikkenTheGame.js)
+    }
+
+    // MDH@08JAN2020: socket should represent a connected socket.io instance!!!
+    constructor(socket){
+        // OOPS didn't like forgetting this!!! 
+        // but PlayerGame does NOT have an explicit constructor (i.e. no required arguments)
+        super();
+        this._socket=socket;
+        this._sentEventReceived=this._sentEventReceived.bind(this);this._sendEvent=this._sendEvent.bind(this);
+        this._initializeGame();
+        this._prepareForCommunication();
     }
 
     // information about the game itself organized by state
@@ -1627,7 +1676,9 @@ class PlayerGameProxy extends PlayerGame {
     // getPlayerName(player){return(this._playerNames&&player<this._playerNames.length?this._playerNames[player]:"?");}
     get deltaPoints(){return this._deltaPoints;}
     get points(){return this._points;}
-    isPlayerPartner(playerIndex,otherPlayerIndex){return(this._partnerIds?this._partnerIds[playerIndex]===otherPlayerIndex:false);}
+
+    isPlayerPartner(playerIndex,otherPlayerIndex){return(this._partners?this._partners[playerIndex]===otherPlayerIndex:false);}
+    
     // getLastTrickPlayed(){return this._lastTrickPlayed;} // TODO still used?????
     get numberOfTricksPlayed(){return this._numberOfTricksPlayed;}
     // getTrickAtIndex(trickIndex){} // get the last trick played
@@ -1643,7 +1694,7 @@ class PlayerGameProxy extends PlayerGame {
         */
         // NOT replacing:
         let teamName=this.getPlayerName(playerIndex);
-        let partnerIndex=(this._partnerIds?this._partnerIds[playerIndex]:-1); // NOTE could be null!!!
+        let partnerIndex=(this._partners?this._partners[playerIndex]:-1); // NOTE could be null!!!
         if(partnerIndex&&partnerIndex>=0)teamName+=" & "+this.getPlayerName(partnerIndex);
         return teamName;
     }
@@ -1754,10 +1805,14 @@ function _setPlayer(player,errorcallback){
                 if(!currentPlayer){ // first time connect
                     currentPlayer=player;
                     showCurrentPlayerName();
+                    /* MDH@29JAN2020: do NOT start playing a game until we receive the player names!!!!!!
                     // unfortunately we can only set the game of the player if _index is non-negative, so we pass in 4
                     currentPlayer.index=4;
                     currentPlayer.game=new PlayerGameProxy(clientsocket);
-                    if(typeof errorcallback!=='function'){errorcallback(null);setPage("page-wait-for-players");}    
+                    */
+                    currentGame=new PlayerGameProxy(clientsocket); // let's create the game that is to register the event handlers
+                    setPage("page-wait-for-players");    
+                    if(typeof errorcallback==='function')errorcallback(null);
                 }else
                     setInfo("De verbinding met de spel server is hersteld.");
                 // MDH@23JAN2020: push the player name to the server again, so it can resend what needs sending!!!!
@@ -1776,8 +1831,10 @@ function _setPlayer(player,errorcallback){
         });
         // try to connect to the server catching whatever happens through events
         clientsocket.connect();
-    }else
+    }else{
+        currentGame=null; // get rid of the current game (if any)
         (typeof errorcallback!=='function'||errorcallback(null));
+    }
 }
 
 // call setPlayerName with the (new) name of the current player whenever the player wants to play
