@@ -235,7 +235,7 @@ server.listen(3000,()=>{
 
 console.log("Environment: "+process.env.NODE_ENV+".");
 
-if(process.env.NODE_ENV==="production")return;
+if(!process.env.NODE_ENV||process.env.NODE_ENV==="production")return;
 
 var inspectingEventLog=false;
 ///*
