@@ -195,7 +195,7 @@ function showPlayerType(element,playerType){
         case -1:element.style.color="red";break;
         case 0:element.style.color="orange";break;
         case 1:element.style.color="green";break;
-        default:element.style.color="black";break;
+        default:element.style.color="black";break; // typically value 2 is used to indicate the player itself!!!
     }
 }
 
@@ -398,6 +398,7 @@ function updateTricksPlayedTables(){
                 cell.style.fontSize=(trick.winner===player?"600":"450")+"%";
                 // replacing: cell.style.color='#'+(card.suite%2?'FF':'00')+'00'+(trickPlayer==0?'FF':'00'); // first player adds blue!!
             }
+            // we're passing along currentPlayer.partner to getTeamName because the player with the fourth ace already knows his/her partner
             row.children[9].innerHTML=rikkenTheGame.getTeamName(trick.winner); // show who won the trick!!
             row.children[10].innerHTML=rikkenTheGame.getNumberOfTricksWonByPlayer(trick.winner); // show the number of tricks won by the trick winner (MDH@03JAN2020: changed from getting the player instance first)
         }
@@ -1700,8 +1701,29 @@ class PlayerGameProxy extends PlayerGame {
         */
         // NOT replacing:
         let teamName=this.getPlayerName(playerIndex);
-        let partnerIndex=(this._partners?this._partners[playerIndex]:-1); // NOTE could be null!!!
-        if(partnerIndex&&partnerIndex>=0)teamName+=" & "+this.getPlayerName(partnerIndex);
+        // distinguish between the current player being asked and another player
+        let knownPartnerIndex=(this._partners?this._partners[playerIndex]:-1); // NOTE could be null!!!
+        // if the player is playing by him/herself there shouldn't be a partner!!!!
+        if(this._highestBid!==PlayerGame.BID_RIK&&this._highestBid!==PlayerGame.BID_RIK_BETER&&this._highestBid!==PlayerGame.BID_TROELA){
+            if(playerIndex===currentPlayer._index&&currentPlayer.partner>=0)teamName+="?";
+            if(knownPartnerIndex>=0)teamName+="&?"; // some error apparently!!!!!
+            return teamName;
+        }
+        teamName+=" "; // we'll have partner information behind
+        if(playerIndex===this._playerIndex){
+            let currentPartnerIndex=currentPlayer.partner; // the player that has the requested partner card knows his partner...
+            // if the current partner index is known but the knownPartnerIndex is not we wrap the name in ()
+            if(currentPartnerIndex>=0&&knownPartnerIndex<0)teamName+=" (";
+            teamName+=" & "; // we are with a partner (although we might not currently know who)
+            // the official partner (as known to the current player) is the one from currentPartnerIndex (and we show that name!)
+            if(this._partners)teamName+=(currentPartnerIndex>=0?this.getPlayerName(currentPartnerIndex):"?");
+            // can we deal with error situations now??????
+            // typically this would be the case if the known partner index differs from the partner index registered with the player!!!
+            if(knownPartnerIndex>=0&&currentPartnerIndex!==knownPartnerIndex)
+                teamName+="?"+(knownPartnerIndex>=0?this.getPlayerName(knownPartnerIndex):"");
+            if(currentPartnerIndex>=0&&knownPartnerIndex<0)teamName+=")";    
+        }else // name of another player's partner being asked, can only be available through this._partners
+            teamName+=" & "+(knownPartnerIndex>=0?this.getPlayerName(knownPartnerIndex):"?");
         return teamName;
     }
 }

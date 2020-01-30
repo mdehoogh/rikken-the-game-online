@@ -58,12 +58,8 @@ class EmulatedPlayer extends Player{
 
 class RikkenTheGame extends PlayerGame{
 
-    static get MY_NAME(){
-        return "Me";
-    }
-
     log(tolog){
-        console.log("RIKKENTHEGAME >>> "+tolog);
+        console.log("RIKKEN '"+this.name+"' >>> "+tolog);
     }
     
     // called when RikkenTheGame moves into the IDLE state
@@ -498,14 +494,20 @@ class RikkenTheGame extends PlayerGame{
     }
 
     // MDH@23JAN2020: whenever the delta points are requested they will be computed JIT 
+    // MDH@30JAN2020: the game is zero-sum so the delta points should add up to 0 which they don't
+    //                I think this is because partner of each player isn't set correctly in the remote player games
+    //                so perhaps it's better to switch to using this._partners instead for getting the partner index!!!!
     _computeDeltaPoints(){
         if(!this._tricks||this._tricks.length<13)return; // not enough tricks to compute the delta points
+        this.log("Computing the score points.");
         // determine the points won and adjust the points
+        this._deltaPoints=[0,0,0,0];
         let pointsWon=0;
         let pointsToWinOffset=PlayerGame.BID_POINTS[this._highestBid];
+        this.log("\tPoints to win offset: "+pointsToWinOffset+".");
         let tricksToWin=(this._highestBidPlayers.length>0?this._players[this._highestBidPlayers[0]].numberOfTricksToWin:0);
+        this.log("\tNumber of tricks to win: "+tricksToWin+".");
         // we're going to compute the delta points i.e. what each player will win (or loose)
-        this._deltaPoints=[0,0,0,0];
         let aSolitaryGame=true;
         switch(this._highestBid){
             case PlayerGame.BID_TROELA:case PlayerGame.BID_RIK:case PlayerGame.BID_RIK_BETER: // single highest bidder
@@ -515,27 +517,63 @@ class RikkenTheGame extends PlayerGame{
             case PlayerGame.BID_ELF_ALLEEN:case PlayerGame.BID_ELF_ALLEEN_BETER:
             case PlayerGame.BID_TWAALF_ALLEEN:case PlayerGame.BID_TWAALF_ALLEEN_BETER:
             case PlayerGame.BID_DERTIEN_ALLEEN:case PlayerGame.BID_DERTIEN_ALLEEN_BETER:
-                let numberOfTricksWonByHighestBidder=this._players[this._highestBidPlayers[0]].getNumberOfTricksWon();
-                pointsWon=(numberOfTricksWonByHighestBidder>=tricksToWin?pointsToWinOffset+numberOfTricksWonByHighestBidder-tricksToWin:numberOfTricksWonByHighestBidder-tricksToWin-pointsToWinOffset);
-                if(aSolitaryGame){
+                
+                let trumpPlayer=this._highestBidPlayers[0];
+
+                this.log("\tRegistered partner of trump player: #"+this._players[trumpPlayer].partner+" (not used in computation of tricks won).");
+                
+                let trumpPlayerPartner=this._partners[trumpPlayer]; // MDH@30JAN2020: the partner of the highest bid player
+                if(trumpPlayerPartner>=0)
+                    this.log("\tActual partner registered in the game as the partner of the trump player: '"+this.getPlayerName(trumpPlayerPartner)+"'.");
+                else
+                    this.log("\tNo trump player partner!");
+
+                // MDH@30JAN2020: using again this._partners (not relying on .partner of the trump player as getNumberOfTricksWon() does!!!!)
+                let numberOfTricksWonByTrumpPlayer=this._players[trumpPlayer].numberOfTricksWon;
+                this.log("\tNumber of tricks won by trump player '"+this.getPlayerName(trumpPlayer)+"': "+numberOfTricksWonByTrumpPlayer+".");
+                let numberOfTricksWonByTrumpPlayerPartner=0;
+                if(trumpPlayerPartner>=0){
+                    numberOfTricksWonByTrumpPlayerPartner=this._players[trumpPlayerPartner].numberOfTricksWon;
+                    this.log("\tNumber of tricks won by the trump player partner '"+this.getPlayerName(trumpPlayerPartner)+"': "+numberOfTricksWonByTrumpPlayerPartner+".");    
+                }else
+                if(!aSolitaryGame)
+                    this.log("\tERROR: Partner of trump player in non-solitary trump game unknown!");
+                // replacing: let numberOfTricksWonByTrumpPlayerTeam=this._players[trumpPlayer].getNumberOfTricksWon();
+                
+                let numberOfTricksWonByTrumpPlayerTeam=numberOfTricksWonByTrumpPlayer+numberOfTricksWonByTrumpPlayerPartner;
+                this.log("\tNumber of tricks won by trump player(s): "+numberOfTricksWonByTrumpPlayerTeam+".");
+                let numberOfTricksOff=(numberOfTricksWonByTrumpPlayerTeam-tricksToWin);
+
+                this.log("\tNumber of tricks off trump player(s): "+numberOfTricksOff+".");
+                pointsWon=(numberOfTricksOff>=0?pointsToWinOffset+numberOfTricksOff:numberOfTricksOff-pointsToWinOffset);
+                this.log("\tPoints won: "+pointsWon+".");
+                if(aSolitaryGame){ // every player for him/herself
+                    this.log("\tA single trump player game!");
+                    // careful here, multiple players can play in a solitary game
+                    this._deltaPoints[trumpPlayer]=(3*pointsWon);
                     for(let player=0;player<4;player++)
-                        if(player==this._highestBidPlayers[0])
-                            this._deltaPoints[player]+=(3*pointsWon);
-                        else
-                            this._deltaPoints[player]-=pointsWon;
+                        if(player!==trumpPlayer)
+                            this._deltaPoints[player]=-pointsWon;
                 }else{ // played with partner, so the highest bidder and the partner get pointsWon and the others give pointsWon
-                    for(let player=0;player<4;player++)
-                        if(player==this._highestBidPlayers[0]||player==this._players[this._highestBidPlayers[0]].partner)
-                            this._deltaPoints[player]+=pointsWon;
+                    this.log("\tA (two) pair game!");
+                    // MDH@30JAN2020: every player need to receive points once!!!!!
+                    // this.log("\tTrump player: '"+this.getPlayerName(trumpPlayer)+"'.");
+                    // this.log("\tPartner of trump player: "+this.getPlayerName(trumpPlayerPartner)+"'.");
+                    for(let player=0;player<4;player++){
+                        if(player===trumpPlayer||player===trumpPlayerPartner) // replacing: this._players[this._highestBidPlayers[0]].partner)
+                            this._deltaPoints[player]=pointsWon;
                         else
-                            this._deltaPoints[player]-=pointsWon;
+                            this._deltaPoints[player]=-pointsWon;
+                    }
                 }
+                this.log("\tPoints: "+this._deltaPoints+".");
                 break;
             case PlayerGame.BID_LAATSTE_SLAG:
             case PlayerGame.BID_LAATSTE_SLAG_EN_SCHOPPEN_VROUW: // MDH@19JAN2020: probably obsolete
                 // the last trick winner has to pay the other players
                 {
                     let lastTrickWinner=this._tricks[12].winner;
+                    this.log("\tLast trick winner: '"+this.getPlayerName(lastTrickWinner)+"'.");
                     for(let player=0;player<4;player++)
                         if(player==lastTrickWinner)
                             this._deltaPoints[player]-=(3*pointsToWinOffset);
@@ -549,8 +587,9 @@ class RikkenTheGame extends PlayerGame{
                             break;
                         }
                     }
+                    this.log("\tQueen of spades ('Schoppen vrouw') winner: '"+this.getPlayerName(schoppenVrouwWinner)+"'.");
                     for(let player=0;player<4;player++)
-                        if(player==schoppenVrouwWinner)
+                        if(player===schoppenVrouwWinner)
                             this._deltaPoints[player]-=(3*pointsToWinOffset);
                         else
                             this._deltaPoints[player]+=pointsToWinOffset;
@@ -560,22 +599,27 @@ class RikkenTheGame extends PlayerGame{
             // with points won by any of the highest bid players
             case PlayerGame.BID_PICO:
                 for(let highestBidPlayer=0;highestBidPlayer<this._highestBidPlayers.length;highestBidPlayer++){
-                    let deltaWon=Math.abs(this._players[this._highestBidPlayers[highestBidPlayer]].getNumberOfTricksWon()-1);
+                    let picoPlayer=this._highestBidPlayers[highestBidPlayer];
+                    // this.log("\tPico player: '"+this.getPlayerName(picoPlayer)+"'.");
+                    let deltaWon=Math.abs(this._players[picoPlayer].numberOfTricksWon-1);
                     pointsWon=(deltaWon?1-pointsToWinOffset-deltaWon:pointsToWinOffset);
+                    this.log("\tPoints won by pico player '"+this.getPlayerName(picoPlayer)+"': "+pointsWon+".");
                     for(let player=0;player<4;player++)
-                        if(player==this._highestBidPlayers[this.highestBidPlayer])
-                            this._deltaPoints[player]+=(3*pointWon);
+                        if(player===picoPlayer)
+                            this._deltaPoints[player]+=(3*pointsWon);
                         else
                             this._deltaPoints[player]-=pointsWon;
                 }
                 break;
             case PlayerGame.BID_MISERE:case PlayerGame.BID_OPEN_MISERE:case PlayerGame.BID_OPEN_MISERE_MET_EEN_PRAATJE:
                 for(let highestBidPlayer=0;highestBidPlayer<this._highestBidPlayers.length;highestBidPlayer++){
+                    let miserePlayer=this._highestBidPlayers[highestBidPlayer];
                     // every trick one is one too many
-                    let deltaWon=this._players[this._highestBidPlayers[highestBidPlayer]].getNumberOfTricksWon();
+                    let deltaWon=this._players[miserePlayer].numberOfTricksWon;
                     pointsWon=(deltaWon?1-pointsToWinOffset-deltaWon:pointsToWinOffset);
+                    this.log("\tPoints won by misere player '"+this.getPlayerName(miserePlayer)+"': "+pointsWon+".");
                     for(let player=0;player<4;player++)
-                        if(player==this._highestBidPlayers[this.highestBidPlayer])
+                        if(player===miserePlayer)
                             this._deltaPoints[player]+=(3*pointsWon);
                         else
                             this._deltaPoints[player]-=pointsWon;

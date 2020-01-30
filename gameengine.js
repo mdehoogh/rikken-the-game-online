@@ -4,12 +4,14 @@ const {CardHolder,HoldableCard}=require('./public/javascripts/CardHolder.js');
 const {PlayerEventListener,PlayerGame,Player}=require('./public/javascripts/Player.js'); // the player class we'll be extending...
 const {RikkenTheGameEventListener,Trick,RikkenTheGame}=require('./public/javascripts/RikkenTheGame.js'); // the (original) RikkenTheGame that we extend here
 
-module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
+module.exports=(socket_io_server,gamesListener,numberOfGamesPlayedSoFar,acknowledgmentRequired)=>{
 
     // keep a queue of logged messages during the time the user is inspecting events
     var loggedMessages=[];
     var loggedEvents=[]; // a log of all the events sent and received
     var inspectingEvents=0; // how many games are inspecting events
+
+    var lastGameIndex=numberOfGamesPlayedSoFar; // initialize lastGameIndex to the number of games played before
 
     // be able to request all the events exchanged between two parties in the proper order
     function getExchangedEvents(one,another){
@@ -735,8 +737,10 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
 
     // keep track of all the active games
     let tableGames={};
-    let lastTableIndex=0;
-    function newTableId(){return "Spel "+(++lastTableIndex);}
+
+    // increment the last game index should give us a unique game ID (which we need)
+    function newTableId(){return "Spel "+(++lastGameIndex);}
+
     function getGame(tableId){return(tableGames.hasOwnProperty(tableId)?tableGames[tableId]:null);}
     function getNewGamePlayedBy(players){
         // ASSERT all players should have tableId equal to ''
@@ -1015,8 +1019,10 @@ module.exports=(socket_io_server,gamesListener,acknowledgmentRequired)=>{
         });
     });
 
+    gameEngineLog("Game engine up and running!");
+    
     // if events need to be acknowledged, run a clock
-    if(acknowledgmentRequired)clock=new Clock(1000).start(); 
+    if(acknowledgmentRequired)clock=new Clock(1000).start();else gameEngineLog("Not running a clock!"); 
 
     // returning all the functions to interface with the game engine
     // any user that logs in should call canPlay and as soon as logged out cantPlay

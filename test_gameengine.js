@@ -6,15 +6,11 @@ const GamesListener=require('./gameslistener.js');
 const User=require('./models/user.js');
 const Game=require('./models/game.js');
 
-const mongoose=require('mongoose');
-mongoose.connect(process.env.MONGODB_CONNECTION_STRING,{useNewUrlParser:true,useUnifiedTopology:true})
-  .then(() => {
-    console.log('Connected to MongoDB!')
-  }).catch(err => {
-    console.error('Error connecting to MongoDB.',err);
-  });
 
 class RikkenGamesListener extends GamesListener{
+    log(tolog){
+        console.log("GAMES LISTENER >>> "+tolog);
+    }
     constructor(){
         super();
         this._games=[]; // keep track of a list of active games
@@ -22,7 +18,7 @@ class RikkenGamesListener extends GamesListener{
         this._inspectingGameEvents=null; // the game of which events are being inspected
     }
     showGameEventPrompt(){
-        console.log("What player to show next? (or type 0 to move to the next game)");
+        this.log("What player to show next? (or type 0 to move to the next game)");
         this._gamePlayerNames.forEach((playerName,index)=>{
             if(this._gameEvents[playerName].length>0)
                 console.log(String(index+1)+': '+playerName);
@@ -34,7 +30,7 @@ class RikkenGamesListener extends GamesListener{
         this._inspectingGameEvents++;
         if(this._inspectingGameEvents>=this._gameNames.length)return false;
         let gameName=this._gameNames[this._inspectingGameEvents];
-        console.log("\nEvent inspection of game "+gameName+".");
+        this.log("\nEvent inspection of game "+gameName+".");
         this._gameEvents=this._gamesEvents[gameName]; // get the game names
         // display the user names to choose from
         this._gamePlayerNames=Object.keys(this._gameEvents);
@@ -43,9 +39,9 @@ class RikkenGamesListener extends GamesListener{
     }
     inspectGamePlayerEvents(gamePlayerIndex){
         let gamePlayerEvents=this._gameEvents[this._gamePlayerNames[gamePlayerIndex]];
-        console.log("Number of player events: "+gamePlayerEvents.length+".");
+        this.log("Number of player events: "+gamePlayerEvents.length+".");
         // write all the game player events to the log
-        gamePlayerEvents.forEach((gamePlayerEvent)=>console.log(gamePlayerEvent.join('\t')));
+        gamePlayerEvents.forEach((gamePlayerEvent)=>this.log(gamePlayerEvent.join('\t')));
         this.showGameEventPrompt();
     }
     inspectGameEvents(){
@@ -67,7 +63,7 @@ class RikkenGamesListener extends GamesListener{
     }
     doneInspectingGameEvents(){
         this._games.forEach((game)=>{
-            if(game.doneInspectingEvents())console.log("Done inspecting game events!");
+            if(game.doneInspectingEvents())this.log("Done inspecting game events!");
         });
     }
 
@@ -79,51 +75,77 @@ class RikkenGamesListener extends GamesListener{
     }
     gameFinished(game){
         super.gameFinished(game);
-        console.log("Game '"+game.name+"' finished!");
+        this.log("Game '"+game.name+"' finished!");
         // TODO store the game results
         // MDH@24JAN2020: NOT all users need to be registered users per se
         let playerNames=game.getPlayerNames();
-        if(!playerNames){console.log("No players in the game!");return;}
-        console.log("Looking for the players",playerNames);
+        if(!playerNames)return this.log("No players in the game!");
+        if(playerNames.length<4)return this.log("Not enough players in the game!");
+        this.log("Determining which of the game players is registered.");
         User.find({'username':{$in:playerNames}})
             .then((users)=>{
-                console.log("Number of users in the finished game: "+users.length+".");
+                this.log("Registered game players: "+users.map((user)=>user.username).join(", ")+".");
+                // this.log("Number of registered users in the finished game: "+(users?users.length:0)+".");
+                // MDH@30JAN2020: how about allowing unregistered players in a game as well...
                 // MDH@24JAN2020: calling deltaPoints
-                 if(users.length>=playerNames.length){
+                if(true){ // replacing: users.length>=playerNames.length){
                     let playerScores=game.deltaPoints; // returns the game points JIT computed
                     // let's be careful here, we need the name to make the scores
-                    let gameScores=playerNames.map((playerName)=>{
-                        // we have to find the id of the user with this name
-                        let userIndex=users.length;
-                        while(--userIndex>=0&&users[userIndex].username!==playerName);
-                        return(userIndex>=0?{'user_id':users[userIndex]._id,'score':playerScores[userIndex]}:null);
+                    let gameScores=playerNames.map((playerName,playerIndex)=>{
+                        let gameScore={'player_name':playerName,'score':playerScores[playerIndex],'tricks_won':game.getNumberOfTricksWonByPlayer(playerIndex)};
+                        // we have to find the id of the registered user with this name
+                        let userIndex=users.length;while(--userIndex>=0&&users[userIndex].username!==playerName);
+                        // MDH@30JAN2020: storing the name of the player now as well
+                        if(userIndex>=0)gameScore.user_id=users[userIndex]._id; // store the registered user id as well
+                        return gameScore;
                     });
-                    console.log("Registering game results!");
+                    this.log("\tRegistering game results!");
                     // replacing: users.map((user,index)=>{return {"user_id":user._id,"score":playerScores[index]};});
-                    Game.create({name:game.name,scores:gameScores})
+                    // MDH@30JAN2020: adding the highest bid and highest bid players as well!!!!
+                    Game.create({name:game.name,bid:game._highestBid,bid_players:game._highestBidPlayers,scores:gameScores})
                         .then((game)=>{
                             // append the game id to the array of game ids stored with each player
-                            playerNames.forEach((playerName)=>{
+                            gameScores.forEach((gameScore)=>{
                                 // will the callback work???
-                                User.findOneAndUpdate({'username':playerName},{$push:{games:game.id}}
-                                                        ,(error,success)=>{
-                                                            console.log((error?"Error in ":"Result of")+"registering the game played by user "+playerName+".",(error||success));
-                                                            });
+                                if(gameScore.hasOwnProperty("user_id"))
+                                    User.findOneAndUpdate({_id:gameScore.user_id},{$push:{games:game.id}},{new:true}
+                                        ,(error,user)=>{
+                                            console.log("GAMES LISTENER >>> ",(error?"Error in":"Result of")+" registering the game played by "+gameScore.player_name+".",(error||user));
+                                        });
                             });
                         })
-                        .catch((err)=>{console.log("ERROR: Failed to register the results of game "+game.name+".",err);});            
+                        .catch((err)=>{this.log("ERROR: Failed to register the results of game "+game.name+".",err);});            
                 }else
-                    console.log("ERROR: Unable to store the result of playing "+game.name+": not all players are registered users.");
+                    this.log("ERROR: Unable to store the result of playing "+game.name+": not all players are registered users.");
             })
             .catch((err)=>{
-                console.log("ERROR: Failed to retrieve the users that played "+game.name+".",err);
+                this.log("ERROR: Failed to retrieve the users that played "+game.name+".",err);
             });
     }
     gameCanceled(game){
         super.gameCanceled(game);
-        console.log("Game "+game.name+" canceled!");
+        this.log("Game "+game.name+" canceled!");
     }
 }
+
+var gameengine=null;
+
+const mongoose=require('mongoose');
+mongoose.connect(process.env.MONGODB_CONNECTION_STRING,{useNewUrlParser:true,useUnifiedTopology:true})
+  .then(() => {
+
+    console.log('Connected to MongoDB!');
+
+    // running with the acknowledgmentRequired flag set to true would result in multiple users being asked to send their bid
+    // which must mean that an event isn't actually acknowledged!!!!!
+    Game.count({},(err,count)=>{
+        // fire up the game engine!!!!
+        gameengine=require('./gameengine.js')(socket_io_server,new RikkenGamesListener(),(err?0:count),false);
+    });
+
+  }).catch(err => {
+    console.error('Error connecting to MongoDB.',err);
+  });
 
 const path=require('path');
 // server-side socket.io
@@ -156,12 +178,6 @@ const socket_io_server=require('socket.io')(server/*,{
     pingTimeout: 5000,
     cookie: false
   }*/);
-
-const rikkenGamesListener=new RikkenGamesListener();
-
-// running with the acknowledgmentRequired flag set to true would result in multiple users being asked to send their bid
-// which must mean that an event isn't actually acknowledged!!!!!
-const gameengine=require('./gameengine.js')(socket_io_server,rikkenGamesListener,false);
 
 // MDH@11JAN2020: pretty essential to do the init BEFORE registering the helper AND then it works
 app.use(i18n.init); // use internationalization
@@ -202,11 +218,17 @@ hbs.registerHelper('__l',()=>{
     return result;
 });
 */
-app.get('/', (req, res)=>{res.render('test');}); // the test page with 4 links for each of the players
+
+// MDH@30JAN2020: let's run the test from test, or even better from ironhackers
+//                and at the root the ordinary login!!!
+app.get('/',(req,res)=>{res.render('home')});
+
+app.get('/ironhackers',(req,res)=>{res.render('ironhackers');}); // the test page with 4 links for each of the players
 
 // MDH@24JAN2020: replacing gameplaying by spelen and player by als
 app.get('/spelen',(req,res)=>{res.render('gameplaying',(req.query.als?null:{username:"Marc"}));}); // each player 
 
+// the following is fine with development
 server.listen(3000,()=>{
     console.log("Express server listening on port 3000.");
 });
