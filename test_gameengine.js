@@ -233,6 +233,10 @@ server.listen(3000,()=>{
     console.log("Express server listening on port 3000.");
 });
 
+console.log("Environment: "+process.env.NODE_ENV+".");
+
+if(process.env.NODE_ENV==="production")return;
+
 var inspectingEventLog=false;
 ///*
 console.log("Use the spacebar to start and end viewing game events.");
