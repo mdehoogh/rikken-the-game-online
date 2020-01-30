@@ -29,7 +29,7 @@ mongoose
 // END MONGOOSE SETUP
 
 // EXPRESS SERVER SETUP
-const express      = require('express');
+const express=require('express');
 const app=express();
 // END EXPRESS SERVER SETUP
 
@@ -54,6 +54,29 @@ io.on('connection', client => {
     });
 });
 // END SOCKET.IO SERVER SETUP
+
+// MDH@11JAN2020: pretty essential to do the init BEFORE registering the helper AND then it works
+// MDH@30JAN2020: copied over from test_gameplaying.js for internationalization support
+const i18n=require('i18n');
+i18n.configure({
+    locales:['nl', 'en'],
+    defaultLocale:'en',
+    queryParameter: 'lang', // replacing: cookie:'locale' (which we do not have!!!!)
+    directory: path.join(__dirname,'locales'),
+});
+i18n.setLocale('en'); // try it this way!!!!
+app.use(i18n.init); // use internationalization
+app.use(function(req, res, next) {
+    hbs.registerHelper('__',function(){
+        if(!this.locale){
+            var args=Array.prototype.slice.call(arguments);
+            var options=args.pop();
+            return i18n.__.apply(options.data.root,args);
+          }
+          return i18n.__.apply(this,arguments);
+    });
+    next();
+  });
 
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));

@@ -153,13 +153,13 @@ const path=require('path');
 // server-side socket.io
 // source: https://github.com/socketio/socket.io
 const express=require('express');
-const i18n=require('i18n');
 const hbs=require('hbs');
 
 const app=express();
 app.locals.title="Rikken"; // the title of this nice card game
 
 // setup multiple language support
+const i18n=require('i18n');
 i18n.configure({
     locales:['nl', 'en'],
     defaultLocale:'en',
