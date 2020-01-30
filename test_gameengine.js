@@ -222,7 +222,7 @@ hbs.registerHelper('__l',()=>{
 */
 
 // MDH@30JAN2020: let's run the root from test, or even better from ironhackers
-app.get('/',(req,res)=>{res.render('test')});
+app.get('/',(req,res)=>{res.render('test');});
 
 app.get('/ironhackers',(req,res)=>{res.render('ironhackers');}); // the test page with 4 links for each of the players
 
