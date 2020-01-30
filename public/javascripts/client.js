@@ -449,8 +449,8 @@ function getGameInfo(){
             if(highestBid==PlayerGame.BID_TROELA){
                 let troelaPlayerName=rikkenTheGame.getPlayerName(highestBidder);
                 gameInfo=troelaPlayerName+" heeft troela, ";
-                gameInfo+=Language.DUTCH_SUITE_NAMES[trumpSuite]+" is troef, en ";
-                gameInfo+=rikkenTheGame.getPlayerName(rikkenTheGame.fourthAcePlayer)+" is mee.";
+                // MDH@30JAN2020: OOPS not supposed to give this away!!!!! gameInfo+=Language.DUTCH_SUITE_NAMES[trumpSuite]+" is troef, en ";
+                gameInfo+="en "+rikkenTheGame.getPlayerName(rikkenTheGame.fourthAcePlayer)+" is mee.";
             }else{
                 if(highestBid==PlayerGame.BID_RIK||highestBid==PlayerGame.BID_RIK_BETER){
                     gameInfo=rikkenTheGame.getPlayerName(highestBidder)+" rikt in de "+Language.DUTCH_SUITE_NAMES[trumpSuite];
