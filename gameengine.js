@@ -612,7 +612,7 @@ module.exports=(socket_io_server,gamesListener,numberOfGamesPlayedSoFar,acknowle
                 }
             }catch(error){
                 // sendEventCount=-1; // force attempting to send again in 500 ms
-                gameEngineLog("ERROR: Failed to send prompting event "+this._eventToSend[0]+" to "+this._promptingPlayer.name+" (reason: "+error.message+").");
+                gameEngineLog("ERROR: Failed to send prompting event "+this._eventToSend[0]+" to "+this._promptedPlayer.name+" (reason: "+JSON.stringify(error)+").");
             }finally{
                 // try again in a while depending
                 setTimeout(this._sendEvent,sendEventCount<0?500:5000);
@@ -1044,7 +1044,7 @@ module.exports=(socket_io_server,gamesListener,numberOfGamesPlayedSoFar,acknowle
     
     // if events need to be acknowledged, run a clock
     if(acknowledgmentRequired)clock=new Clock(1000).start();
-    
+
     if(clock)gameEngineLog("Running a clock!");
 
     // returning all the functions to interface with the game engine
