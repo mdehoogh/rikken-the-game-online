@@ -230,9 +230,10 @@ app.get('/ironhackers',(req,res)=>{res.render('ironhackers');}); // the test pag
 // MDH@24JAN2020: replacing gameplaying by spelen and player by als
 app.get('/spelen',(req,res)=>{res.render('gameplaying',(req.query.als?null:{username:"Marc"}));}); // each player 
 
-// the following is fine with development
-server.listen(3000,()=>{
-    console.log("Express server listening on port 3000.");
+// either use the environment defined PORT or 3000
+let port=(process.env.PORT||3000);
+server.listen(port,()=>{
+    console.log("Express server listening on port "+port+".");
 });
 
 console.log("Environment: "+process.env.NODE_ENV+".");
