@@ -445,7 +445,7 @@ function getGameInfo(){
         let partnerRank=rikkenTheGame.getPartnerRank();
         // playing with trump is easiest
         if(trumpSuite>=0){ // only a single highest bidder!!!
-           let highestBidder=highestBidders[0];
+            let highestBidder=highestBidders[0];
             if(highestBid==PlayerGame.BID_TROELA){
                 let troelaPlayerName=rikkenTheGame.getPlayerName(highestBidder);
                 gameInfo=troelaPlayerName+" heeft troela, ";
@@ -1165,7 +1165,8 @@ class PlayerGameProxy extends PlayerGame {
                 setInfo("Versturen van de gespeelde kaart mislukt! Probeer het zo nog eens.");
             }else
                 setInfo("Er is iets misgegaan. Probeer het zo nog eens.");
-        }
+        }else
+            document.getElementById("play-card-prompt").innerHTML="Gespeelde kaart verstuurd.";
         return cardSentResult;
     }
     trumpSuiteChosen(trumpSuite){

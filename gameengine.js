@@ -1004,7 +1004,7 @@ module.exports=(socket_io_server,gamesListener,numberOfGamesPlayedSoFar,acknowle
                     //                it's better to move calling sendCardPlayedEvent() there instead of here!!!!!
                     // MDH@26JAN2020: unlikely that an error will occur but _setCard will now return false if that happens, true when successful!
                     error=player._setCard(cardPlayed,eventData[2]);
-                    if(error&&error instanceof Error)console.log("BUG: Card played NOT accepted!",error);
+                    if(error&&error instanceof Error)gameEngineLog("BUG: Card played NOT accepted!",error);
                     // MDH@20JAN2020: on receipt of a card we simply send it back to all players
                     //                along with the current winner and whether or not asking for the partner card
                     //                TODO acknowledging probably not needed in that case!!!!!!
@@ -1013,7 +1013,7 @@ module.exports=(socket_io_server,gamesListener,numberOfGamesPlayedSoFar,acknowle
                     error=new Error("Card played not of current player.");
             }catch(err){
                 error=err;
-                console.log("ERROR ERROR ERROR",err);
+                gameEngineLog("ERROR ERROR ERROR",err);
             }finally{
                 if(typeof callback==='function')callback(error&&error instanceof Error?{'error':error.message}:null);else gameEngineLog("No callback on CARD event.");
             }
@@ -1021,7 +1021,7 @@ module.exports=(socket_io_server,gamesListener,numberOfGamesPlayedSoFar,acknowle
         client.on('TRUMPSUITE',(data,callback)=>{
             let remotePlayerIndex=getIndexOfRemotePlayerOfClient(client);
             let remotePlayer=remotePlayers[remotePlayerIndex];
-            remotePlayer._game.sendToAllPlayers('INFO',remotePlayer.name+" heeft "+DUTCH_SUITE_CHARACTERS[data]+" als troef gekozen.");
+            remotePlayer._game.sendToAllPlayers('INFO',remotePlayer.name+" heeft "+Language.DUTCH_SUITE_CHARACTERS[data]+" als troef gekozen.");
             let error=remotePlayer._setTrumpSuite(logReceivedEvent(this.name,remotePlayer.name,'TRUMPSUITE',data));
             if(typeof callback==='function')
                 callback(error&&error instanceof Error?{'error':error.message}:null);
@@ -1031,7 +1031,7 @@ module.exports=(socket_io_server,gamesListener,numberOfGamesPlayedSoFar,acknowle
         client.on('PARTNERSUITE',(data,callback)=>{
             let remotePlayerIndex=getIndexOfRemotePlayerOfClient(client);
             let remotePlayer=remotePlayers[remotePlayerIndex];
-            remotePlayer._game.sendToAllPlayers('INFO',remotePlayer.name+" heeft de "+DUTCH_RANK_CHARACTERS[this._partnerRank]+" "+DUTCH_SUITE_CHARACTERS[data]+" meegevraagd.");
+            remotePlayer._game.sendToAllPlayers('INFO',remotePlayer.name+" heeft de "+Language.DUTCH_RANK_CHARACTERS[this._partnerRank]+" "+Language.DUTCH_SUITE_CHARACTERS[data]+" meegevraagd.");
             let error=remotePlayer._setPartnerSuite(logReceivedEvent(this.name,remotePlayer.name,'PARTNERSUITE',data));
             if(typeof callback==='function')
                 callback(error&&error instanceof Error?{'error':error.message}:null);
@@ -1043,7 +1043,9 @@ module.exports=(socket_io_server,gamesListener,numberOfGamesPlayedSoFar,acknowle
     gameEngineLog("Game engine up and running!");
     
     // if events need to be acknowledged, run a clock
-    if(acknowledgmentRequired)clock=new Clock(1000).start();else gameEngineLog("Not running a clock!"); 
+    if(acknowledgmentRequired)clock=new Clock(1000).start();
+    
+    if(clock)gameEngineLog("Running a clock!");
 
     // returning all the functions to interface with the game engine
     // any user that logs in should call canPlay and as soon as logged out cantPlay
