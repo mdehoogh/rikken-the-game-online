@@ -840,17 +840,20 @@ var playablecardCell,playablecardCellContents;
  * @param {*} event 
  */
 function playablecardButtonClicked(event){
-    playablecardCell=event.currentTarget;
+    playablecardCell=(event?event.currentTarget:null);
+    if(!playablecardCell)return;
     let cardSuite=parseInt(playablecardCell.getAttribute("data-suite-id"));
     let cardRank=parseInt(playablecardCell.getAttribute("data-suite-index"));
+    if(cardSuite<Card.SUITE_DIAMOND||cardSuite>Card.SUITE_SPADE||cardRank<Card.RANK_TWO||cardRank>Card.RANK_ACE)return;
+    // probably best to do it this way
+    forceFocus(null); // get rid of the focus request
+    updatePlayableCardButtonClickHandlers(false); // disable the card buttons
+    playablecardCellContents=playablecardCell.innerHTML; // in case sending the card fails
+    playablecardCell.innerHTML="";
     ////////if(playablecardCell.style.border="0px")return; // empty 'unclickable' cell
     let error=currentPlayer._cardPlayedWithSuiteAndIndex(cardSuite,cardRank);
     if(!(error instanceof Error)){ // card accepted!!!
-        forceFocus(null); // get rid of the focus request
-        updatePlayableCardButtonClickHandlers(false); // disable the card buttons
         document.getElementById("play-card-prompt").innerHTML="Gespeelde kaart verzonden naar de spel server"; // MDH@23JAN2020: get rid of the play card prompt!
-        playablecardCellContents=playablecardCell.innerHTML; // in case sending the card fails
-        playablecardCell.innerHTML="";
     }else // report the error to the end user
         alert(error);
 }
@@ -1127,7 +1130,7 @@ class PlayerGameProxy extends PlayerGame {
     //                askingForPartnerCard doesn't end up in the local RikkenTheGame trick
     // MDH@27JAN2020: we're receiving true for askingForPartnerCardBlind when the player is doing so
     cardPlayed(card,askingForPartnerCard){
-        if(this._state===PlayerGame.OUT_OF_ORDER)return false;
+        if(this._state===PlayerGame.OUT_OF_ORDER){setInfo("Het spel kan niet verder gespeeld worden!");return false;}
         // MDH@17JAN2020: disable the buttons once the card is accepted (to be played!!!)
         //                TODO perhaps hiding the cards should also be done here!!!
         /* replacing:
@@ -1141,37 +1144,52 @@ class PlayerGameProxy extends PlayerGame {
         //                because the only thing that the other side cannot determine is whether the partner card is asked blind!!!!
         let cardPlayedInfo=[card.suite,card.rank,askingForPartnerCard];
         // replacing: if(askingForPartnerCard<0)cardPlayedInfo.push(true); // set the asking for partner card blind flag!!!
-        return this._setEventToSend('CARD',cardPlayedInfo,function(result){
+        let cardSentResult=
+            this._setEventToSend('CARD',cardPlayedInfo,function(result){
                 if(result){
                     document.getElementById("play-card-prompt").innerHTML="Gespeelde kaart niet geaccepteerd"+
                                 (result.hasOwnProperty('error')?" (fout: "+result.error+")":"")+"!";
+                    /* TODO should or should we not do the following?????? 
                     playablacardCell.innerHTML=playablecardCellContents;
-                    // TODO what to do now?
+                    */
                 }else{ // card played accepted!!!
                     document.getElementById("play-card-prompt").innerHTML="Gespeelde kaart geaccepteerd.";
                 }
             });
+        // this is only the result of the call to _setEventToSend (synchronous), and obviously we put back the card
+        if(!cardSentResult){
+            // document.getElementById("play-card-prompt").innerHTML="Gespeelde kaart niet geaccepteerd"+
+            // (result.hasOwnProperty('error')?" (fout: "+result.error+")":"")+"!";
+            if(playablecardCell){
+                playablacardCell.innerHTML=playablecardCellContents;
+                setInfo("Versturen van de gespeelde kaart mislukt! Probeer het zo nog eens.");
+            }else
+                setInfo("Er is iets misgegaan. Probeer het zo nog eens.");
+        }
+        return cardSentResult;
     }
     trumpSuiteChosen(trumpSuite){
-        if(this._state===PlayerGame.OUT_OF_ORDER)return false;
+        if(this._state===PlayerGame.OUT_OF_ORDER){setInfo("Het spel kan niet verder gespeeld worden!");return false;}
         document.getElementById("trump-suite-input").style.visibility="hidden";
         return this._setEventToSend('TRUMPSUITE',trumpSuite,function(result){
                 if(result){
                     setInfo("Gekozen troefkleur niet geaccepteerd"+
-                    (result.hasOwnProperty('error')?" (fout: "+result.error+")":"")+"!");
+                                (result.hasOwnProperty('error')?" (fout: "+result.error+")":"")+"!");
                     // TODO what to do now?
-                }
+                }else
+                    setInfo("Gekozen troefkleur geaccepteerd.");
             });
     }
     partnerSuiteChosen(partnerSuite){
-        if(this._state===PlayerGame.OUT_OF_ORDER)return false;
+        if(this._state===PlayerGame.OUT_OF_ORDER){setInfo("Het spel kan niet verder gespeeld worden!");return false;}
         document.getElementById("partner-suite-input").style.visibility="hidden";
         return this._setEventToSend('PARTNERSUITE',partnerSuite,function(result){
                 if(result){
                     setInfo("Gekozen partner kleur niet geaccepteerd!"+
                     (result.hasOwnProperty('error')?" (fout: "+result.error+")":"")+"!");
                     // TODO what to do now?
-                }
+                }else
+                    setInfo("Gekozen partner kleur geaccepteerd!");
             });
          // replacing: {'player':this._playerIndex,'suite':partnerSuite}));
     }
@@ -1180,6 +1198,7 @@ class PlayerGameProxy extends PlayerGame {
         return this._setEventToSend('DONE',null,function(){
             console.log("DONE event acknowledged.");
             this._playerIndex=-1; // MDH@29JAN2020: I have to do this otherwise I won't be able to play in a new game (see set playerNames!!!!)
+            setInfo("Zodra er weer vier niet-spelende deelnemers zijn kun je weer spelen.");
         });
     }
     exit(reason){
@@ -1188,6 +1207,7 @@ class PlayerGameProxy extends PlayerGame {
         return this._setEventToSend('EXIT',data,function(){
             console.log("EXIT event "+data+" acknowledged!");
             // we're NOT going anywhere anymore: setPage("page-rules");
+            setInfo("Bedankt voor het spelen.");
         });
     }
 
@@ -1426,6 +1446,9 @@ class PlayerGameProxy extends PlayerGame {
         let data=(eventId?eventData.payload:eventData);
         console.log("**************************** PROCESSING EVENT "+event+" >>>"+JSON.stringify(data));
         switch(event){
+            case "INFO":
+                setInfo("Spel server zegt: "+data);
+                break;
             case "STATECHANGE":
                 this.state=data.to;
                 break;
@@ -1596,6 +1619,7 @@ class PlayerGameProxy extends PlayerGame {
         // });
         this._unacknowledgedEvents=[]; // keep track of the unacknowledgedEventIds
         this._socket.on('disconnect',()=>{this.processEvent('disconnect',null,true);});
+        this._socket.on('INFO',(data)=>{this.processEvent('INFO',data,true);});
         this._socket.on('STATECHANGE',(data)=>{this.processEvent('STATECHANGE',data,true);});
         this._socket.on('GAME',(data)=>{this.processEvent('GAME',data,true);});
         this._socket.on('PLAYERS',(data)=>{this.processEvent('PLAYERS',data,true);});

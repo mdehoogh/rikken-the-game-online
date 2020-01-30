@@ -896,6 +896,7 @@ module.exports=(socket_io_server,gamesListener,numberOfGamesPlayedSoFar,acknowle
             let indexOfRemotePlayerOfClient=getIndexOfRemotePlayerOfClient(client);
             if(indexOfRemotePlayerOfClient>=0){ // we should have this client registered (of course)
                 let remotePlayer=remotePlayers[indexOfRemotePlayerOfClient];
+                remotePlayer._game.sendToAllPlayers('INFO',remotePlayer.name+" wil nog eens spelen!");
                 gameEngineLog("DONE event received from "+remotePlayer.name+".");
                 // simply get rid of the game that player has ended playing, so (s)he is available for playing in new games again
                 remotePlayer.playsTheGameAtIndex(null,-1);
@@ -968,13 +969,22 @@ module.exports=(socket_io_server,gamesListener,numberOfGamesPlayedSoFar,acknowle
 
         // what's coming back from the players are bids, cards played, trump and/or partner suites choosen
         client.on('BID', (data,callback) => { 
-            let remotePlayerIndex=getIndexOfRemotePlayerOfClient(client);
-            let remotePlayer=remotePlayers[remotePlayerIndex];
-            let error=remotePlayer._setBid(logReceivedEvent(this.name,remotePlayer.name,'BID',data));
-            // if(error)if(!(error instanceof Error))error=null;
-            console.log("BOD RESULTAAT: ("+JSON.stringify(error)+").");
-            if(typeof callback==='function')callback(error&&error instanceof Error?{'error':error.message}:null);else gameEngineLog("No callback on BID event.");
-            if(!error)remotePlayer.game.sendBidMadeEvent(remotePlayer.index,data); // MDH@20JAN2020: same with a bid (as with a card below), which can then be displayed
+            try{
+                let remotePlayerIndex=getIndexOfRemotePlayerOfClient(client);
+                let remotePlayer=remotePlayers[remotePlayerIndex];
+                remotePlayer._game.sendToAllPlayers('INFO',remotePlayer.name+" heeft geboden!");
+                let error=remotePlayer._setBid(logReceivedEvent(this.name,remotePlayer.name,'BID',data));
+                // if(error)if(!(error instanceof Error))error=null;
+                // if(error instanceof Error)gameEngineLog("Processing bid result: ("+JSON.stringify(error)+").");
+                if(typeof callback==='function')
+                    callback(error&&error instanceof Error?{'error':error.message}:null);
+                else
+                    gameEngineLog("No callback on BID event.");
+                if(!error)
+                    remotePlayer.game.sendBidMadeEvent(remotePlayer.index,data); // MDH@20JAN2020: same with a bid (as with a card below), which can then be displayed    
+            }catch(err){
+                gameEngineLog("ERROR: "+JSON.stringify(err)+" in processing a bid!");
+            }
         });
         client.on('CARD',(data,callback)=>{
             let error=null;
@@ -983,6 +993,7 @@ module.exports=(socket_io_server,gamesListener,numberOfGamesPlayedSoFar,acknowle
                 let remotePlayerIndex=getIndexOfRemotePlayerOfClient(client);
                 // we may assume that the card played is one from the given player AND we need to get that one
                 let player=remotePlayers[remotePlayerIndex];
+                player._game.sendToAllPlayers('INFO',player.name+" heeft een kaart gespeeld!");
                 // given that we get the actual card played from the other side, we should call player._setCard here!!!!
                 // passing in the actual card that the player has in his hands as returned by getCard() (defined in class CardHolder)
                 // MDH@14JAN2020: we're receiving the card (suite first, rank second, askingForPartnerCard flag)
@@ -1009,13 +1020,23 @@ module.exports=(socket_io_server,gamesListener,numberOfGamesPlayedSoFar,acknowle
         });
         client.on('TRUMPSUITE',(data,callback)=>{
             let remotePlayerIndex=getIndexOfRemotePlayerOfClient(client);
-            let error=remotePlayers[remotePlayerIndex]._setTrumpSuite(logReceivedEvent(this.name,remotePlayers[remotePlayerIndex].name,'TRUMPSUITE',data));
-            if(typeof callback==='function')callback(error&&error instanceof Error?{'error':error.message}:null);else gameEngineLog("No callback on TRUMPSUITE event.");
+            let remotePlayer=remotePlayers[remotePlayerIndex];
+            remotePlayer._game.sendToAllPlayers('INFO',remotePlayer.name+" heeft "+DUTCH_SUITE_CHARACTERS[data]+" als troef gekozen.");
+            let error=remotePlayer._setTrumpSuite(logReceivedEvent(this.name,remotePlayer.name,'TRUMPSUITE',data));
+            if(typeof callback==='function')
+                callback(error&&error instanceof Error?{'error':error.message}:null);
+            else 
+                gameEngineLog("No callback on TRUMPSUITE event.");
         });
         client.on('PARTNERSUITE',(data,callback)=>{
             let remotePlayerIndex=getIndexOfRemotePlayerOfClient(client);
-            let error=remotePlayers[remotePlayerIndex]._setPartnerSuite(logReceivedEvent(this.name,remotePlayers[remotePlayerIndex].name,'PARTNERSUITE',data));
-            if(typeof callback==='function')callback(error&&error instanceof Error?{'error':error.message}:null);else gameEngineLog("No callback on PARTNERSUITE event.");
+            let remotePlayer=remotePlayers[remotePlayerIndex];
+            remotePlayer._game.sendToAllPlayers('INFO',remotePlayer.name+" heeft de "+DUTCH_RANK_CHARACTERS[this._partnerRank]+" "+DUTCH_SUITE_CHARACTERS[data]+" meegevraagd.");
+            let error=remotePlayer._setPartnerSuite(logReceivedEvent(this.name,remotePlayer.name,'PARTNERSUITE',data));
+            if(typeof callback==='function')
+                callback(error&&error instanceof Error?{'error':error.message}:null);
+            else 
+                gameEngineLog("No callback on PARTNERSUITE event.");
         });
     });
 
