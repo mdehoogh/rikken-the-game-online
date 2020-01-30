@@ -128,6 +128,8 @@ class RikkenGamesListener extends GamesListener{
     }
 }
 
+const rikkenGamesListener=new RikkenGamesListener();
+
 var gameengine=null;
 
 const mongoose=require('mongoose');
@@ -140,7 +142,7 @@ mongoose.connect(process.env.MONGODB_CONNECTION_STRING,{useNewUrlParser:true,use
     // which must mean that an event isn't actually acknowledged!!!!!
     Game.count({},(err,count)=>{
         // fire up the game engine!!!!
-        gameengine=require('./gameengine.js')(socket_io_server,new RikkenGamesListener(),(err?0:count),false);
+        gameengine=require('./gameengine.js')(socket_io_server,rikkenGamesListener,(err?0:count),false);
     });
 
   }).catch(err => {
@@ -235,7 +237,7 @@ server.listen(3000,()=>{
 
 console.log("Environment: "+process.env.NODE_ENV+".");
 
-if(!process.env.NODE_ENV||process.env.NODE_ENV==="production")return;
+if(!process.env.NODE_ENV||process.env.NODE_ENV!=="development")return;
 
 var inspectingEventLog=false;
 ///*
