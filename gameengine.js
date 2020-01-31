@@ -1,8 +1,13 @@
 // server-side game engine
+// using the different modules as is
 const Card=require('./public/javascripts/Card.js');
 const {CardHolder,HoldableCard}=require('./public/javascripts/CardHolder.js');
 const {PlayerEventListener,PlayerGame,Player}=require('./public/javascripts/Player.js'); // the player class we'll be extending...
 const {RikkenTheGameEventListener,Trick,RikkenTheGame}=require('./public/javascripts/RikkenTheGame.js'); // the (original) RikkenTheGame that we extend here
+
+// MDH@31JAN2020: I think I need to redefine Language here although it would be better to put it in a separate file
+//                yes, moved it out of client.js into Language.js so I can use it both client-side and server-side alike
+const Language=require('./public/javascripts/Language.js');
 
 module.exports=(socket_io_server,gamesListener,numberOfGamesPlayedSoFar,acknowledgmentRequired)=>{
 
@@ -799,6 +804,10 @@ module.exports=(socket_io_server,gamesListener,numberOfGamesPlayedSoFar,acknowle
         gameEngineLog("Players after event "+info+": "+remotePlayersInfo.join(" - "));
     }
 
+    function getNumberOfIdlePlayers(){
+        return remotePlayers.filter((remotePlayer)=>(remotePlayer.name?remotePlayer.status==="IDLE":false)).length;
+    }
+
     // keep track of all (connected) remote players
     function checkForStartingNewGames(){
         // all remote players with tableId equal to '' are still logged in but not playing anymore
@@ -890,6 +899,34 @@ module.exports=(socket_io_server,gamesListener,numberOfGamesPlayedSoFar,acknowle
                 if(result)callback();else gameEngineLog("ERROR: Callback not executed: acknowledgments processing failed.");
             }else
                 gameEngineLog("No callback on ACK event.");
+        });
+        // MDH@31JAN2020: if we receive the player state we respond accordingly
+        client.on('PLAYER_STATE',(data,callback)=>{
+            let indexOfRemotePlayerOfClient=getIndexOfRemotePlayerOfClient(client);
+            if(indexOfRemotePlayerOfClient>=0){ // we should have this client registered (of course)
+                let remotePlayer=remotePlayers[indexOfRemotePlayerOfClient];
+                let response='';
+                switch(data){
+                    case 0:case 7:
+                        response='Er zijn '+getNumberOfIdlePlayers()+" spelers vrij nu.";
+                        break; // player waits for other players
+                    case 1:
+                        response='Wij ook!';break;
+                    case 2:
+                        break;
+                    case 3:
+                        break;
+                    case 4:
+                        break;
+                    case 5:
+                        break;
+                    case 6:
+                        break;
+                }
+                // send the response in the callback or send as info
+                if(typeof callback==='function')callback(response);else 
+                if(response.length>0)remotePlayer._sendNewEvent('INFO',response);
+            }
         });
         // MDH@26JAN2020: when the user leaves the game (by using 'Nog eens' button), he's available for new game playing!!!!
         client.on('DONE',(data,callback)=>{

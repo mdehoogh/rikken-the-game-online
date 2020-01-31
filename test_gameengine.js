@@ -1,5 +1,7 @@
 require('dotenv').config();
 
+const path=require('path');
+
 // gameengine requires plugging in a sockets.io server and a GamesListener
 const GamesListener=require('./gameslistener.js');
 
@@ -149,7 +151,6 @@ mongoose.connect(process.env.MONGODB_CONNECTION_STRING,{useNewUrlParser:true,use
     console.error('Error connecting to MongoDB.',err);
   });
 
-const path=require('path');
 // server-side socket.io
 // source: https://github.com/socketio/socket.io
 const express=require('express');
@@ -168,7 +169,8 @@ i18n.configure({
 });
 i18n.setLocale('en'); // try it this way!!!!
 
-app.use(require('express').static('.')); // so we can access test.html in the root (of course public is preferred)
+// MDH@31JAN2020: changed from . (__dirname) to public
+app.use(express.static(path.join(__dirname,'public'))); // so we can access test.html in the root (of course public is preferred)
 
 const server=require('http').createServer(app);
 // MDH@07JAN2020: if you use a different path here, it can't find /socket.io/socket.io.js at the client side
@@ -194,7 +196,8 @@ app.use(function(req, res, next) {
     });
     next();
   });
-app.set('views', '.');
+
+app.set('views',path.join(__dirname,'views')); // MDH@31JAN2020: changed to views as well...
 app.set('view engine','hbs'); // for testing
 /*
 // register hbs helpers in res.locals' context which provides this.locale

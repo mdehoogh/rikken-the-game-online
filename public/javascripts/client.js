@@ -11,12 +11,15 @@ const {CardHolder,HoldableCard}=require('./CardHolder.js');
 const Trick=require('./Trick.js'); // now in separate file
 const {PlayerEventListener,PlayerGame,Player}=require('./Player.js');
 
+const Language=require('./Language.js');
+/* replacing:
 class Language{
     static get DEFAULT_PLAYERS(){return [["","","","",""],["Marc","Jurgen","Monika","Anna",""]];};
     // possible ranks and suites (in Dutch)
     static get DUTCH_RANK_NAMES(){return ["twee","drie","vier","vijf","zes","zeven","acht","negen","tien","boer","vrouw","heer","aas"];};
     static get DUTCH_SUITE_NAMES(){return ["ruiten","klaveren","harten","schoppen"];};
 }
+*/
 
 function capitalize(str){return(str?(str.length?str[0].toUpperCase()+str.slice(1):""):"?");}
 
@@ -73,6 +76,36 @@ function forceFocus(state){
         if(!forceFocusId)forceFocusId=setInterval(()=>{checkFocus(state)},500);
     }else{ // end of focus request
         if(forceFocusId)stopForceFocus();
+    }
+}
+
+// MDH@31JAN2020: keep a 'state' which will determine what messages the player can send over to the server
+const PLAYERSTATE_WAIT_FOR_GAME=0;
+const PLAYERSTATE_WAIT_FOR_BID=1,PLAYERSTATE_BID=2,PLAYERSTATE_BID_DONE=3;
+const PLAYERSTATE_WAIT_FOR_PLAY=4;
+const PLAYERSTATE_TRUMP=5,PLAYERSTATE_TRUMP_DONE=6;
+const PLAYERSTATE_PARTNER=7,PLAYERSTATE_PARTNER_DONE=8;
+const PLAYERSTATE_WAIT_FOR_CARD=9,PLAYERSTATE_CARD=10,PLAYERSTATE_CARD_PLAYED=11;
+const PLAYERSTATE_GAME_OVER=12;
+const playerStateMessages=["Ik wacht!"
+                            ,"Ik wacht!","Momentje nog","Stuur opnieuw",
+                            ,"Ik wacht!","Momentje nog","Stuur opnieuw","Momentje nog","Stuur opnieuw",
+                            ,"Ik wacht!","Momentje nog","Stuur opnieuw",
+                           "Ik wacht!"];
+var currentPlayerState=PLAYERSTATE_WAIT_FOR_GAME;
+var sendMessageButton=document.getElementById("send-message-button");
+function sendMessageButtonClicked(){
+    currentGame._socket.emit('PLAYER_STATE',String(currentPlayerState),(response)=>{
+        if(response&&response.length>0)setInfo(response);else alert("De spel server heeft je bericht ontvangen, maar geen antwoord gestuurd.");
+    });
+}
+function setPlayerState(playerState){
+    currentPlayerState=playerState;
+    // set the message text on the send message button accordingly
+    let sendMessageText=playerStateMessages[currentPlayerState];
+    sendMessageButton.innerText=sendMessageText;
+    if(sendMessageText==="Stuur opnieuw"){
+
     }
 }
 
@@ -601,6 +634,7 @@ class OnlinePlayer extends Player{
             bidButton.style.display=(possibleBids.indexOf(parseInt(bidButton.getAttribute('data-bid')))>=0?"initial":"none");
         // show the player bids in the body of the bids table
         updateBidsTable(playerBidsObjects);
+        setPlayerState(PLAYERSTATE_BID);
     }
     chooseTrumpSuite(suites){
         forceFocus(this.name);
@@ -611,6 +645,7 @@ class OnlinePlayer extends Player{
         // iterate over the trump suite buttons
         for(let suiteButton of document.getElementById("trump-suite-buttons").getElementsByClassName("suite"))
             suiteButton.style.display=(suites.indexOf(parseInt(suiteButton.getAttribute('data-suite')))<0?"none":"inline");
+        setPlayerState(PLAYERSTATE_TRUMP);
     }
     choosePartnerSuite(suites,partnerRank){ // partnerRankName changed to partnerRank (because Language should be used at the UI level only!)
         forceFocus(this.name);
@@ -624,6 +659,7 @@ class OnlinePlayer extends Player{
         // show the partner rank (ace or king) being asked
         for(let rankElement of document.getElementsByClassName('partner-rank'))
             rankElement.innerHTML=Language.DUTCH_RANK_NAMES[partnerRank];
+        setPlayerState(PLAYERSTATE_PARTNER);
     }
     // almost the same as the replaced version except we now want to receive the trick itself
     playACard(){
@@ -664,6 +700,7 @@ class OnlinePlayer extends Player{
         updatePlayerSuiteCards(this._suiteCards=this._getSuiteCards()); // remember the suite cards!!!!
         // show the trick (remembered in the process for use in cardPlayed below) from the viewpoint of the current player
         ///// showTrick(this._trick=trick); // MDH@11JAN2020: no need to pass the player index (as it is always the same)
+        setPlayerState(PLAYERSTATE_CARD);
     }
 
     // not to be confused with _cardPlayed() defined in the base class Player which informs the game
@@ -854,6 +891,7 @@ function playablecardButtonClicked(event){
     let error=currentPlayer._cardPlayedWithSuiteAndIndex(cardSuite,cardRank);
     if(!(error instanceof Error)){ // card accepted!!!
         document.getElementById("play-card-prompt").innerHTML="Gespeelde kaart verzonden naar de spel server"; // MDH@23JAN2020: get rid of the play card prompt!
+        
     }else // report the error to the end user
         alert(error);
 }
@@ -1864,6 +1902,9 @@ function _setPlayer(player,errorcallback){
                     currentPlayer.game=new PlayerGameProxy(clientsocket);
                     */
                     currentGame=new PlayerGameProxy(clientsocket); // let's create the game that is to register the event handlers
+                    if(sendMessageButton){
+                        sendMessageButton.onclick=sendMessageButtonClicked;
+                    }
                     setPage("page-wait-for-players");    
                     if(typeof errorcallback==='function')errorcallback(null);
                 }else

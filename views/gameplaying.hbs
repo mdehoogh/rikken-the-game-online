@@ -1,29 +1,27 @@
 <!DOCTYPE html>
 <html>
-  <!-- MDH: some of the references to the public folder had to be removed -->
-  <!--      because all static content is served from there like the css and the js stuff -->
   <head>
     <meta charset="UTF-8"><!-- we'll be needing this!! -->
     <title>Rikken</title>
     <link rel='stylesheet' href='./stylesheets/mdhrikkenthegame.css' />
   </head>
   <body>
+    <!-- will this work?????? -->
     <div>
-      <p id='info'>Informatie wordt hier getoond.</p>
+        <div class='play-header'>
+            <!-- don't make it a title because that would increase the font -->
+            <p>U speelt <span id='game-name'>?</span> als <span class='player-name'>?</span>.</p>
+            <!-- a single Help button in the play header!!! -->
+            <input type='button' id="help-button" class='help' value='Help'>
+        </div>
+    </div>
+    <div id='communication'>
+        <!-- MDH@31JAN2020: we can put a single button here that can be used to (re)send stuff to the server -->
+        <input id='send-message-button' type='button' value='Bericht aan server'/>
+        <span id='info' placeholder='Ontvangen berichten wordt hier getoond'></span>
     </div>
     <script src='./javascripts/info.js'></script>
 
-    <!-- will this work?????? -->
-    <div>
-        <div class='page-header'>
-            <!-- don't make it a title because that would increase the font -->
-            <p>U speelt <span id='game-name'>?</span> als <span class='player-name'>?</span>.</p>
-            <div class="button-group">
-                <!-- changed from a next to a back button -->
-                <input type='button' class="help" value='Help'>
-            </div>
-        </div>
-    </div>
     <!-- DEMO VERSION BODY -->
     <!-- these are the pages from index.hbs (and from the original index.html) -->
     <div class='pages'>
@@ -645,7 +643,7 @@
     <!-- END DEMO VERSION BODY -->
 
     <!-- link socket.io-client script from the server -->
-    <script src='../socket.io/socket.io.js'></script>
+    <script src='/socket.io/socket.io.js'></script>
     <script src='./javascripts/gameplaying.js'></script>
     {{! if we have a username use it immediately }}
     {{#if username}}<script>setPlayerName("{{username}}");</script>{{/if}}

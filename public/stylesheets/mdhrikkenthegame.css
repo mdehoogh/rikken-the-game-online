@@ -42,9 +42,11 @@ body {
 }
 
 #info {
+    background-color:lemonchiffon;
     color:blue;
     font-family:Arial, Helvetica, sans-serif;
     font-size:1rem;
+    padding-top:0.2rem;
     display:block; /* start hidden */
 }
 
@@ -119,7 +121,7 @@ td, th {
 .page-header{
     position:relative; /* but leaving it where is is */
     background-color: rgb(44, 103, 170);
-    padding:4px 8px;
+    padding:2px 8px;
     color:white;
     width:100%;
     /*border-top:5px;
@@ -276,4 +278,24 @@ td, th {
 
 #play-card-prompt{
     color:blue;
+}
+
+/* MDH@31JAN2020: some extra CSS */
+#play-header{
+    position:absolute;
+    display:flex;
+    text-align:left;
+}
+#help-button{
+    position:absolute;
+    right:8px;
+}
+#communication{
+    display:flex;
+    text-align:left;
+    padding:4px;
+}
+#send-message-button{
+    width:10rem;
+    margin-right:1rem;
 }
