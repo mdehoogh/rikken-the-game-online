@@ -731,11 +731,13 @@ module.exports=(socket_io_server,gamesListener,numberOfGamesPlayedSoFar,acknowle
         trumpSuiteChosen(chosenTrumpSuite){
             this._promptEventResponseReceived();
             super.trumpSuiteChosen(chosenTrumpSuite);
+            this.sendToAllPlayers("TRUMP_SUITE_CHOSEN",this._trumpSuite);
             gameEngineLog("Trump suite chosen by "+this._players[this._player].name+": '"+Card.SUITE_NAMES[chosenTrumpSuite]+"'.");
         }
         partnerSuiteChosen(chosenPartnerSuite){
             this._promptEventResponseReceived();
             super.partnerSuiteChosen(chosenPartnerSuite);
+            this.sendToAllPlayers("PARTNER_SUITE_CHOSEN",{'suite':this._partnerSuite,'rank':this._partnerRank});
             gameEngineLog("Partner card suite chosen by "+this._players[this._player].name+": '"+Card.SUITE_NAMES[chosenPartnerSuite]+"'.");
         }
         /*
@@ -930,12 +932,13 @@ module.exports=(socket_io_server,gamesListener,numberOfGamesPlayedSoFar,acknowle
                         break;
                     case PLAYERSTATE_BID_DONE:
                         {
-                            let playerBids=(remotePlayer.index>=0?this._playersBids[remotePlayer.index]:null);
+                            let playersBids=remotePlayer.game._playersBids;
+                            let playerBids=(playersBids&&remotePlayer.index>=0?playersBids[remotePlayer.index]:null);
                             let lastPlayerBid=(playerBids&&playerBids.length>0?playerBids[0]:-1);
                             if(lastPlayerBid<0)
-                                response="Nog geen bod van U ontvangen!";
+                                response="Nog geen bod ontvangen!";
                             else
-                                response="Laatst ontvangen bod van U: "+Card.BID_NAMES[lastPlayerBid]+".";
+                                response="Laatst ontvangen bod: "+PlayerGame.BID_NAMES[lastPlayerBid]+".";
                         }
                         break;
                     case PLAYERSTATE_BID_RECEIVED:
@@ -1130,7 +1133,7 @@ module.exports=(socket_io_server,gamesListener,numberOfGamesPlayedSoFar,acknowle
         client.on('TRUMPSUITE',(data,callback)=>{
             let remotePlayerIndex=getIndexOfRemotePlayerOfClient(client);
             let remotePlayer=remotePlayers[remotePlayerIndex];
-            remotePlayer._game.sendToAllPlayers('INFO',remotePlayer.name+" heeft "+Language.DUTCH_SUITE_CHARACTERS[data]+" als troef gekozen.");
+            remotePlayer._game.sendToAllPlayers('INFO',remotePlayer.name+" heeft "+Language.DUTCH_SUITE_NAMES[data]+" als troef gekozen.");
             let error=remotePlayer._setTrumpSuite(logReceivedEvent(this.name,remotePlayer.name,'TRUMPSUITE',data));
             if(typeof callback==='function')
                 callback(error&&error instanceof Error?{'error':error.message}:null);
@@ -1140,7 +1143,7 @@ module.exports=(socket_io_server,gamesListener,numberOfGamesPlayedSoFar,acknowle
         client.on('PARTNERSUITE',(data,callback)=>{
             let remotePlayerIndex=getIndexOfRemotePlayerOfClient(client);
             let remotePlayer=remotePlayers[remotePlayerIndex];
-            remotePlayer._game.sendToAllPlayers('INFO',remotePlayer.name+" heeft de "+Language.DUTCH_RANK_CHARACTERS[this._partnerRank]+" "+Language.DUTCH_SUITE_CHARACTERS[data]+" meegevraagd.");
+            remotePlayer._game.sendToAllPlayers('INFO',remotePlayer.name+" heeft de "+Language.DUTCH_RANK_NAMES[this._partnerRank]+" "+Language.DUTCH_SUITE_NAMES[data]+" meegevraagd.");
             let error=remotePlayer._setPartnerSuite(logReceivedEvent(this.name,remotePlayer.name,'PARTNERSUITE',data));
             if(typeof callback==='function')
                 callback(error&&error instanceof Error?{'error':error.message}:null);

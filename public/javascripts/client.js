@@ -92,12 +92,12 @@ const PLAYERSTATE_GAME_OVER=16;
 // MDH@01FEB2020: we're NOT allowing to resend the card played because that's already done (every 10 seconds) by 
 const playerStateMessages=["Ik wacht!"
                           ,"Ik wacht!"
-                            ,"Momentje nog","Bod al verstuurd","Bod bevestigd"
+                            ,"Momentje nog","Bod al verstuurd",""
                           ,"Ik wacht!"
-                            ,"Momentje nog","Troefkleur al gekozen","Troefkleur gezet"
-                            ,"Momentje nog","Partner al gekozen","Partner gezet"
+                            ,"Momentje nog","Troefkleur al gekozen",""
+                            ,"Momentje nog","Partner al gekozen",""
                           ,"Ik wacht!"
-                            ,"Momentje nog","Kaart al gespeeld","Kaart ontvangen"
+                            ,"Momentje nog","Kaart al gespeeld",""
                           ,"Ik wacht!"
                           ];
 var currentPlayerState=PLAYERSTATE_WAIT_FOR_GAME;
@@ -106,7 +106,7 @@ function allowResendEvent(){
     sendMessageButton.disabled=false; // enable the send message button
     // resendEventId=null; // no need to clear the timeout as we're done now
 }
-var sendMessageButton=document.getElementById("send-message-button");
+var sendMessageButton;
 function sendMessageButtonClicked(){
     // if we have a resend event id we're dealing with a resend, otherwise we send the message as visible on the button
     if(resendEventId){
@@ -115,17 +115,17 @@ function sendMessageButtonClicked(){
         // re-enable the current state which will effectively guarantee that the user can resend again in another 5 seconds
         setPlayerState(currentPlayerState);
     }else{
+        setInfo("?");
         currentGame._socket.emit('PLAYER_STATE',currentPlayerState,(response)=>{
-            if(response&&response.length>0)setInfo(response);else alert("De spel server heeft je bericht ontvangen, maar geen antwoord gestuurd.");
+            setInfo(response&&response.length>0?response:"De spel server heeft je bericht ontvangen, maar geen antwoord gestuurd.");
         });
     }
 }
 function setPlayerState(playerState){
-    if(resendEventId){clearTimeout(resendEventId);resendEventId=null;} // get rid of any pending resend event timeout
+    //if(resendEventId){clearTimeout(resendEventId);resendEventId=null;} // get rid of any pending resend event timeout
     currentPlayerState=playerState;
     // set the message text on the send message button accordingly
-    let sendMessageText=playerStateMessages[currentPlayerState];
-    sendMessageButton.innerText=sendMessageText;
+    sendMessageButton.value=playerStateMessages[currentPlayerState];
     /* resending already managed by the game (see cardPlayed, bidMade, trumpSuiteChosen and partnerSuiteChosen)
     sendMessageButton.disabled=(sendMessageText==="Stuur opnieuw");
     // if the button is currently disabled only allow resending the event but not until after 5 seconds
@@ -1155,15 +1155,19 @@ class PlayerGameProxy extends PlayerGame {
         if(this._eventSendCallback)this._eventSentCallback();
     }
     _sendEvent(){
+        let result=false;
         try{
             this._socket.emit(this._eventToSend[0],this._eventToSend[1],this._sentEventReceived);
             this._eventToSend[2]++;
+            result=true;
+            // MDH@01FEB2020: we show how often a certain event was sent on the sendMessageButton
+            if(this._eventToSend[2]>1)
+                sendMessageButton.value=playerStateMessages[currentPlayerState]+" ("+this._eventToSend[2]+"x)";
             console.log("Event "+this._eventToSend[0]+(this._eventToSend[1]?" with data "+JSON.stringify(data):"")+" sent (attempt: "+this._eventToSend[2]+").");
-            return true;
         }catch(error){
             console.log("ERROR: Failed to send event "+this._eventToSend[0]+" to the game server (reason: "+error.message+").");
         }
-        return false;
+        return result;
     }
     _setEventToSend(event,data,callback){
         this._eventSentCallback=callback;
@@ -1185,9 +1189,7 @@ class PlayerGameProxy extends PlayerGame {
                 // TODO what now???
             }
         }); // hide the bidding element again
-        if(bidMadeSentResult){
-            setPlayerState(PLAYERSTATE_BID_DONE);
-        }
+        if(bidMadeSentResult)setPlayerState(PLAYERSTATE_BID_DONE);
         return bidMadeSentResult;
     }
     // MDH@13JAN2020: we're sending the exact card over that was played (and accepted at this end as it should I guess)
@@ -1248,9 +1250,7 @@ class PlayerGameProxy extends PlayerGame {
                 }else
                     setInfo("Gekozen troefkleur geaccepteerd.");
             });
-        if(trumpSuiteChosenSentResult){
-            setPlayerState(PLAYERSTATE_TRUMP_DONE);
-        }
+        if(trumpSuiteChosenSentResult)setPlayerState(PLAYERSTATE_TRUMP_DONE);
         return trumpSuiteChosenSentResult;
     }
     partnerSuiteChosen(partnerSuite){
@@ -1265,9 +1265,7 @@ class PlayerGameProxy extends PlayerGame {
                     setInfo("Gekozen partner kleur geaccepteerd!");
             });
          // replacing: {'player':this._playerIndex,'suite':partnerSuite}));
-         if(partnerSuiteChosenSentResult){
-             setPlayerState(PLAYERSTATE_PARTNER_DONE);
-         }
+         if(partnerSuiteChosenSentResult)setPlayerState(PLAYERSTATE_PARTNER_DONE);
          return partnerSuiteChosenSentResult;
     }
     // MDH@26JAN2020: when the user finished reading the results, and wants to continue playing done() should be called
@@ -1431,6 +1429,8 @@ class PlayerGameProxy extends PlayerGame {
         // do nothing...
         // showTrickCard(this._trick.getLastCard(),this._trick.numberOfCards);
         showTrick(this._trick);//if(this._trickWinner){this._trickWinner=null;showTrick(this._trick);}
+        setPlayerState(PLAYERSTATE_CARD_RECEIVED);
+        setInfo(capitalize(Language.DUTCH_SUITE_NAMES[cardInfo.suite])+" "+Language.DUTCH_RANK_NAMES[cardInfo.rank]+" gespeeld.");
         return null;
     }
     /* replacing:
@@ -1576,9 +1576,10 @@ class PlayerGameProxy extends PlayerGame {
                 }
                 break;
             case "TO_BID":
-                if(data!==currentPlayer.name)
+                if(data!==currentPlayer.name){
                     setInfo("We wachten op het bod van "+data+".");
-                else
+                    setPlayerState(PLAYERSTATE_WAIT_FOR_BID);
+                }else
                     setInfo("U wordt zo om een bod gevraagd.");
                 // if(data!==currentPlayer.name)
                 //     document.getElementById("bid-info").innerHTML="We wachten op het bod van <b>"+data+"</b>.";
@@ -1594,12 +1595,16 @@ class PlayerGameProxy extends PlayerGame {
                 this._playersBids[data.player].push(data.bid);
                 // TODO how to show the bids?????
                 updateBidsTable(this._getPlayerBidsObjects());
+                setPlayerState(PLAYERSTATE_BID_RECEIVED);
+                setInfo("Bod van "+this.getPlayerName(data.player)+": "+PlayerGame.BID_NAMES[data.bid]+".");
                 break;
             case "TO_PLAY":
-                if(currentPlayer.name!==data)
+                if(currentPlayer.name!==data){
                     setInfo("We wachten op de kaart van "+data+".");
-                else
+                    setPlayerState(PLAYERSTATE_WAIT_FOR_CARD);
+                }else{
                     setInfo("U wordt zo om een kaart gevraagd!");
+                }
                 /*
                 if(currentPlayer.name!==data)
                     document.getElementById("play-info").innerHTML="We wachten op de kaart van <b>"+data+"</b>.";
@@ -1648,8 +1653,16 @@ class PlayerGameProxy extends PlayerGame {
             case "CHOOSE_TRUMP_SUITE":
                 currentPlayer.chooseTrumpSuite(data);
                 break;
+            case "TRUMP_SUITE_CHOSEN":
+                setPlayerState(PLAYERSTATE_TRUMP_RECEIVED);
+                setInfo(capitalize(Language.DUTCH_SUITE_NAMES[data])+" gekozen als troef.");
+                break;
             case "CHOOSE_PARTNER_SUITE":
                 currentPlayer.choosePartnerSuite(data.suites,data.partnerRankName);
+                break;
+            case "PARTNER_SUITE_CHOSEN":
+                setPlayerState(PLAYERSTATE_PARTNER_RECEIVED);
+                setInfo(capitalize(Language.DUTCH_SUITE_NAMES[data.suite])+" "+Language.DUTCH_RANK_NAMES[data.rank]+" meegevraagd.");
                 break;
             case "TRICK":
                 updateTricks(this.parseTrick(data));
@@ -1715,7 +1728,9 @@ class PlayerGameProxy extends PlayerGame {
         this._socket.on('CARD_PLAYED',(data)=>{this.processEvent('CARD_PLAYED',data,true);});
         this._socket.on('PLAY_A_CARD',(data)=>{this.processEvent('PLAY_A_CARD',data,true);});
         this._socket.on('CHOOSE_TRUMP_SUITE',(data)=>{this.processEvent('CHOOSE_TRUMP_SUITE',data,true);});
+        this._socket.on('TRUMP_SUITE_CHOSEN',(data)=>{this.processEvent('TRUMP_SUITE_CHOSEN',data,true);});
         this._socket.on('CHOOSE_PARTNER_SUITE',(data)=>{this.processEvent("CHOOSE_PARTNER_SUITE",data,true);});
+        this._socket.on('PARTNER_SUITE_CHOSEN',(data)=>{this.processEvent('PARTNER_SUITE_CHOSEN',data,true);});
         this._socket.on('TRICK',(data)=>{this.processEvent('TRICK',data,true);});
         this._socket.on('TRICKS',(data)=>{this.processEvent('TRICKS',data,true);});
         this._socket.on('RESULTS',(data)=>{this.processEvent('RESULTS',data,true);});
@@ -1835,6 +1850,9 @@ function prepareForPlaying(){
 
     preparedForPlaying=true;
 
+    sendMessageButton=document.getElementById("send-message-button");
+    sendMessageButton.onclick=sendMessageButtonClicked;
+
     // MDH@10JAN2020: we want to know when the user is trying to move away from the page
     window.onbeforeunload=function(){
         // how about prompting the user?????
@@ -1940,9 +1958,6 @@ function _setPlayer(player,errorcallback){
                     currentPlayer.game=new PlayerGameProxy(clientsocket);
                     */
                     currentGame=new PlayerGameProxy(clientsocket); // let's create the game that is to register the event handlers
-                    if(sendMessageButton){
-                        sendMessageButton.onclick=sendMessageButtonClicked;
-                    }
                     setPage("page-wait-for-players");    
                     if(typeof errorcallback==='function')errorcallback(null);
                 }else
