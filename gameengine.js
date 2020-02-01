@@ -9,6 +9,16 @@ const {RikkenTheGameEventListener,Trick,RikkenTheGame}=require('./public/javascr
 //                yes, moved it out of client.js into Language.js so I can use it both client-side and server-side alike
 const Language=require('./public/javascripts/Language.js');
 
+const PLAYERSTATE_WAIT_FOR_GAME=0;
+const PLAYERSTATE_WAIT_FOR_BID=1;
+const PLAYERSTATE_BID=2,PLAYERSTATE_BID_DONE=3,PLAYERSTATE_BID_RECEIVED=4;
+const PLAYERSTATE_WAIT_FOR_PLAY=5;
+const PLAYERSTATE_TRUMP=6,PLAYERSTATE_TRUMP_DONE=7,PLAYERSTATE_TRUMP_RECEIVED=8;
+const PLAYERSTATE_PARTNER=9,PLAYERSTATE_PARTNER_DONE=10,PLAYERSTATE_PARTNER_RECEIVED=11;
+const PLAYERSTATE_WAIT_FOR_CARD=12;
+const PLAYERSTATE_CARD=13,PLAYERSTATE_CARD_PLAYED=14,PLAYERSTATE_CARD_RECEIVED=15;
+const PLAYERSTATE_GAME_OVER=16;
+
 module.exports=(socket_io_server,gamesListener,numberOfGamesPlayedSoFar,acknowledgmentRequired)=>{
 
     // keep a queue of logged messages during the time the user is inspecting events
@@ -905,22 +915,84 @@ module.exports=(socket_io_server,gamesListener,numberOfGamesPlayedSoFar,acknowle
             let indexOfRemotePlayerOfClient=getIndexOfRemotePlayerOfClient(client);
             if(indexOfRemotePlayerOfClient>=0){ // we should have this client registered (of course)
                 let remotePlayer=remotePlayers[indexOfRemotePlayerOfClient];
-                let response='';
+                let response='Ontvangen...';
                 switch(data){
-                    case 0:case 7:
+                    case PLAYERSTATE_WAIT_FOR_GAME:
+                    case PLAYERSTATE_GAME_OVER:
                         response='Er zijn '+getNumberOfIdlePlayers()+" spelers vrij nu.";
                         break; // player waits for other players
-                    case 1:
-                        response='Wij ook!';break;
-                    case 2:
+                    case PLAYERSTATE_WAIT_FOR_BID:
+                    case PLAYERSTATE_WAIT_FOR_CARD:
+                        response='Wij ook!';
                         break;
-                    case 3:
+                    case PLAYERSTATE_BID:
+                        response="Doe een bod!";
                         break;
-                    case 4:
+                    case PLAYERSTATE_BID_DONE:
+                        {
+                            let playerBids=(remotePlayer.index>=0?this._playersBids[remotePlayer.index]:null);
+                            let lastPlayerBid=(playerBids&&playerBids.length>0?playerBids[0]:-1);
+                            if(lastPlayerBid<0)
+                                response="Nog geen bod van U ontvangen!";
+                            else
+                                response="Laatst ontvangen bod van U: "+Card.BID_NAMES[lastPlayerBid]+".";
+                        }
                         break;
-                    case 5:
+                    case PLAYERSTATE_BID_RECEIVED:
+                    case PLAYERSTATE_TRUMP_RECEIVED:
+                    case PLAYERSTATE_PARTNER_RECEIVED:
+                    case PLAYERSTATE_CARD_RECEIVED:
+                        response='Geen commentaar.';
                         break;
-                    case 6:
+                    case PLAYERSTATE_WAIT_FOR_PLAY: // still waiting for trump and partner suite
+                        if(this._highestBid===PlayerGame.BID_RIK||this._highestBid===PlayerGame.BID_RIK_BETER){
+                            // playing with trump
+                            if(this._trumpSuite<0)
+                                response="We wachten nog op de troefkleur.";
+                            else
+                            if(this._partnerSuite<0){
+                                if(this._partnerRank<0)
+                                    response="De troefkleur is gekozen.";
+                                else
+                                    response="We wachten nog op de kleur van de meegevraagde "+Language.DUTCH_RANK_NAMES[this._partnerRank]+".";
+                            }else
+                                response="Troefkleur en meegevraagde "+Language.DUTCH_RANK_NAMES[this._partnerRank]+" zijn bekend!";
+                        }else
+                        if(this._highestBid===PlayerGame.BID_TROELA)
+                            response="Het is troela, dus het spelen zou zo moeten beginnen.";
+                        else
+                        if(this._highestBid>=PlayerGame.BID_LAATSTE_SLAG_EN_SCHOPPEN_VROUW)
+                            response="Iedereen heeft gepast, en het spelen zou zo moeten beginnen.";
+                        else
+                            response="Er is geen troef, dus het spelen zou zo moeten beginnen.";
+                        break;
+                    case PLAYERSTATE_TRUMP:
+                        response="Kies de troefkleur!";
+                        break;
+                    case PLAYERSTATE_TRUMP_DONE:
+                        if(this._trumpSuite<0)
+                            response="Troefkleur bij mij onbekend.";
+                        else
+                            response="Bedankt voor de troefkleur!";
+                        break;
+                    case PLAYERSTATE_PARTNER:
+                        response="Kies de kleur van de mee te vragen "+Language.DUTCH_RANK_NAMES[this._partnerRank]+".";
+                        break;
+                    case PLAYERSTATE_PARTNER_DONE:
+                        if(this._partnerSuite<0)
+                            response="Meegevraagde "+Language.DUTCH_RANK_NAMES[this._partnerRank]+" bij mij niet bekend.";
+                        else
+                            response="Bedankt voor de meegevraagde "+Language.DUTCH_RANK_NAMES[this._partnerRank]+".";
+                        break;
+                    case PLAYERSTATE_CARD:
+                        response="Speel een kaart!";
+                        break;
+                    case PLAYERSTATE_CARD_PLAYED:
+                        // TODO heb ik de kaart al ontvangen?
+                        response='Bedankt voor de kaart';
+                        break;
+                    case PLAYERSTATE_CARD_RECEIVED:
+                        response="Nog bedankt voor de kaart!";
                         break;
                 }
                 // send the response in the callback or send as info

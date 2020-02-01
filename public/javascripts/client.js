@@ -81,32 +81,56 @@ function forceFocus(state){
 
 // MDH@31JAN2020: keep a 'state' which will determine what messages the player can send over to the server
 const PLAYERSTATE_WAIT_FOR_GAME=0;
-const PLAYERSTATE_WAIT_FOR_BID=1,PLAYERSTATE_BID=2,PLAYERSTATE_BID_DONE=3;
-const PLAYERSTATE_WAIT_FOR_PLAY=4;
-const PLAYERSTATE_TRUMP=5,PLAYERSTATE_TRUMP_DONE=6;
-const PLAYERSTATE_PARTNER=7,PLAYERSTATE_PARTNER_DONE=8;
-const PLAYERSTATE_WAIT_FOR_CARD=9,PLAYERSTATE_CARD=10,PLAYERSTATE_CARD_PLAYED=11;
-const PLAYERSTATE_GAME_OVER=12;
+const PLAYERSTATE_WAIT_FOR_BID=1;
+const PLAYERSTATE_BID=2,PLAYERSTATE_BID_DONE=3,PLAYERSTATE_BID_RECEIVED=4;
+const PLAYERSTATE_WAIT_FOR_PLAY=5;
+const PLAYERSTATE_TRUMP=6,PLAYERSTATE_TRUMP_DONE=7,PLAYERSTATE_TRUMP_RECEIVED=8;
+const PLAYERSTATE_PARTNER=9,PLAYERSTATE_PARTNER_DONE=10,PLAYERSTATE_PARTNER_RECEIVED=11;
+const PLAYERSTATE_WAIT_FOR_CARD=12;
+const PLAYERSTATE_CARD=13,PLAYERSTATE_CARD_PLAYED=14,PLAYERSTATE_CARD_RECEIVED=15;
+const PLAYERSTATE_GAME_OVER=16;
+// MDH@01FEB2020: we're NOT allowing to resend the card played because that's already done (every 10 seconds) by 
 const playerStateMessages=["Ik wacht!"
-                            ,"Ik wacht!","Momentje nog","Stuur opnieuw",
-                            ,"Ik wacht!","Momentje nog","Stuur opnieuw","Momentje nog","Stuur opnieuw",
-                            ,"Ik wacht!","Momentje nog","Stuur opnieuw",
-                           "Ik wacht!"];
+                          ,"Ik wacht!"
+                            ,"Momentje nog","Bod al verstuurd","Bod bevestigd"
+                          ,"Ik wacht!"
+                            ,"Momentje nog","Troefkleur al gekozen","Troefkleur gezet"
+                            ,"Momentje nog","Partner al gekozen","Partner gezet"
+                          ,"Ik wacht!"
+                            ,"Momentje nog","Kaart al gespeeld","Kaart ontvangen"
+                          ,"Ik wacht!"
+                          ];
 var currentPlayerState=PLAYERSTATE_WAIT_FOR_GAME;
+var resendEventId=null;
+function allowResendEvent(){
+    sendMessageButton.disabled=false; // enable the send message button
+    // resendEventId=null; // no need to clear the timeout as we're done now
+}
 var sendMessageButton=document.getElementById("send-message-button");
 function sendMessageButtonClicked(){
-    currentGame._socket.emit('PLAYER_STATE',String(currentPlayerState),(response)=>{
-        if(response&&response.length>0)setInfo(response);else alert("De spel server heeft je bericht ontvangen, maar geen antwoord gestuurd.");
-    });
+    // if we have a resend event id we're dealing with a resend, otherwise we send the message as visible on the button
+    if(resendEventId){
+        // resend the event to resend
+
+        // re-enable the current state which will effectively guarantee that the user can resend again in another 5 seconds
+        setPlayerState(currentPlayerState);
+    }else{
+        currentGame._socket.emit('PLAYER_STATE',currentPlayerState,(response)=>{
+            if(response&&response.length>0)setInfo(response);else alert("De spel server heeft je bericht ontvangen, maar geen antwoord gestuurd.");
+        });
+    }
 }
 function setPlayerState(playerState){
+    if(resendEventId){clearTimeout(resendEventId);resendEventId=null;} // get rid of any pending resend event timeout
     currentPlayerState=playerState;
     // set the message text on the send message button accordingly
     let sendMessageText=playerStateMessages[currentPlayerState];
     sendMessageButton.innerText=sendMessageText;
-    if(sendMessageText==="Stuur opnieuw"){
-
-    }
+    /* resending already managed by the game (see cardPlayed, bidMade, trumpSuiteChosen and partnerSuiteChosen)
+    sendMessageButton.disabled=(sendMessageText==="Stuur opnieuw");
+    // if the button is currently disabled only allow resending the event but not until after 5 seconds
+    if(sendMessageButton.disabled)resendEventId=setTimeout(allowResendEvent,5000); // allow resending after 5 seconds
+    */
 }
 
 // of course: from stackoverflow!!!
@@ -1154,13 +1178,17 @@ class PlayerGameProxy extends PlayerGame {
     bidMade(bid){
         if(this._state===PlayerGame.OUT_OF_ORDER)return false;
         // document.getElementById("bidding").style.visibility="hidden";
-        return this._setEventToSend('BID',bid,function(result){
+        let bidMadeSentResult=this._setEventToSend('BID',bid,function(result){
             if(result){
                 setInfo("Bod niet geaccepteerd"+
                             (result.hasOwnProperty('error')?" (fout: "+result.error+")":"")+"!");
                 // TODO what now???
             }
         }); // hide the bidding element again
+        if(bidMadeSentResult){
+            setPlayerState(PLAYERSTATE_BID_DONE);
+        }
+        return bidMadeSentResult;
     }
     // MDH@13JAN2020: we're sending the exact card over that was played (and accepted at this end as it should I guess)
     // MDH@14JAN2020: passing in the askingForPartnerCard 'flag' as well!!!!
@@ -1203,14 +1231,16 @@ class PlayerGameProxy extends PlayerGame {
                 setInfo("Versturen van de gespeelde kaart mislukt! Probeer het zo nog eens.");
             }else
                 setInfo("Er is iets misgegaan. Probeer het zo nog eens.");
-        }else
+        }else{
             document.getElementById("play-card-prompt").innerHTML="Gespeelde kaart verstuurd.";
+            setPlayerState(PLAYERSTATE_CARD_PLAYED);
+        }
         return cardSentResult;
     }
     trumpSuiteChosen(trumpSuite){
         if(this._state===PlayerGame.OUT_OF_ORDER){setInfo("Het spel kan niet verder gespeeld worden!");return false;}
         document.getElementById("trump-suite-input").style.visibility="hidden";
-        return this._setEventToSend('TRUMPSUITE',trumpSuite,function(result){
+        let trumpSuiteChosenSentResult=this._setEventToSend('TRUMPSUITE',trumpSuite,function(result){
                 if(result){
                     setInfo("Gekozen troefkleur niet geaccepteerd"+
                                 (result.hasOwnProperty('error')?" (fout: "+result.error+")":"")+"!");
@@ -1218,11 +1248,15 @@ class PlayerGameProxy extends PlayerGame {
                 }else
                     setInfo("Gekozen troefkleur geaccepteerd.");
             });
+        if(trumpSuiteChosenSentResult){
+            setPlayerState(PLAYERSTATE_TRUMP_DONE);
+        }
+        return trumpSuiteChosenSentResult;
     }
     partnerSuiteChosen(partnerSuite){
         if(this._state===PlayerGame.OUT_OF_ORDER){setInfo("Het spel kan niet verder gespeeld worden!");return false;}
         document.getElementById("partner-suite-input").style.visibility="hidden";
-        return this._setEventToSend('PARTNERSUITE',partnerSuite,function(result){
+        let partnerSuiteChosenSentResult=this._setEventToSend('PARTNERSUITE',partnerSuite,function(result){
                 if(result){
                     setInfo("Gekozen partner kleur niet geaccepteerd!"+
                     (result.hasOwnProperty('error')?" (fout: "+result.error+")":"")+"!");
@@ -1231,6 +1265,10 @@ class PlayerGameProxy extends PlayerGame {
                     setInfo("Gekozen partner kleur geaccepteerd!");
             });
          // replacing: {'player':this._playerIndex,'suite':partnerSuite}));
+         if(partnerSuiteChosenSentResult){
+             setPlayerState(PLAYERSTATE_PARTNER_DONE);
+         }
+         return partnerSuiteChosenSentResult;
     }
     // MDH@26JAN2020: when the user finished reading the results, and wants to continue playing done() should be called
     done(){
