@@ -27,7 +27,7 @@ DEVELOPMENT
   $ code .
   In VS Code execute npm script 'test' from the NPM SCRIPTS tab in the EXPLORER window, or, open the terminal (Cmd/Ctrl-~), and
   $ npm test
-  Then, open Chrome and open URL 'localhost:3001'.
+  Then, open Chrome and open URL 'http://localhost:3000'.
   If everything is Ok, you get to see a list of 8 links.
   After Cmd/Ctrl clicking 4 links, 4 tabs will be created, and each tab would have a title started with 'Rikken'.
   With 4 active players, the game engine will start a game.
@@ -40,9 +40,29 @@ DEVELOPMENT
   all player tab pages in Chrome, and start over. Of course, we will attempt to fix all the little bugs asap. 
 
   03 Feburuary 2020:
-  A lot of debugging has been going on, and most of the little imperfections playing have been addressed.
+  DEBUG DEBUG DEBUG
+  -----------------
+  A lot of debugging has been going on in January, and most of the little imperfections playing have been addressed.
   
-  Good luck!
+  Also, the communication with the server is now more visible in the user interface: a separate bar has been dedicated to it.
+  At the right-hand side a message can be sent to the server and will be echoed by the server. However, the server basically
+  does not respond to the text message per se but responds to the player state that is sent along with the message.
+  Nevertheless, this will allow a player to check if the game server is still active.
+
+  It is my intention to pass the message along to the player that is supposed to bid or play now, as this is the original idea behind these messages.
+
+  Additionally the app has been deployed to Heroku and can be played at: https://rikken.herokuapp.com.
+
+  FUTURE DEVELOPMENT
+  ------------------
+  A begin was made with integrating playing the game with registered users, using sign up and log in routes implemented by my partner in crime, Hannah, 
+  but has not yet been fully tested. 
+  Therefore, at the moment, this is not yet possible online i.e. you're currently playing the game the same way as when testing (i.e. the start script
+  matches the test script).
+  Even so, the game results are still stored in the game result database by player name, although the previous game results are not yet shown! 
+  Note that unregistered player names should in the future always differ from registered player names, but will be unprotected by a password.
+
+  Good luck with playing the game!
 
   Marc P. de Hoogh, 14 January 2020
 
