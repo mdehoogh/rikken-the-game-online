@@ -871,11 +871,14 @@ class OnlinePlayer extends Player{
  * @param {*} event 
  */
 function bidButtonClicked(event){
+    document.getElementById("bidding").style.visibility="hidden"; // hide the bidding element
     let bid=parseInt(event.currentTarget.getAttribute("data-bid"));
     console.log("Bid chosen: ",bid);
-    document.getElementById("bidding").style.visibility="hidden"; // hide the bidding element
     let error=currentPlayer._setBid(bid); // the value of the button is the made bid
-    if(error instanceof Error)alert(error);
+    if(error instanceof Error){
+        alert(error);
+        document.getElementById("bidding").style.visibility="visible"; // show again
+    }
 }
 /**
  * clicking a trump suite button registers the chosen trump suite with the current player 
