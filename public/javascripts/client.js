@@ -392,8 +392,9 @@ function updateChoosePartnerSuiteCards(suiteCards){
  */
 function updatePlayerSuiteCards(suiteCards){
     console.log("Showing the (current player) cards to choose from.");
+    //////////if(currentPage==="page-playing")alert("Showing the playing cards again!");
     let tablebody=document.getElementById("player-suitecards-table");
-    console.log("Suite cards: ",suiteCards);
+    console.log("********* Suite cards: ",suiteCards);
     let rows=tablebody.querySelectorAll("div");
     console.log("Number of rows: ",rows.length);
     for(let suite=0;suite<rows.length;suite++){
@@ -845,7 +846,9 @@ class OnlinePlayer extends Player{
     }
     // call renderCards just after the set of cards change
     renderCards(){
-        console.log("************************** Rendering player cards!");
+        console.log("********************************************************");
+        console.log("*************** Rendering player cards *****************");
+        console.log("********************************************************");
         this._suiteCards=this._getSuiteCards();
         // TODO probably best to show them on ALL pages (no matter which one is currently showing!)
         updateBidderSuiteCards(this._suiteCards);
@@ -1253,6 +1256,7 @@ class PlayerGameProxy extends PlayerGame {
             });
         // this is only the result of the call to _setEventToSend (synchronous), and obviously we put back the card
         if(!cardSentResult){
+            alert("Kaart niet verstuurd?");
             // document.getElementById("play-card-prompt").innerHTML="Gespeelde kaart niet geaccepteerd"+
             // (result.hasOwnProperty('error')?" (fout: "+result.error+")":"")+"!";
             if(playablecardCell){
@@ -1645,20 +1649,6 @@ class PlayerGameProxy extends PlayerGame {
                     document.getElementById("play-info").innerHTML="Speel een kaart bij.";
                 */
                 break;
-            case "PLAYER_INFO":
-                {
-                    // will contain the current cards the user has
-                    currentPlayer._removeCards(); // TODO find a way NOT to have to do this!!!
-                    data.cards.forEach((cardInfo)=>{new HoldableCard(cardInfo[0],cardInfo[1],currentPlayer);});
-                    currentPlayer.renderCards();
-                    /* MDH@23JAN2020: game keeps track of the number of tricks won by each player!!!!!
-                    // also the number of tricks won and to win
-                    currentPlayer.numberOfTricksWon=data.numberOfTricksWon;
-                    // TODO PLAYER_INFO does not need to send the following with each PLAYER_INFO THOUGH
-                    currentPlayer.setNumberOfTricksToWin(data.numberOfTricksToWin);
-                    */
-                }
-                break;
             case "TRICKS_TO_WIN":
                 currentPlayer.setNumberOfTricksToWin(data);
                 break;
@@ -1672,8 +1662,27 @@ class PlayerGameProxy extends PlayerGame {
             case "CARD_PLAYED":
                 this.newCard(data);
                 break;
+            /* MDH@03FEB2020: the player info is now received in the PLAY_A_CARD event
+            case "PLAYER_INFO":
+                {
+                    // will contain the current cards the user has
+                    currentPlayer._removeCards(); // TODO find a way NOT to have to do this!!!
+                    data.cards.forEach((cardInfo)=>{new HoldableCard(cardInfo[0],cardInfo[1],currentPlayer);});
+                    currentPlayer.renderCards();
+                    // MDH@23JAN2020: game keeps track of the number of tricks won by each player!!!!!
+                    // // also the number of tricks won and to win
+                    // currentPlayer.numberOfTricksWon=data.numberOfTricksWon;
+                    // // TODO PLAYER_INFO does not need to send the following with each PLAYER_INFO THOUGH
+                    // currentPlayer.setNumberOfTricksToWin(data.numberOfTricksToWin);
+                }
+                break;
+            */
             case "PLAY_A_CARD":
                 setPlayerState(PLAYERSTATE_CARD);
+                // MDH@03FEB2020: taking over from PLAYER_INFO as the cards are now received in the PLAY_A_CARD event!!!!
+                currentPlayer._removeCards(); // TODO find a way NOT to have to do this!!!
+                data.cards.forEach((cardInfo)=>{new HoldableCard(cardInfo[0],cardInfo[1],currentPlayer);});
+                currentPlayer.renderCards();
                 // we're receiving trick info in data
                 // MDH@20JAN2020: NOT anymore
                 if(!this._trick){

@@ -379,12 +379,13 @@ module.exports=(socket_io_server,gamesListener,numberOfGamesPlayedSoFar,acknowle
                     gameEngineLog(">>>>>>>>>>>>>> ERROR: No game to play a trick in!");
             }/*else gameEngineLog(">>>>>>>>>>>>>>>>> Not a new trick!");*/
             this._game.sendNewPlayerEvent(); // ask the game to send who's playing next
+            // MDH@03FEB2020: it seems better to send the player info with the PLAY_A_CARD so it will be received before a card is played!!!!!
             // MDH@13JAN2020: let's send player info over before asking for the card to play
-            this._sendNewEvent('PLAYER_INFO',this._getPlayerInfo(),5);
+            // removing: this._sendNewEvent('PLAYER_INFO',this._getPlayerInfo(),5);
             // can we send all the trick information this way??????? I guess not
             // MDH@18JAN2020: instead of sending the trick info with PLAY_A_CARD
             //                we send it after each card that is played!!
-            this._game.promptPlayer('PLAY_A_CARD',null);
+            this._game.promptPlayer('PLAY_A_CARD',this._getPlayerInfo());
             // replacing: this._sendNewEvent('PLAY_A_CARD',null,30); // replacing: getTrickInfo(trick),10);
         }
 
