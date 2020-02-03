@@ -524,7 +524,7 @@ function getGameInfo(){
                     gameInfo=rikkenTheGame.getPlayerName(highestBidder)+" rikt in de "+Language.DUTCH_SUITE_NAMES[trumpSuite];
                     gameInfo+=", en vraagt de "+Language.DUTCH_SUITE_NAMES[partnerSuite]+" "+Language.DUTCH_RANK_NAMES[partnerRank]+" mee.";    
                 }else // without a partner
-                    gameInfo=rikkenTheGame.getPlayerName(highestBidder)+" speelt "+PlayerGame.BID_NAMES[trumpSuite]+" met "+Language.DUTCH_SUITE_NAMES[trumpSuite]+" als troef.";
+                    gameInfo=rikkenTheGame.getPlayerName(highestBidder)+" speelt "+PlayerGame.BID_NAMES[highestBid]+" met "+Language.DUTCH_SUITE_NAMES[trumpSuite]+" als troef.";
             }
         }else{ // there's no trump, everyone is playing for him/herself
             let highestBidderPlayerNames=[];
@@ -929,20 +929,21 @@ function playablecardButtonClicked(event){
     let cardSuite=parseInt(playablecardCell.getAttribute("data-suite-id"));
     let cardRank=parseInt(playablecardCell.getAttribute("data-suite-index"));
     if(cardSuite<Card.SUITE_DIAMOND||cardSuite>Card.SUITE_SPADE||cardRank<Card.RANK_TWO||cardRank>Card.RANK_ACE)return;
-    // probably best to do it this way
-    forceFocus(null); // get rid of the focus request
-    updatePlayableCardButtonClickHandlers(false); // disable the card buttons
-    playablecardCellContents=playablecardCell.innerHTML; // in case sending the card fails
-    playablecardCell.innerHTML="";
+
     ////////if(playablecardCell.style.border="0px")return; // empty 'unclickable' cell
     let error=currentPlayer._cardPlayedWithSuiteAndIndex(cardSuite,cardRank);
     if(!(error instanceof Error)){ // card accepted!!!
+        // clear asap
+        playablecardCellContents=playablecardCell.innerHTML; // in case sending the card fails
+        playablecardCell.innerHTML="";
+        forceFocus(null); // get rid of the focus request
+        updatePlayableCardButtonClickHandlers(false); // disable the card buttons
         document.getElementById("play-card-prompt").innerHTML="Gespeelde kaart verzonden naar de spel server"; // MDH@23JAN2020: get rid of the play card prompt!
-        
-    }else // report the error to the end user
-        alert(error);
+    }else{ // report the error to the end user
+        // alert(error);
+        document.getElementById("play-card-prompt").innerHTML="Versturen mislukt. Probeer het nog eens!";
+    }
 }
-
 /**
  * convenient to be able to turn the playable card buttons on and off at the right moment
  * @param {enable} enable 
@@ -1207,7 +1208,7 @@ class PlayerGameProxy extends PlayerGame {
         if(this._state===PlayerGame.OUT_OF_ORDER)return false;
         // MDH@03FEB2020: unfortunately I encountered problems with the bidding buttons not hiding
         //                and because it does not really matter who made the bid
-        //// better: disable the buttons!!!! document.getElementById("bidding").style.visibility="hidden";
+        document.getElementById("bidding").style.visibility="hidden";
         let bidMadeSentResult=this._setEventToSend('BID',bid,function(result){
             if(result){
                 setInfo("Bod niet geaccepteerd"+
@@ -1620,12 +1621,15 @@ class PlayerGameProxy extends PlayerGame {
                 currentPlayer.makeABid(data.playerBidsObjects,data.possibleBids);
                 break;
             case "BID_MADE": // returned when a bid is made by someone
+                /////////if(data.player===this._playerIndex)
+                document.getElementById("bidding").style.visibility="hidden";
                 setPlayerState(PLAYERSTATE_BID_RECEIVED);
                 // assuming to receive in data both the player and the bid
                 document.getElementById("bid-info").innerHTML=getBidInfo(data.bid,data.player===currentPlayer.index?null:this.getPlayerName(data.player));
                 this._playersBids[data.player].push(data.bid);
                 // TODO how to show the bids?????
                 updateBidsTable(this._getPlayerBidsObjects());
+                // MDH@03FEB2020: fail-safe BUT this should be done another way TODO
                 setInfo("Bod van "+this.getPlayerName(data.player)+": "+PlayerGame.BID_NAMES[data.bid]+".");
                 break;
             case "TO_PLAY":
