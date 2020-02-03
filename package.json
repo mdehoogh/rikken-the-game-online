@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "start": "node ./test_gameengine.js --debug",
+    "start": "node ./test_gameengine.js",
     "test": "node ./test_gameengine.js --debug"
   },
   "dependencies": {
