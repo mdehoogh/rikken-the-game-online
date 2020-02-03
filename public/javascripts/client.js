@@ -55,6 +55,8 @@ function newGame(){
         currentPlayer.playsTheGameAtIndex(null,-1);
 }
 
+var toMakeABid=false; // MDH@03FEB2020: some protection
+
 // MDH@29JAN2020: deciding to always show the user name in the document title, and to blink it when
 //                user input is required
 var forceFocusId=null;
@@ -637,6 +639,7 @@ class OnlinePlayer extends Player{
     // make a bid is called with 
     makeABid(playerBidsObjects,possibleBids){
         // debugger
+        toMakeABid=true; // MDH@03FEB2020: some additional protection in case the buttons won't hide
         forceFocus(this.name);
         // removed: document.getElementById("wait-for-bid").style.visibility="hidden"; // show the bidding element
         document.getElementById("bidding").style.visibility="visible"; // show the bidding element
@@ -871,14 +874,18 @@ class OnlinePlayer extends Player{
  * @param {*} event 
  */
 function bidButtonClicked(event){
+    // MDH@03FEB2020: prevent making a bid when not supposed to do so
+    if(!toMakeABid){alert("Je hebt al een bod uitgebracht!");return;}
     document.getElementById("bidding").style.visibility="hidden"; // hide the bidding element
     let bid=parseInt(event.currentTarget.getAttribute("data-bid"));
+    if(!bid||bid<0){alert("Ongeldig bod! Probeer het nog eens.");return;}
     console.log("Bid chosen: ",bid);
     let error=currentPlayer._setBid(bid); // the value of the button is the made bid
     if(error instanceof Error){
         alert(error);
         document.getElementById("bidding").style.visibility="visible"; // show again
-    }
+    }else
+        toMakeABid=false;
 }
 /**
  * clicking a trump suite button registers the chosen trump suite with the current player 
@@ -1190,7 +1197,9 @@ class PlayerGameProxy extends PlayerGame {
     // what the player will be calling when (s)he made a bid, played a card, choose trump or partner suite
     bidMade(bid){
         if(this._state===PlayerGame.OUT_OF_ORDER)return false;
-        // document.getElementById("bidding").style.visibility="hidden";
+        // MDH@03FEB2020: unfortunately I encountered problems with the bidding buttons not hiding
+        //                and because it does not really matter who made the bid
+        //// better: disable the buttons!!!! document.getElementById("bidding").style.visibility="hidden";
         let bidMadeSentResult=this._setEventToSend('BID',bid,function(result){
             if(result){
                 setInfo("Bod niet geaccepteerd"+
