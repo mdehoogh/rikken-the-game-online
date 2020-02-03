@@ -430,7 +430,10 @@ class RikkenTheGame extends PlayerGame{
     _askPlayerForPartnerSuite(){
         // computing the ranklessSuites first!!!!!
         let ranklessSuites=this._players[this._player].getSuitesWithoutRank(this._partnerRank);
-        ranklessSuites[this.getTrumpSuite()]=-1; // can't choose trump!!
+        // can't choose trump!!
+        let trumpSuiteIndex=ranklessSuites.indexOf(this.getTrumpSuite);
+        if(trumpSuiteIndex>=0)ranklessSuites.splice(trumpSuiteIndex,1);
+        // MDH@03FEB2020: replacing: ranklessSuites[this.getTrumpSuite()]=-1; 
         this._players[this._player].choosePartnerSuite(ranklessSuites,this._partnerRank); /// replacing: DUTCH_RANK_NAMES[this._partnerRank]); // passing along the rank of the card the user can choose
     }
     _askPlayerForCard(){

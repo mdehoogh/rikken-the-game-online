@@ -97,12 +97,21 @@ class CardHolder{
      */
     getSuitesWithoutRank(rank){
         // ah this is an issue, because if you do not have a certain suite the suite should NOT be returned!!!!!
+        // MDH@03FEB2020: BUT we want to know all the suites of which the player does not have the given rank
+        //                    including of those suites a player does NOT have
+        /* MDH@03FEB2020 replacing:
         let suites=[];
         this._cards.forEach((card)=>{
             if(suites.indexOf(card.suite)<0)suites.push(card.suite); // if suite not present yet, add it to suites
             if(card.rank===rank)suites[card.suite]=-1; // not removing it but setting to -1 if we locate the rank
         });
-        return suites;
+        */
+       let suites=[0,1,2,3]; // MDH@03FEB2020: replacing =[];
+       this._cards.forEach((card)=>{
+            // because the following can only happen once (for each suite), we can safely assume that the suite is there!!!!
+           if(card.rank===rank)suites.splice(suites.indexOf(card.suite),1); // not removing it but setting to -1 if we locate the rank
+       });
+       return suites;
     }
     /**
      * returns the ids of the suites present of which the player does not have the the given rank

@@ -23,6 +23,8 @@ class Language{
 
 function capitalize(str){return(str?(str.length?str[0].toUpperCase()+str.slice(1):""):"?");}
 
+const VISIBLE="inherit"; // MDH@03FEB2020: if we'd use visible, it would ignore what the parent's visibility is, and keep showing...
+
 // MDH@07JAN2020: adding entering the id of the user on page-settings, so we do not need to insert a new one
 //                alternatively we can do that on a separate page / page-auth is OK
 //                we go to page-auth when NOT playing the game in demo mode!!!
@@ -217,10 +219,10 @@ function updateGamePlayerNames(){
 }
 
 /**
- * clears the bid table
+ * clears the bids table
  * to be called with every new game
  */
-function clearBidTable(){
+function clearBidsTable(){
     let bidTable=document.getElementById("bids-table").querySelector("tbody");
     for(let bidTableRow of bidTable.children)
         for(let bidTableColumn of bidTableRow.children)
@@ -642,7 +644,7 @@ class OnlinePlayer extends Player{
         toMakeABid=true; // MDH@03FEB2020: some additional protection in case the buttons won't hide
         forceFocus(this.name);
         // removed: document.getElementById("wait-for-bid").style.visibility="hidden"; // show the bidding element
-        document.getElementById("bidding").style.visibility="visible"; // show the bidding element
+        document.getElementById("bidding").style.visibility="visible"; // show the bidding element, essential to hide it immediately after a bid
         // currentPlayer=this; // remember the current player
         setInfo("Doe een bod.");
         if(currentPage!="page-bidding")setPage("page-bidding"); // JIT to the right page
@@ -663,9 +665,9 @@ class OnlinePlayer extends Player{
         // NOTE because every player gets a turn to bid, this._suiteCards will be available when we ask for trump/partner!!!
         updateBidderSuiteCards(this._suiteCards=this._getSuiteCards());
         */
-        // only show the buttons
+        // only show the buttons corresponding to possible bids
         for(let bidButton of document.getElementsByClassName("bid"))
-            bidButton.style.display=(possibleBids.indexOf(parseInt(bidButton.getAttribute('data-bid')))>=0?"initial":"none");
+            bidButton.style.display=(possibleBids.indexOf(parseInt(bidButton.getAttribute('data-bid')))>=0?"inline":"none");
         // show the player bids in the body of the bids table
         updateBidsTable(playerBidsObjects);
         setPlayerState(PLAYERSTATE_BID);
@@ -674,7 +676,7 @@ class OnlinePlayer extends Player{
         forceFocus(this.name);
         console.log("Possible trump suites:",suites);
         setPage("page-trump-choosing");
-        document.getElementById("trump-suite-input").style.visibility="visible"; // ascertain to allow choosing the trump suite
+        document.getElementById("trump-suite-input").style.visibility=VISIBLE; // ascertain to allow choosing the trump suite
         updateChooseTrumpSuiteCards(this._suiteCards);
         // iterate over the trump suite buttons
         for(let suiteButton of document.getElementById("trump-suite-buttons").getElementsByClassName("suite"))
@@ -685,7 +687,7 @@ class OnlinePlayer extends Player{
         forceFocus(this.name);
         console.log("Possible partner suites:",suites);
         setPage("page-partner-choosing");
-        document.getElementById("partner-suite-input").style.visibility="visible"; // ascertain to allow choosing the trump suite
+        document.getElementById("partner-suite-input").style.visibility=VISIBLE; // ascertain to allow choosing the trump suite
         updateChoosePartnerSuiteCards(this._suiteCards);
         // because the suites in the button array are 0, 1, 2, 3 and suites will contain
         for(let suiteButton of document.getElementById("partner-suite-buttons").getElementsByClassName("suite"))
@@ -701,7 +703,7 @@ class OnlinePlayer extends Player{
         forceFocus(this.name);
         /* replacing:
         document.getElementById("wait-for-play").style.visibility="hidden"; // hide the wait-for-play element
-        document.getElementById("playing").style.visibility="visible"; // show the play element
+        document.getElementById("playing").style.visibility=VISIBLE; // show the play element
         */
         let trick=(this.game?this.game._trick:null);
         if(!trick){alert("BUG: No current trick to play a card in!");return;}
@@ -876,16 +878,19 @@ class OnlinePlayer extends Player{
 function bidButtonClicked(event){
     // MDH@03FEB2020: prevent making a bid when not supposed to do so
     if(!toMakeABid){alert("Je hebt al een bod uitgebracht!");return;}
-    document.getElementById("bidding").style.visibility="hidden"; // hide the bidding element
-    let bid=parseInt(event.currentTarget.getAttribute("data-bid"));
-    if(!bid||bid<0){alert("Ongeldig bod! Probeer het nog eens.");return;}
-    console.log("Bid chosen: ",bid);
-    let error=currentPlayer._setBid(bid); // the value of the button is the made bid
-    if(error instanceof Error){
-        alert(error);
-        document.getElementById("bidding").style.visibility="visible"; // show again
-    }else
-        toMakeABid=false;
+    try{
+        let bid=parseInt(event.currentTarget.getAttribute("data-bid"));
+        if(isNaN(bid)||bid<0){alert("Ernstige programmafout: ongeldig bod ("+(bid?bid:"?")+")! Probeer het nog eens.");return;}
+        // document.getElementById("bidding").style.visibility="hidden"; // hide the bidding element
+        console.log("Bid chosen: ",bid);
+        let error=currentPlayer._setBid(bid); // the value of the button is the made bid
+        if(error instanceof Error)
+            alert(error);
+        else // bid done!!!
+            toMakeABid=false;
+    }finally{
+        document.getElementById("bidding").style.visibility=(toMakeABid?"visible":"hidden"); // show again
+    }
 }
 /**
  * clicking a trump suite button registers the chosen trump suite with the current player 
@@ -963,7 +968,8 @@ function _gameStateChanged(fromstate,tostate){
             // ALTERNATIVELY this could be done when the game ends
             // BUT this is a bit safer!!!
             setInfo("Het bieden is begonnen!");
-            if(fromstate===PlayerGame.DEALING)clearBidTable();
+            /* if(fromstate===PlayerGame.DEALING)*/
+            clearBidsTable();
             ////// let's wait until a bid is requested!!!! 
             // MDH@09JAN2020: NO, we want to indicate that the bidding is going on
             setPage("page-bidding");
@@ -973,7 +979,7 @@ function _gameStateChanged(fromstate,tostate){
             // updatePlayableCardButtonClickHandlers(true); // allowing the user to cl
             /* MDH@19JAN2020: in due course we will be removing the following two lines
             document.getElementById("wait-for-play").style.visibility="hidden"; // hide the wait-for-play element
-            document.getElementById("playing").style.visibility="visible"; // show the play element
+            document.getElementById("playing").style.visibility=VISIBLE; // show the play element
             */
             // initiate-playing will report on the game that is to be played!!!
             setPage("page-playing");
@@ -1220,7 +1226,7 @@ class PlayerGameProxy extends PlayerGame {
         // MDH@17JAN2020: disable the buttons once the card is accepted (to be played!!!)
         //                TODO perhaps hiding the cards should also be done here!!!
         /* replacing:
-        document.getElementById("wait-for-play").style.visibility="visible"; // hide the bidding element again
+        document.getElementById("wait-for-play").style.visibility=VISIBLE; // hide the bidding element again
         document.getElementById("playing").style.visibility="hidden"; // hide the bidding element again
         */
         console.log("Sending card played: "+card.toString()+" to the server.");
@@ -1893,8 +1899,8 @@ function prepareForPlaying(){
 
     // MDH@09JAN2020: hide the bidding and playing elements
     document.getElementById("bidding").style.visibility="hidden";
-    // replaced by bid-info: document.getElementById("wait-for-bid").style.visibility="visible";
-    // DO NOT DO THIS WILL OVERRULE PARENT: document.getElementById("playing").style.visibility="visible"; // MDH@19JAN2020: "hidden" changed to "visible" as we never hide the cards of the current players
+    // replaced by bid-info: document.getElementById("wait-for-bid").style.visibility=VISIBLE;
+    // DO NOT DO THIS WILL OVERRULE PARENT: document.getElementById("playing").style.visibility=VISIBLE; // MDH@19JAN2020: "hidden" changed to "visible" as we never hide the cards of the current players
     // replaced by play-info: document.getElementById("wait-for-play").style.visibility="hidden"; // MDH@19JAN2020: and vice versa
 
     document.getElementById('single-player-game-button').onclick=singlePlayerGameButtonClicked;
