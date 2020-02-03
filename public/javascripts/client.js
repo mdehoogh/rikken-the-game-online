@@ -640,14 +640,16 @@ class OnlinePlayer extends Player{
 
     // make a bid is called with 
     makeABid(playerBidsObjects,possibleBids){
-        // debugger
+        // if(document.getElementById("page-bidding").style.visibility==="hidden")return;
         toMakeABid=true; // MDH@03FEB2020: some additional protection in case the buttons won't hide
         forceFocus(this.name);
+        // ascertain to be looking at the bidding page (in which case we can safely use VISIBLE)
+        if(currentPage!="page-bidding")setPage("page-bidding"); 
         // removed: document.getElementById("wait-for-bid").style.visibility="hidden"; // show the bidding element
-        document.getElementById("bidding").style.visibility="visible"; // show the bidding element, essential to hide it immediately after a bid
+        // MDH@03FEB2020: inherit is safer because if this happens by accident (when not on the bidding page)
+        document.getElementById("bidding").style.visibility=VISIBLE; // show the bidding element, essential to hide it immediately after a bid
         // currentPlayer=this; // remember the current player
         setInfo("Doe een bod.");
-        if(currentPage!="page-bidding")setPage("page-bidding"); // JIT to the right page
         console.log("Possible bids player '"+this.name+"' could make: ",possibleBids);
 
         //setInfo("Maak een keuze uit een van de mogelijke biedingen.");
@@ -889,7 +891,7 @@ function bidButtonClicked(event){
         else // bid done!!!
             toMakeABid=false;
     }finally{
-        document.getElementById("bidding").style.visibility=(toMakeABid?"visible":"hidden"); // show again
+        document.getElementById("bidding").style.visibility=(toMakeABid?VISIBLE:"hidden"); // show again
     }
 }
 /**
