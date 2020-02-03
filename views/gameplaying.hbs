@@ -17,8 +17,15 @@
     </div>
     <div id='communication'>
         <!-- MDH@31JAN2020: we can put a single button here that can be used to (re)send stuff to the server -->
-        <input id='send-message-button' type='button' value='Bericht aan server'/>
-        <span id='info' placeholder='Ontvangen berichten wordt hier getoond'></span>
+        <span>&nbsp;</span>
+        <div id='receive-message'>
+            <span>Server:&nbsp;</span>
+            <span id='info' placeholder='Ontvangen berichten wordt hier getoond'></span>
+        </div>
+        <div id='send-message'>
+            <input id='send-message-button' type='button' value='Verstuur'/>
+            <input id='send-message-text' type='text' size='20'>
+        </div>
     </div>
     <script src='./javascripts/info.js'></script>
 
@@ -114,8 +121,8 @@
             <div class='page-header'>
                 <p class='page-title'>Bieden</p>
                 <div class="page-button-group">
-                    <input type='button' class="cancel-game" value='Afbreken'>
-                    <!-- <input type='button' class="next" value='Klaar'> -->
+                    {{!-- <input type='button' class="cancel-game" value='Afbreken'> --}}
+                    {{!-- <input type='button' class="next" value='Klaar'> --}}
                 </div>
             </div>
             <!-- current player -->
@@ -254,7 +261,7 @@
             <div class='page-header'>
                 <p class='page-title'>Troefkleur kiezen</p>
                 <div class="page-button-group">
-                    <button class="cancel-game">Afbreken</button>
+                    {{!-- <button class="cancel-game">Afbreken</button> --}}
                 </div>
             </div>
             <!-- ask for the trump suite comes first -->
@@ -349,7 +356,7 @@
             <div class='page-header'>
                 <p class='page-title'>Aas of heer meevragen</p>
                 <div class="page-button-group">
-                    <input type='button' class="cancel-game" value='Afbreken'>
+                    {{!-- <input type='button' class="cancel-game" value='Afbreken'> --}}
                 </div>
             </div>
             <!-- ask for the trump suite comes first -->
@@ -441,6 +448,7 @@
             </div>
         </div>
         <div id='page-play-reporting' class='page'>
+            {{!-- this page is not being used anymore --}}
             <div class='page-header'>
                 <p class='page-title'>Te spelen</p>
                 <div class="page-button-group">
@@ -453,8 +461,8 @@
             <div class='page-header'>
                 <p class='page-title'>Spelen</p>
                 <div class="page-button-group">
-                    <input type='button' class="cancel-game" value='Afbreken'>
-                    <!-- <input type='button' class="next" value='Klaar'> -->
+                    {{!-- <input type='button' class="cancel-game" value='Afbreken'> --}}
+                    {{!-- <input type='button' class="next" value='Klaar'> --}}
                 </div>
             </div>
             <p id='game-info'></p>

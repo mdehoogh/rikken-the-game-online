@@ -39,6 +39,9 @@ DEVELOPMENT
   If that happens nobody is prompted anymore while they should. In that case kill the VS Code terminal, followed by closing
   all player tab pages in Chrome, and start over. Of course, we will attempt to fix all the little bugs asap. 
 
+  03 Feburuary 2020:
+  A lot of debugging has been going on, and most of the little imperfections playing have been addressed.
+  
   Good luck!
 
   Marc P. de Hoogh, 14 January 2020

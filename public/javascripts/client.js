@@ -89,16 +89,18 @@ const PLAYERSTATE_PARTNER=9,PLAYERSTATE_PARTNER_DONE=10,PLAYERSTATE_PARTNER_RECE
 const PLAYERSTATE_WAIT_FOR_CARD=12;
 const PLAYERSTATE_CARD=13,PLAYERSTATE_CARD_PLAYED=14,PLAYERSTATE_CARD_RECEIVED=15;
 const PLAYERSTATE_GAME_OVER=16;
+const PLAYERSTATE_WAIT_FOR_CARDS=17,PLAYERSTATE_GAME_RECEIVED=18,PLAYERSTATE_CARDS_RECEIVED=19;
 // MDH@01FEB2020: we're NOT allowing to resend the card played because that's already done (every 10 seconds) by 
-const playerStateMessages=["Ik wacht!"
-                          ,"Ik wacht!"
-                            ,"Momentje nog","Bod al verstuurd",""
-                          ,"Ik wacht!"
-                            ,"Momentje nog","Troefkleur al gekozen",""
-                            ,"Momentje nog","Partner al gekozen",""
-                          ,"Ik wacht!"
-                            ,"Momentje nog","Kaart al gespeeld",""
-                          ,"Ik wacht!"
+const playerStateMessages=["Ik wacht op een spel"
+                          ,"Ik wacht op een bod"
+                            ,"Momentje nog","Bod al verstuurd","Bod ontvangen"
+                          ,"Laten we spelen"
+                            ,"Momentje nog","Troefkleur al gekozen","Troefkleur ontvangen"
+                            ,"Momentje nog","Partner al gekozen","Kleur partnerkaart ontvangen"
+                          ,"Ik wacht op een kaart"
+                            ,"Momentje nog","Kaart al gespeeld","Kaart ontvangen"
+                          ,"Bedankt voor het spelen"
+                          ,"Ik wacht op kaarten","Spel begonnen","Bedankt voor de kaarten",
                           ];
 var currentPlayerState=PLAYERSTATE_WAIT_FOR_GAME;
 var resendEventId=null;
@@ -106,7 +108,7 @@ function allowResendEvent(){
     sendMessageButton.disabled=false; // enable the send message button
     // resendEventId=null; // no need to clear the timeout as we're done now
 }
-var sendMessageButton;
+var sendMessageText;
 function sendMessageButtonClicked(){
     // if we have a resend event id we're dealing with a resend, otherwise we send the message as visible on the button
     if(resendEventId){
@@ -116,16 +118,21 @@ function sendMessageButtonClicked(){
         setPlayerState(currentPlayerState);
     }else{
         setInfo("?");
-        currentGame._socket.emit('PLAYER_STATE',currentPlayerState,(response)=>{
-            setInfo(response&&response.length>0?response:"De spel server heeft je bericht ontvangen, maar geen antwoord gestuurd.");
+        // don't send any text if sending the default text
+        let textToSend=(sendMessageText.value!==playerStateMessages[currentPlayerState]?sendMessageText.value:'');
+        currentGame._socket.emit('PLAYER_SAYS',{'state':currentPlayerState,'text':textToSend},(response)=>{
+            setInfo(response&&response.length>0?response:"Bericht ontvangen, maar geen antwoord gestuurd.");
+            // if the message text differed from the default message we clear the message text
+            if(sendMessageText.value!==playerStateMessages[currentPlayerState])sendMessageText.value='';
         });
     }
 }
 function setPlayerState(playerState){
     //if(resendEventId){clearTimeout(resendEventId);resendEventId=null;} // get rid of any pending resend event timeout
+    let replaceMessageText=(sendMessageText.value===playerStateMessages[currentPlayerState]); // user hasn't changed the text to send manually...
     currentPlayerState=playerState;
-    // set the message text on the send message button accordingly
-    sendMessageButton.value=playerStateMessages[currentPlayerState];
+    // set the message text on the send message text input field accordingly
+    if(replaceMessageText)sendMessageText.innerText=playerStateMessages[currentPlayerState];
     /* resending already managed by the game (see cardPlayed, bidMade, trumpSuiteChosen and partnerSuiteChosen)
     sendMessageButton.disabled=(sendMessageText==="Stuur opnieuw");
     // if the button is currently disabled only allow resending the event but not until after 5 seconds
@@ -724,7 +731,6 @@ class OnlinePlayer extends Player{
         updatePlayerSuiteCards(this._suiteCards=this._getSuiteCards()); // remember the suite cards!!!!
         // show the trick (remembered in the process for use in cardPlayed below) from the viewpoint of the current player
         ///// showTrick(this._trick=trick); // MDH@11JAN2020: no need to pass the player index (as it is always the same)
-        setPlayerState(PLAYERSTATE_CARD);
     }
 
     // not to be confused with _cardPlayed() defined in the base class Player which informs the game
@@ -1530,18 +1536,21 @@ class PlayerGameProxy extends PlayerGame {
                 this.state=data.to;
                 break;
             case "GAME":
+                setPlayerState(PLAYERSTATE_GAME_RECEIVED);
                 // console.log("Game information received by '"+currentPlayer.name+"'.",data);
                 // we can set the name of the game now
                 this.name=data;
                 // wait for the player names!!!!!
                 break;
             case "PLAYERS":
+                setPlayerState(PLAYERSTATE_WAIT_FOR_CARDS);
                 this.playerNames=data;
                 break;
             case "DEALER":
                 this._dealer=data;
                 break;
             case "CARDS":
+                setPlayerState(PLAYERSTATE_CARDS_RECEIVED); // once the cards have been received
                 // create holdable card from cardInfo passing in the current player as card holder
                 currentPlayer._removeCards(); // TODO find a way NOT to have to do this!!!
                 data.forEach((cardInfo)=>{new HoldableCard(cardInfo[0],cardInfo[1],currentPlayer);});
@@ -1577,8 +1586,8 @@ class PlayerGameProxy extends PlayerGame {
                 break;
             case "TO_BID":
                 if(data!==currentPlayer.name){
-                    setInfo("We wachten op het bod van "+data+".");
                     setPlayerState(PLAYERSTATE_WAIT_FOR_BID);
+                    setInfo("We wachten op het bod van "+data+".");
                 }else
                     setInfo("U wordt zo om een bod gevraagd.");
                 // if(data!==currentPlayer.name)
@@ -1587,24 +1596,24 @@ class PlayerGameProxy extends PlayerGame {
                 //     document.getElementById("bid-info").innerHTML="Wat wil je spelen?";
                 break;
             case "MAKE_A_BID":
+                setPlayerState(PLAYERSTATE_BID);
                 currentPlayer.makeABid(data.playerBidsObjects,data.possibleBids);
                 break;
             case "BID_MADE": // returned when a bid is made by someone
+                setPlayerState(PLAYERSTATE_BID_RECEIVED);
                 // assuming to receive in data both the player and the bid
                 document.getElementById("bid-info").innerHTML=getBidInfo(data.bid,data.player===currentPlayer.index?null:this.getPlayerName(data.player));
                 this._playersBids[data.player].push(data.bid);
                 // TODO how to show the bids?????
                 updateBidsTable(this._getPlayerBidsObjects());
-                setPlayerState(PLAYERSTATE_BID_RECEIVED);
                 setInfo("Bod van "+this.getPlayerName(data.player)+": "+PlayerGame.BID_NAMES[data.bid]+".");
                 break;
             case "TO_PLAY":
                 if(currentPlayer.name!==data){
-                    setInfo("We wachten op de kaart van "+data+".");
                     setPlayerState(PLAYERSTATE_WAIT_FOR_CARD);
-                }else{
+                    setInfo("We wachten op de kaart van "+data+".");
+                }else
                     setInfo("U wordt zo om een kaart gevraagd!");
-                }
                 /*
                 if(currentPlayer.name!==data)
                     document.getElementById("play-info").innerHTML="We wachten op de kaart van <b>"+data+"</b>.";
@@ -1640,6 +1649,7 @@ class PlayerGameProxy extends PlayerGame {
                 this.newCard(data);
                 break;
             case "PLAY_A_CARD":
+                setPlayerState(PLAYERSTATE_CARD);
                 // we're receiving trick info in data
                 // MDH@20JAN2020: NOT anymore
                 if(!this._trick){
@@ -1850,8 +1860,8 @@ function prepareForPlaying(){
 
     preparedForPlaying=true;
 
-    sendMessageButton=document.getElementById("send-message-button");
-    sendMessageButton.onclick=sendMessageButtonClicked;
+    sendMessageText=document.getElementById("send-message-text");
+    document.getElementById("send-message-button").onclick=sendMessageButtonClicked;
 
     // MDH@10JAN2020: we want to know when the user is trying to move away from the page
     window.onbeforeunload=function(){

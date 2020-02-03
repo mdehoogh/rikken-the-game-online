@@ -8,7 +8,7 @@ const {RikkenTheGameEventListener,Trick,RikkenTheGame}=require('./public/javascr
 // MDH@31JAN2020: I think I need to redefine Language here although it would be better to put it in a separate file
 //                yes, moved it out of client.js into Language.js so I can use it both client-side and server-side alike
 const Language=require('./public/javascripts/Language.js');
-
+// MDH@03FEB2020: duplicated (unfortunately) from client.js
 const PLAYERSTATE_WAIT_FOR_GAME=0;
 const PLAYERSTATE_WAIT_FOR_BID=1;
 const PLAYERSTATE_BID=2,PLAYERSTATE_BID_DONE=3,PLAYERSTATE_BID_RECEIVED=4;
@@ -18,6 +18,7 @@ const PLAYERSTATE_PARTNER=9,PLAYERSTATE_PARTNER_DONE=10,PLAYERSTATE_PARTNER_RECE
 const PLAYERSTATE_WAIT_FOR_CARD=12;
 const PLAYERSTATE_CARD=13,PLAYERSTATE_CARD_PLAYED=14,PLAYERSTATE_CARD_RECEIVED=15;
 const PLAYERSTATE_GAME_OVER=16;
+const PLAYERSTATE_WAIT_FOR_CARDS=17,PLAYERSTATE_GAME_RECEIVED=18,PLAYERSTATE_CARDS_RECEIVED=19;
 
 module.exports=(socket_io_server,gamesListener,numberOfGamesPlayedSoFar,acknowledgmentRequired)=>{
 
@@ -913,6 +914,125 @@ module.exports=(socket_io_server,gamesListener,numberOfGamesPlayedSoFar,acknowle
                 gameEngineLog("No callback on ACK event.");
         });
         // MDH@31JAN2020: if we receive the player state we respond accordingly
+        // MDH@03FEB2020: replaces PLAYER_STATE (receiving a text as well that we could but so far haven't send to the active player)
+        client.on('PLAYER_SAYS',(data,callback)=>{
+            let remotePlayer=null;
+            let response='?';
+            let indexOfRemotePlayerOfClient=getIndexOfRemotePlayerOfClient(client);
+            if(indexOfRemotePlayerOfClient>=0){ // we should have this client registered (of course)
+                remotePlayer=remotePlayers[indexOfRemotePlayerOfClient];
+                if(remotePlayer){
+                    if(data&&data.hasOwnProperty("state")&&data.hasOwnProperty("text")){
+                        let textSent=data.text;
+                        gameEngineLog("Message '"+textSent+"' received from "+remotePlayer.name+"'.");
+                        response=''; // the least we can do is echo the message that we received!!!!
+                        // the player state is in the state field
+                        switch(data.state){
+                            case PLAYERSTATE_WAIT_FOR_GAME:
+                            case PLAYERSTATE_GAME_OVER:
+                                response='Er zijn '+getNumberOfIdlePlayers()+" spelers vrij nu.";
+                                break; // player waits for other players
+                            case PLAYERSTATE_WAIT_FOR_BID:
+                            case PLAYERSTATE_WAIT_FOR_CARD:
+                                response='Wij ook!';
+                                break;
+                            case PLAYERSTATE_BID:
+                                response="Jij bent aan de beurt.";
+                                break;
+                            case PLAYERSTATE_BID_DONE:
+                                {
+                                    let playersBids=remotePlayer.game._playersBids;
+                                    let playerBids=(playersBids&&remotePlayer.index>=0?playersBids[remotePlayer.index]:null);
+                                    let lastPlayerBid=(playerBids&&playerBids.length>0?playerBids[0]:-1);
+                                    if(lastPlayerBid<0)
+                                        response="Nog geen enkel bod van jou bekend!";
+                                    else
+                                        response="Je laatst bekende bod: "+PlayerGame.BID_NAMES[lastPlayerBid]+".";
+                                }
+                                break;
+                            case PLAYERSTATE_BID_RECEIVED:
+                            case PLAYERSTATE_TRUMP_RECEIVED:
+                            case PLAYERSTATE_PARTNER_RECEIVED:
+                            case PLAYERSTATE_CARD_RECEIVED:
+                                response='Geen commentaar.';
+                                break;
+                            case PLAYERSTATE_WAIT_FOR_PLAY: // still waiting for trump and partner suite
+                                if(this._highestBid===PlayerGame.BID_RIK||this._highestBid===PlayerGame.BID_RIK_BETER){
+                                    // playing with trump
+                                    if(this._trumpSuite<0)
+                                        response="We wachten nog op de troefkleur.";
+                                    else
+                                    if(this._partnerSuite<0){
+                                        if(this._partnerRank<0)
+                                            response="De troefkleur is gekozen.";
+                                        else
+                                            response="We wachten nog op de kleur van de meegevraagde "+Language.DUTCH_RANK_NAMES[this._partnerRank]+".";
+                                    }else
+                                        response="Troefkleur en meegevraagde "+Language.DUTCH_RANK_NAMES[this._partnerRank]+" zijn bekend!";
+                                }else
+                                if(this._highestBid===PlayerGame.BID_TROELA)
+                                    response="Het is troela, dus het spelen zou zo moeten beginnen.";
+                                else
+                                if(this._highestBid>=PlayerGame.BID_LAATSTE_SLAG_EN_SCHOPPEN_VROUW)
+                                    response="Iedereen heeft gepast, en het spelen zou zo moeten beginnen.";
+                                else
+                                    response="Er is geen troef, dus het spelen zou zo moeten beginnen.";
+                                break;
+                            case PLAYERSTATE_TRUMP:
+                                response="Kies de troefkleur!";
+                                break;
+                            case PLAYERSTATE_TRUMP_DONE:
+                                if(this._trumpSuite<0)
+                                    response="Troefkleur bij mij onbekend.";
+                                else
+                                    response="Bedankt voor de troefkleur!";
+                                break;
+                            case PLAYERSTATE_PARTNER:
+                                response="Kies de kleur van de mee te vragen "+Language.DUTCH_RANK_NAMES[this._partnerRank]+".";
+                                break;
+                            case PLAYERSTATE_PARTNER_DONE:
+                                if(this._partnerSuite<0)
+                                    response="Meegevraagde "+Language.DUTCH_RANK_NAMES[this._partnerRank]+" bij mij niet bekend.";
+                                else
+                                    response="Bedankt voor de meegevraagde "+Language.DUTCH_RANK_NAMES[this._partnerRank]+".";
+                                break;
+                            case PLAYERSTATE_CARD:
+                                response="Speel een kaart!";
+                                break;
+                            case PLAYERSTATE_CARD_PLAYED:
+                                // TODO heb ik de kaart al ontvangen?
+                                response='Bedankt voor de kaart';
+                                break;
+                            case PLAYERSTATE_CARD_RECEIVED:
+                                response="Nog bedankt voor de kaart!";
+                                break;
+                            case PLAYERSTATE_WAIT_FOR_CARDS:
+                                response="Even geduld nog...";
+                                break;
+                            case PLAYERSTATE_CARDS_RECEIVED:
+                                response="Even kijken of het troela is!";
+                                break;
+                            case PLAYERSTATE_GAME_RECEIVED:
+                                response="De andere spelers worden zo bekend gemaakt!";
+                                break;
+                        }
+                        // prefix the response with the text that was sent over
+                        if(textSent.length>0)response+=" Ontvangen: <span style='color:lightgray'><b>"+textSent+"</b></span>";
+                    }
+                }else
+                    response="Speler onbekend!";
+            }else
+                response="Zender onbekend.";
+            gameEngineLog("Response to send back: '"+response+"'.");
+            if(typeof callback==='function')
+                callback(response);
+            else 
+            if(remotePlayer)
+                remotePlayer._sendNewEvent('INFO',response);
+            else
+                gameEngineLog("\tERROR: No response receiver or remote player to send response to.");
+        });
+        /* replaced by the above:
         client.on('PLAYER_STATE',(data,callback)=>{
             let indexOfRemotePlayerOfClient=getIndexOfRemotePlayerOfClient(client);
             if(indexOfRemotePlayerOfClient>=0){ // we should have this client registered (of course)
@@ -1003,6 +1123,7 @@ module.exports=(socket_io_server,gamesListener,numberOfGamesPlayedSoFar,acknowle
                 if(response.length>0)remotePlayer._sendNewEvent('INFO',response);
             }
         });
+        */
         // MDH@26JAN2020: when the user leaves the game (by using 'Nog eens' button), he's available for new game playing!!!!
         client.on('DONE',(data,callback)=>{
             let indexOfRemotePlayerOfClient=getIndexOfRemotePlayerOfClient(client);

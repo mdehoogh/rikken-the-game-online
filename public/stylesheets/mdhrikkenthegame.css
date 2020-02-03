@@ -42,12 +42,11 @@ body {
 }
 
 #info {
-    background-color:lemonchiffon;
     color:blue;
-    font-family:Arial, Helvetica, sans-serif;
-    font-size:1rem;
-    padding-top:0.2rem;
-    display:block; /* start hidden */
+    /* font-family:Arial, Helvetica, sans-serif; */
+    /* font-size:1rem; */
+    /* padding-top:0.2rem; */
+    vertical-align:middle;
 }
 
 .prompt {
@@ -183,7 +182,7 @@ td, th {
 .bid-buttons input[type=button] {
     margin:4px 8px;
     height:3rem;
-    /* padding:4px; */
+    padding:4px 2px;
     font-size:1.4rem;
 }
 
@@ -289,13 +288,33 @@ td, th {
 #help-button{
     position:absolute;
     right:8px;
+    top:4px;
 }
 #communication{
+    position:relative;
     display:flex;
     text-align:left;
+    font-size:0.85rem;
     padding:4px;
+    background-color:lightgoldenrodyellow;
+    border:1px solid lightyellow;
 }
-#send-message-button{
+#receive-message{
+    position:absolute;
+    top:4px;
+    left:8px;
+    display:flex;
+}
+#send-message{
+    position:absolute;
+    top:4px;
+    right:8px;
+    display:flex;
+}
+/* #send-message-button{
     width:10rem;
     margin-right:1rem;
+} */
+#send-message-input{
+    color:black;
 }
