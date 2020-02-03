@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "start": "node ./test_gameengine.js",
-    "test": "node ./test_gameengine.js --debug"
+    "test": "browserify ./public/javascripts/client.js --standalone setPlayerName -o ./public/javascripts/gameplaying.js --debug && node ./test_gameengine.js --debug"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
