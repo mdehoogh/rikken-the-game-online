@@ -280,6 +280,7 @@ td, th {
     position:absolute;
     display:flex;
     text-align:left;
+    vertical-align:center;
 }
 #help-button{
     position:absolute;
@@ -288,6 +289,7 @@ td, th {
 }
 #communication{
     position:relative;
+    width:100%;
     display:flex;
     text-align:left;
     font-size:0.85rem;

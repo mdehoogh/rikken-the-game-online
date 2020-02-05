@@ -10,7 +10,7 @@
     <div>
         <div class='play-header'>
             <!-- don't make it a title because that would increase the font -->
-            <p>U speelt <span id='game-name'>?</span> als <span class='player-name'>?</span>.</p>
+            U speelt <span id='game-name'>?</span> als <span class='player-name'>?</span>.
             <!-- a single Help button in the play header!!! -->
             <input type='button' id="help-button" class='help' value='Help'>
         </div>
@@ -152,6 +152,35 @@
                     <input type='button' data-bid='16' class='bid solitary' value='Open mis&egrave;re met een praatje'/>
                 </div>
             </div>
+            <!-- show the the bids so far by the other players -->
+            <div class='bids'>
+                <div>Geboden tot nu toe:</div>
+                <div>
+                    <table id='bids-table'>
+                        <thead>
+                            <tr>
+                                <th align='right'>Speler</th>
+                                <!-- headers to show the bid index -->
+                                <th></th>
+                                <th></th>
+                                <th></th>
+                                <th></th>
+                                <th></th>
+                                <th></th>
+                                <th></th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- maximum number of bids equal the number of bids divided by two players i.e. 8) -->
+                            <tr><td align='right'></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></tdn></tr>
+                            <tr><td align='right'></td><td></td><td></td><td></td><td></td><td></td><td></tdn><td></td><td></td></tr>
+                            <tr><td align='right'></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+                            <tr><td align='right'></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
             <!-- the cards of the current player (made visible on request) -->
             <!-- now turned into a 'collapsable' (see w3schools) -->
             <button type="button" value="0"  class='collapsing-button active-button' data-collapsible='bidder-suitecards-table'>Kaarten</button>
@@ -227,35 +256,6 @@
                     <span class='card-text'></span>
                     <span class='card-text'></span>
                     <span class='card-text'></span>
-                </div>
-            </div>
-            <!-- show the the bids so far by the other players -->
-            <div class='bids'>
-                <div>Geboden tot nu toe:</div>
-                <div>
-                    <table id='bids-table'>
-                        <thead>
-                            <tr>
-                                <th align='right'>Speler</th>
-                                <!-- headers to show the bid index -->
-                                <th></th>
-                                <th></th>
-                                <th></th>
-                                <th></th>
-                                <th></th>
-                                <th></th>
-                                <th></th>
-                                <th></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <!-- maximum number of bids equal the number of bids divided by two players i.e. 8) -->
-                            <tr><td align='right'></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></tdn></tr>
-                            <tr><td align='right'></td><td></td><td></td><td></td><td></td><td></td><td></tdn><td></td><td></td></tr>
-                            <tr><td align='right'></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
-                            <tr><td align='right'></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
-                        </tbody>
-                    </table>
                 </div>
             </div>
         </div>

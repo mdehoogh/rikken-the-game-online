@@ -27,7 +27,7 @@ function getNumberOfTricksWonText(count){
     if(count===-2)return "?";
     if(count<0)return "onbekend";
     if(count>13)return "onmogelijk";
-    return ["geen","een","twee","drie","vier","vijf","zes","zeven","acht","negen","tien","elf","twaalf","allemaal"](count);
+    return["geen","een","twee","drie","vier","vijf","zes","zeven","acht","negen","tien","elf","twaalf","allemaal"][count];
 }
 
 function bug(bug){
@@ -50,24 +50,31 @@ var currentPlayer=null; // the current game player
 
 var currentGame=null; // we remember the game until we no longer need it
 
+// MDH@05FEB2020: if somebody wants to stop playing completely, (s)he wants to be completely forgotten
+//                setPlayerName() 
 function stopPlaying(){
+    _setPlayer(null); // killing the player should do the rest!!!!!
+    /* MDH@05FEB2020 replacing: 
     // ASSERT assuming not playing in a game anymore i.e. newGame() has been called before
     // a NORMAL exit
     if(!currentPlayer)return alert("Je bent al afgemeld!");
-    currentPlayer.exit('STOP');
+    currentPlayer.exit('STOP'); // MDH@05FEB2020: TODO check whether doing this truely kills the player at the other end!!!
+    // kill the 'history', pretend to never have been here, and show the help page (from where a person can start again)
+    visitedPages=[];currentPage=null;showHelp();
     // 'manually' move to the previous 'page' in the history...
     console.log("Length of history: ",window.history.length);
-    window.history.go(window.history.length>0?-1:0);
+    window.history.back();
+    */
 }
 
 // MDH@10JAN2020: newGame() is a bid different than in the demo version in that we return to the waiting-page
 function newGame(){
-    // by call playsTheGameAtIndex(null,?) we force clearing the game information being shown at the wait-for-players page
-    if(!currentPlayer){
-        console.log("WARNING: No player to start a new game with!");
-        stopPlaying();
-    }else
-        currentPlayer.playsTheGameAtIndex(null,-1);
+    // means: do not forget about me playing i.e. keep me on the gameplaying page
+    // MDH@05FEB2020: it's prudent to start completely over with a new player with the same name!!!!
+    if(!currentPlayer)
+        alert("Helaas kennen we je niet, dus je zult niet kunnen spelen!");
+    else
+        setPlayerName(currentPlayer.name);
 }
 
 var toMakeABid=0,bidMadeInfo=null; // MDH@03FEB2020: some protection for preventing making a bid when not being asked or after having made a bid
@@ -123,20 +130,10 @@ const playerStateMessages=["Ik wacht op een spel"
                           ,"Ik wacht op kaarten","Spel begonnen","Bedankt voor de kaarten",
                           ];
 var currentPlayerState=PLAYERSTATE_WAIT_FOR_GAME;
-var resendEventId=null;
-function allowResendEvent(){
-    sendMessageButton.disabled=false; // enable the send message button
-    // resendEventId=null; // no need to clear the timeout as we're done now
-}
+
 var sendMessageText;
 function sendMessageButtonClicked(){
-    // if we have a resend event id we're dealing with a resend, otherwise we send the message as visible on the button
-    if(resendEventId){
-        // resend the event to resend
-
-        // re-enable the current state which will effectively guarantee that the user can resend again in another 5 seconds
-        setPlayerState(currentPlayerState);
-    }else{
+    if(currentGame&&currentGame._socket){
         // don't send any text if sending the default text
         let textToSend=(sendMessageText.value!==playerStateMessages[currentPlayerState]?sendMessageText.value:'');
         // if no text entered to be sent, ask player whether
@@ -147,7 +144,8 @@ function sendMessageButtonClicked(){
             // if the message text differed from the default message we clear the message text
             if(sendMessageText.value!==playerStateMessages[currentPlayerState])sendMessageText.value='';
         });
-    }
+    }else
+        alert("Je bent blijkbaar gestopt met spelen! Om weer te kunnen spelen moet je de pagina opnieuw laden!");
 }
 function setPlayerState(playerState){
     //if(resendEventId){clearTimeout(resendEventId);resendEventId=null;} // get rid of any pending resend event timeout
@@ -1157,7 +1155,10 @@ function cancelPage(event){
 }
 function returnToPreviousPage(){
     // pop off the page we are going to visit, preventing to push the currentPage again
-    if(visitedPages.length>0){currentPage=null;setPage(visitedPages.shift());}
+    if(visitedPages.length>0){
+        currentPage=null;
+        setPage(visitedPages.shift());
+    }
 }
 function showHelp(){
     console.log("Showing the help!");
@@ -2057,6 +2058,7 @@ function _setPlayer(player,errorcallback){
     currentPage=null; // ascertain to not have a page to store
     // get rid of the current player (if any), and in effect we'll loose the game as well
     if(currentPlayer){
+        currentPlayer.exit('STOP'); // exit the current player from whatever game (s)he has played!!!!
         // no need to change currentPlayer because it's gonna be replaced anyway
         // but will disconnect from the server anyway
         let clientsocket=currentPlayer._client;
@@ -2065,7 +2067,8 @@ function _setPlayer(player,errorcallback){
         // replacing: currentPlayer.game=null; // get rid of the game (which will disconnect the socket as well) WISHFUL THINKING...
         currentPlayer=null;
         showCurrentPlayerName();
-        if(errorcallback)setPage("page-rules"); // MDH@10JAN2020: whenever the currentPlayer is NOT available go to "page-rules"
+        ///////////if(errorcallback)
+        setPage("page-rules"); // MDH@10JAN2020: whenever the currentPlayer is NOT available go to "page-rules"
     }
     // if(errorcallback)setPage("page-rules"); // the page we can show if there's no player!!!! (TODO or page-auth?????)
     if(player){
@@ -2102,9 +2105,11 @@ function _setPlayer(player,errorcallback){
         });
         // try to connect to the server catching whatever happens through events
         clientsocket.connect();
-    }else{
+    }else{ // no player anymore to play
         currentGame=null; // get rid of the current game (if any)
         (typeof errorcallback!=='function'||errorcallback(null));
+        // good idea to quit our gameplaying 'page'
+        window.history.back();
     }
 }
 
@@ -2115,7 +2120,7 @@ function setPlayerName(playerName,errorCallback){
     (preparedForPlaying||prepareForPlaying()); // prepare for playing once
     // if(errorCallback)setPage("page-rules"); // ascertain to not be in a non-player page
     // playerName needs to be a string (if it is defined)
-    if(playerName&&!(typeof playerName==="string"))
+    if(playerName&&typeof playerName!=="string")
         return(typeof errorCallback!=='function'||errorCallback(new Error("Invalid player name.")));
     // if playerName matches the current player's name, nothing to do
     if(playerName&&currentPlayer&&currentPlayer.name===playerName)
