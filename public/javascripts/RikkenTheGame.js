@@ -429,12 +429,17 @@ class RikkenTheGame extends PlayerGame{
     }
     _askPlayerForPartnerSuite(){
         // computing the ranklessSuites first!!!!!
-        let ranklessSuites=this._players[this._player].getSuitesWithoutRank(this._partnerRank);
-        // can't choose trump!!
-        let trumpSuiteIndex=ranklessSuites.indexOf(this.getTrumpSuite);
-        if(trumpSuiteIndex>=0)ranklessSuites.splice(trumpSuiteIndex,1);
+        let ranklessSuiteFlags=this._players[this._player].getSuitesWithoutRank(this._partnerRank);
+        // MDH@05FEB2020: now return all the suites and for each suite -1 does not have the suite, 0 does have it with the given rank, 1 does NOT have the rank card
+        //                NEVER allow passing trump SO force trump suite to have the rank card
+        ranklessSuiteFlags[this.getTrumpSuite()]=0; // even if the player does not have trump suite cards (highly unlikely the value will NOT be 1)
+        // if at least one of the rankless suites equals 1 all -1 suites are NOT available (i.e. you can only ask a partner card blind if you cannot choose another suite)
+        let mustAskPartnerCardBlind=(ranklessSuiteFlags.indexOf(1)<0); // if the player HAS all the rank cards
+        let possiblePartnerSuites=[];
+        ranklessSuiteFlags.forEach((ranklessSuiteFlag,ranklessSuiteIndex)=>
+            {if(ranklessSuiteFlag!=0)if(ranklessSuiteFlag>0||mustAskPartnerCardBlind)possiblePartnerSuites.push(ranklessSuiteIndex);});
         // MDH@03FEB2020: replacing: ranklessSuites[this.getTrumpSuite()]=-1; 
-        this._players[this._player].choosePartnerSuite(ranklessSuites,this._partnerRank); /// replacing: DUTCH_RANK_NAMES[this._partnerRank]); // passing along the rank of the card the user can choose
+        this._players[this._player].choosePartnerSuite(possiblePartnerSuites,this._partnerRank); /// replacing: DUTCH_RANK_NAMES[this._partnerRank]); // passing along the rank of the card the user can choose
     }
     _askPlayerForCard(){
         this._players[this._player].playACard(this._trick); // replacing: _getTrickObjects(),this._trick.playSuite,this._trick.canAskForPartnerCardBlind);

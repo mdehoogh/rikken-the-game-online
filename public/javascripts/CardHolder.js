@@ -106,10 +106,11 @@ class CardHolder{
             if(card.rank===rank)suites[card.suite]=-1; // not removing it but setting to -1 if we locate the rank
         });
         */
-       let suites=[0,1,2,3]; // MDH@03FEB2020: replacing =[];
+       let suites=[-1,-1,-1,-1]; // MDH@05FEB2020: will return -1: player doesn't have card, 0=player has rank, 1 does NOT have rank
        this._cards.forEach((card)=>{
             // because the following can only happen once (for each suite), we can safely assume that the suite is there!!!!
-           if(card.rank===rank)suites.splice(suites.indexOf(card.suite),1); // not removing it but setting to -1 if we locate the rank
+            if(suites[card.suite]<0)suites[card.suite]=1; // the suite is there
+            if(card.rank===rank)suites[card.suite]=0; // we found the card in card.suite with the rank passed in!!!
        });
        return suites;
     }

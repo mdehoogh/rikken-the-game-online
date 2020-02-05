@@ -23,6 +23,17 @@ class Language{
 
 function capitalize(str){return(str?(str.length?str[0].toUpperCase()+str.slice(1):""):"?");}
 
+function getNumberOfTricksWonText(count){
+    if(count===-2)return "?";
+    if(count<0)return "onbekend";
+    if(count>13)return "onmogelijk";
+    return ["geen","een","twee","drie","vier","vijf","zes","zeven","acht","negen","tien","elf","twaalf","allemaal"](count);
+}
+
+function bug(bug){
+    alert("Ernstige programmafout: "+bug+".\nRapporteer deze fout, en breek het spel af.");
+}
+
 const VISIBLE="inherit"; // MDH@03FEB2020: if we'd use visible, it would ignore what the parent's visibility is, and keep showing...
 
 // MDH@07JAN2020: adding entering the id of the user on page-settings, so we do not need to insert a new one
@@ -42,9 +53,11 @@ var currentGame=null; // we remember the game until we no longer need it
 function stopPlaying(){
     // ASSERT assuming not playing in a game anymore i.e. newGame() has been called before
     // a NORMAL exit
-    if(currentPlayer)currentPlayer.exit('STOP');
+    if(!currentPlayer)return alert("Je bent al afgemeld!");
+    currentPlayer.exit('STOP');
     // 'manually' move to the previous 'page' in the history...
-    window.history.back();
+    console.log("Length of history: ",window.history.length);
+    window.history.go(window.history.length>0?-1:0);
 }
 
 // MDH@10JAN2020: newGame() is a bid different than in the demo version in that we return to the waiting-page
@@ -57,7 +70,11 @@ function newGame(){
         currentPlayer.playsTheGameAtIndex(null,-1);
 }
 
-var toMakeABid=false; // MDH@03FEB2020: some protection
+var toMakeABid=false; // MDH@03FEB2020: some protection for preventing making a bid when not being asked or after having made a bid
+var toPlayACard=0; // MDH@05FEB2020: some more protection for preventing playing a card when not being asked or after having played a card
+var playedCardInfo=null; // MDH@05FEB2020: the card played that needs to be remembered so we can send it again
+
+function getLocaleCardText(card){return Language.DUTCH_SUITE_NAMES[card.suite]+" "+Language.DUTCH_RANK_NAMES[card.rank];}
 
 // MDH@29JAN2020: deciding to always show the user name in the document title, and to blink it when
 //                user input is required
@@ -121,9 +138,11 @@ function sendMessageButtonClicked(){
         // re-enable the current state which will effectively guarantee that the user can resend again in another 5 seconds
         setPlayerState(currentPlayerState);
     }else{
-        setInfo("?");
         // don't send any text if sending the default text
         let textToSend=(sendMessageText.value!==playerStateMessages[currentPlayerState]?sendMessageText.value:'');
+        // if no text entered to be sent, ask player whether
+        if(textToSend.trim().length===0&&!prompt("Er is geen te versturen tekst. Wilt U toch versturen?"))return;
+        setInfo("?");
         currentGame._socket.emit('PLAYER_SAYS',{'state':currentPlayerState,'text':textToSend},(response)=>{
             setInfo(response&&response.length>0?response:"Bericht ontvangen, maar geen antwoord gestuurd.");
             // if the message text differed from the default message we clear the message text
@@ -133,7 +152,7 @@ function sendMessageButtonClicked(){
 }
 function setPlayerState(playerState){
     //if(resendEventId){clearTimeout(resendEventId);resendEventId=null;} // get rid of any pending resend event timeout
-    let replaceMessageText=(sendMessageText.value===playerStateMessages[currentPlayerState]); // user hasn't changed the text to send manually...
+    let replaceMessageText=(sendMessageText.value.length===0||sendMessageText.value===playerStateMessages[currentPlayerState]); // user hasn't changed the text to send manually...
     currentPlayerState=playerState;
     // set the message text on the send message text input field accordingly
     if(replaceMessageText)sendMessageText.innerText=playerStateMessages[currentPlayerState];
@@ -422,16 +441,15 @@ function updatePlayerSuiteCards(suiteCards){
 
 function updatePlayerResultsTable(){
     let rikkenTheGame=currentPlayer.game;if(!rikkenTheGame)throw new Error("No game being played!"); // MDH@03JAN2020: rikkenTheGame should now point to the _game property of the current player
-    let playerIndex=0;
     let deltaPoints=rikkenTheGame.deltaPoints;
     let points=rikkenTheGame.points;
     if(!deltaPoints||!points){console.log("ERROR: Results now known yet!");return;}
     for(let playerResultsRow of document.getElementById("player-results-table").querySelector("tbody").getElementsByTagName("tr")){
+        let playerIndex=parseInt(playerResultsRow.getAttribute("data-player-index"));
         playerResultsRow.children[0].innerHTML=rikkenTheGame.getPlayerName(playerIndex);
         playerResultsRow.children[1].innerHTML=(deltaPoints?String(rikkenTheGame.getNumberOfTricksWonByPlayer(playerIndex)):"-");
         playerResultsRow.children[2].innerHTML=(deltaPoints?String(deltaPoints[playerIndex]):"-");
         playerResultsRow.children[3].innerHTML=String(points[playerIndex]);
-        playerIndex++;
     }
 }
 
@@ -477,7 +495,7 @@ function updateTricksPlayedTables(){
 function showDefaultPlayerNames(){
     console.log("Showing default player names!");
     let playerNames=Language.DEFAULT_PLAYERS[document.getElementById("demo-playmode-checkbox").checked?1:0];
-    for(playerNameInputElement of document.getElementsByClassName("player-name-input")){
+    for(let playerNameInputElement of document.getElementsByClassName("player-name-input")){
         if(!playerNameInputElement.value||playerNameInputElement.value.length==0)
             playerNameInputElement.value=playerNames[parseInt(playerNameInputElement.getAttribute("data-player-id"))];
     }
@@ -631,7 +649,7 @@ class OnlinePlayer extends Player{
 
     getNumberOfTricksWon(){
         // ask the game
-        return(this.index&&this.game?this.game.getNumberOfTricksWonByPlayer(this.index):0);
+        return(this._index&&this._game?this._game.getNumberOfTricksWonByPlayer(this._index):-2);
     }
 
     // to set the partner once the partner suite/rank card is in the trick!!!!
@@ -702,43 +720,57 @@ class OnlinePlayer extends Player{
     }
     // almost the same as the replaced version except we now want to receive the trick itself
     playACard(){
-        // currentPlayer=this;
-        forceFocus(this.name);
-        /* replacing:
-        document.getElementById("wait-for-play").style.visibility="hidden"; // hide the wait-for-play element
-        document.getElementById("playing").style.visibility=VISIBLE; // show the play element
-        */
+        // MDH@05FEB2020: this is a request from the server to play a card which could be a request to replay a card (that wasn't received somehow)
+        //                instead of using we a flag we keep track of the request count, we toggle the sign to indicate that a choice was already made
+        // error handling first TODO these errors indicate bugs and therefore are inrecoverable!!!!
         let trick=(this.game?this.game._trick:null);
-        if(!trick){alert("BUG: No current trick to play a card in!");return;}
-        // MDH@19JAN2020: allow the current player to play a card by clicking one
-        updatePlayableCardButtonClickHandlers(true);
-        // currentPlayer=this; // remember the current player
-        if(trick.numberOfCards>0&&trick.playSuite<0){alert("BUG: Play suite of non-empty trick undefined!");return;}
-        setInfo("Speel een "+(trick.playSuite>=0?Language.DUTCH_SUITE_NAMES[trick.playSuite]:"kaart")+".");
-        // if this is a new trick update the tricks played table with the previous trick
-        // if(trick.numberOfCards==0)updateTricksPlayedTables();
-        /* see showTrick()
-        document.getElementById("can-ask-for-partner-card-blind").style.display=(trick.canAskForPartnerCardBlind?"block":"none");
-        // always start unchecked...
-        document.getElementById("ask-for-partner-card-blind").checked=false; // when clicked should generate 
-        */
-        // MDH@20JAN2020 moved over to where GAME_INFO event is received!!!!: document.getElementById("game-info").innerHTML=getGameInfo(); // update the game info (player specific)
-        // obsolete: document.getElementById("card-player").innerHTML=this.name;
-        document.getElementById("play-card-prompt").innerHTML=
-            (trick.playSuite>=0?"Speel een "+Language.DUTCH_SUITE_NAMES[trick.playSuite].toLowerCase()+" bij.":"Kom maar uit!");
-        let numberOfTricksWon=this.getNumberOfTricksWon(); // also includes those won by the partner (automatically)
-        // add the tricks won by the partner
-        let partnerName=this._game.getPartnerName(this._index);
-        // if(partner)numberOfTricksWon+=player.getNumberOfTricksWon();
-        document.getElementById("tricks-won-so-far").innerHTML=String(numberOfTricksWon)+(partnerName?" (samen met "+partnerName+")":"");
-        // show the number of tricks this player is supposed to win in total
-        document.getElementById("tricks-to-win").innerHTML=getNumberOfTricksToWinText(this._numberOfTricksToWin,partnerName,this._game.getHighestBid());
-        this._card=null; // get rid of any currently card
-        console.log("ONLINE >>> Player '"+this.name+"' should play a card!");
-        // setInfo("Welke "+(trick.playSuite>=0?Language.DUTCH_SUITE_NAMES[trick.playSuite]:"kaart")+" wil je "+(trick.numberOfCards>0?"bij":"")+"spelen?");
-        updatePlayerSuiteCards(this._suiteCards=this._getSuiteCards()); // remember the suite cards!!!!
-        // show the trick (remembered in the process for use in cardPlayed below) from the viewpoint of the current player
-        ///// showTrick(this._trick=trick); // MDH@11JAN2020: no need to pass the player index (as it is always the same)
+        if(!trick)return bug("De slag ontbreekt!");
+        if(trick.numberOfCards>0&&trick.playSuite<0)return bug("De te spelen kleur is onbekend!");
+        toPlayACard++;
+        if(toPlayACard==1){ // first request, no card was played so far
+            playedCardInfo=null; // initialize cardPlayed to null
+            forceFocus(this.name);
+            /* replacing:
+            document.getElementById("wait-for-play").style.visibility="hidden"; // hide the wait-for-play element
+            document.getElementById("playing").style.visibility=VISIBLE; // show the play element
+            */
+            // MDH@19JAN2020: allow the current player to play a card by clicking one
+            updatePlayableCardButtonClickHandlers(true); // ready to rock 'n' roll
+            // MDH@05FEB2020 overkill: setInfo("Speel een "+(trick.playSuite>=0?Language.DUTCH_SUITE_NAMES[trick.playSuite]:"kaart")+".");
+            // if this is a new trick update the tricks played table with the previous trick
+            // if(trick.numberOfCards==0)updateTricksPlayedTables();
+            /* see showTrick()
+            document.getElementById("can-ask-for-partner-card-blind").style.display=(trick.canAskForPartnerCardBlind?"block":"none");
+            // always start unchecked...
+            document.getElementById("ask-for-partner-card-blind").checked=false; // when clicked should generate 
+            */
+            // MDH@20JAN2020 moved over to where GAME_INFO event is received!!!!: document.getElementById("game-info").innerHTML=getGameInfo(); // update the game info (player specific)
+            // obsolete: document.getElementById("card-player").innerHTML=this.name;
+            document.getElementById("play-card-prompt").innerHTML=(trick.playSuite>=0?"Speel een "+Language.DUTCH_SUITE_NAMES[trick.playSuite].toLowerCase()+" bij.":"Kom maar uit!");
+            let numberOfTricksWon=this.getNumberOfTricksWon(); // also includes those won by the partner (automatically)
+            // add the tricks won by the partner
+            let partnerName=this._game.getPartnerName(this._index);
+            // if(partner)numberOfTricksWon+=player.getNumberOfTricksWon();
+            document.getElementById("tricks-won-so-far").innerHTML=getNumberOfTricksWonText(numberOfTricksWon)+(partnerName?" (samen met "+partnerName+")":"");
+            // show the number of tricks this player is supposed to win in total
+            document.getElementById("tricks-to-win").innerHTML=getNumberOfTricksToWinText(this._numberOfTricksToWin,partnerName,this._game.getHighestBid());
+            this._card=null; // get rid of any currently card
+            console.log("ONLINE >>> Player '"+this.name+"' should play a card!");
+            // setInfo("Welke "+(trick.playSuite>=0?Language.DUTCH_SUITE_NAMES[trick.playSuite]:"kaart")+" wil je "+(trick.numberOfCards>0?"bij":"")+"spelen?");
+            updatePlayerSuiteCards(this._suiteCards=this._getSuiteCards()); // remember the suite cards!!!!
+            // show the trick (remembered in the process for use in cardPlayed below) from the viewpoint of the current player
+            ///// showTrick(this._trick=trick); // MDH@11JAN2020: no need to pass the player index (as it is always the same)
+        }else
+        if(playedCardInfo){ // a card has been choosen by this player to play but apparently has not been received yet
+            // send the card played again
+            let error=this._setCard(...playedCardInfo);
+            if(error instanceof Error){
+                setInfo("Versturen van de gespeelde kaart ("+getLocaleCardText(playableCardInfo[0])+") mislukt! Fout: "+error.message+".");
+                console.log("ERROR: ",error);
+            }else
+                setInfo(capitalize(getLocaleCardText(playableCardInfo[0]))+" opnieuw verstuurd!");
+        }else
+            setInfo("We wachten op je kaart!");
     }
 
     // not to be confused with _cardPlayed() defined in the base class Player which informs the game
@@ -809,7 +841,11 @@ class OnlinePlayer extends Player{
             // MDH@27JAN2020: I suggest changing askingForPartnerCard to askingForPartnerCard<0 i.e. blind request!!!
             //                we're taking care of that when CARD is sent (so not to interfere with RikkenTheGame.js itself)
             let error=this._setCard(card,askingForPartnerCard);
-            return(error instanceof Error?error:null);
+            if(error instanceof Error)return error;
+            // MDH@05FEB2020: remember the card played, and do NOT clear it until we receive it back as a played card
+            //                this way we can send it again by calling this._setCard(...playedCardInfo) the next time when we are asked to do so
+            playedCardInfo=[card,askingForPartnerCard]; 
+            return null;
             /* MDH@27JAN2020: removing the following might be wrong BUT by passing askingForPartnerCard to the server
                               all players including myself will receive the card played and update askingForPartnerCard
                               accordingly, basically addCard() will set it to 1 if it so detects, but cannot set it to -1
@@ -927,25 +963,29 @@ var playablecardCell,playablecardCellContents;
  * @param {*} event 
  */
 function playablecardButtonClicked(event){
-    playablecardCell=(event?event.currentTarget:null);
-    if(!playablecardCell)return;
+    
+    // MDH@05FEB2020: prevent from playing a card when a card has already been played (and not yet confirmed by the server)
+    if(playedCardInfo)return alert("Je hebt al een kaart ("+getLocaleCardText(playedCardInfo[0])+") gespeeld.");
+
+    playablecardCell=(event&&event.currentTarget); // remember the 'cell' of the card clicked!!!!
+    if(!playablecardCell)return; // TODO should we respond here????
+
     let cardSuite=parseInt(playablecardCell.getAttribute("data-suite-id"));
     let cardRank=parseInt(playablecardCell.getAttribute("data-suite-index"));
     if(cardSuite<Card.SUITE_DIAMOND||cardSuite>Card.SUITE_SPADE||cardRank<Card.RANK_TWO||cardRank>Card.RANK_ACE)return;
 
     ////////if(playablecardCell.style.border="0px")return; // empty 'unclickable' cell
     let error=currentPlayer._cardPlayedWithSuiteAndIndex(cardSuite,cardRank);
-    if(!(error instanceof Error)){ // card accepted!!!
-        // clear asap
+    if(playedCardInfo){ // MDH@05FEB2020 replacing: !(error instanceof Error)){ // card accepted!!!
+        forceFocus(null); // no need to prompt the user anymore, (s)he only needs to wait for the card to be arrived by the server
+        /* MDH@05FEB2020: NOT to remove the card from showing until it was confirmed by the server to have been played, we only need to prevent playing another card!!!
         playablecardCellContents=playablecardCell.innerHTML; // in case sending the card fails
         playablecardCell.innerHTML="";
-        forceFocus(null); // get rid of the focus request
         updatePlayableCardButtonClickHandlers(false); // disable the card buttons
-        document.getElementById("play-card-prompt").innerHTML="Gespeelde kaart verzonden naar de spel server"; // MDH@23JAN2020: get rid of the play card prompt!
-    }else{ // report the error to the end user
-        // alert(error);
+        */
+        document.getElementById("play-card-prompt").innerHTML="Gespeelde kaart geaccepteerd en verstuurd."; // MDH@23JAN2020: get rid of the play card prompt!
+    }else // report the error to the end user
         document.getElementById("play-card-prompt").innerHTML="Versturen mislukt. Probeer het nog eens!";
-    }
 }
 /**
  * convenient to be able to turn the playable card buttons on and off at the right moment
@@ -953,8 +993,9 @@ function playablecardButtonClicked(event){
  */
 function updatePlayableCardButtonClickHandlers(enable){
     // clicking card 'buttons' (now cells in table), we can get rid of the button itself!!!
+    // MDH@05FEB2020: additional check: if a cell is empty do not erroneously make it clickable!!!!
     for(let playablecardButton of document.querySelectorAll(".playable.card-text"))
-        playablecardButton.onclick=(enable?playablecardButtonClicked:null);
+        playablecardButton.onclick=(enable&&playablecardButton.innerHTML.length>0?playablecardButtonClicked:null);
 }
 
 // in order to not have to use RikkenTheGame itself (that controls playing the game itself)
@@ -1240,29 +1281,23 @@ class PlayerGameProxy extends PlayerGame {
         // MDH@27JAN2020: we send the askingForPartnerCard flag along every time although it will be ignored
         //                on any trick card except the first card played, and non-negative values are ignored as well
         //                because the only thing that the other side cannot determine is whether the partner card is asked blind!!!!
-        let cardPlayedInfo=[card.suite,card.rank,askingForPartnerCard];
         // replacing: if(askingForPartnerCard<0)cardPlayedInfo.push(true); // set the asking for partner card blind flag!!!
         let cardSentResult=
-            this._setEventToSend('CARD',cardPlayedInfo,function(result){
-                if(result){
+            this._setEventToSend('CARD',[card.suite,card.rank,askingForPartnerCard],function(result){
+                if(result)
                     document.getElementById("play-card-prompt").innerHTML="Gespeelde kaart niet geaccepteerd"+
                                 (result.hasOwnProperty('error')?" (fout: "+result.error+")":"")+"!";
-                    /* TODO should or should we not do the following?????? 
-                    playablacardCell.innerHTML=playablecardCellContents;
-                    */
-                }else{ // card played accepted!!!
+                else// card played accepted!!!
                     document.getElementById("play-card-prompt").innerHTML="Gespeelde kaart geaccepteerd.";
-                }
             });
         // this is only the result of the call to _setEventToSend (synchronous), and obviously we put back the card
         if(!cardSentResult){
             alert("Kaart niet verstuurd?");
             // document.getElementById("play-card-prompt").innerHTML="Gespeelde kaart niet geaccepteerd"+
             // (result.hasOwnProperty('error')?" (fout: "+result.error+")":"")+"!";
-            if(playablecardCell){
-                playablacardCell.innerHTML=playablecardCellContents;
+            if(playablecardCell)
                 setInfo("Versturen van de gespeelde kaart mislukt! Probeer het zo nog eens.");
-            }else
+            else
                 setInfo("Er is iets misgegaan. Probeer het zo nog eens.");
         }else{
             document.getElementById("play-card-prompt").innerHTML="Gespeelde kaart verstuurd.";
@@ -1371,12 +1406,15 @@ class PlayerGameProxy extends PlayerGame {
     }
 
     getNumberOfTricksWonByPlayer(playerIndex){
-        if(playerIndex<0||playerIndex>=this._playerNames.length)return -1;
-        let numberOfTricksWonByPlayer=this._numberOfTricksWon[playerIndex];
-        // we don't have no players and should get the partner ids from the server itself
-        let partnerIndex=(this._partners?this._partners[playerIndex]:-1);
-        if(partnerIndex<0)return numberOfTricksWonByPlayer; // no partner known yet
-        return numberOfTricksWonByPlayer+this._numberOfTricksWon[partnerIndex];
+        let numberOfTricksWonByPlayer=-1;
+        if(playerIndex>=0||playerIndex<this._numberOfTricksWon.length){
+            numberOfTricksWonByPlayer=this._numberOfTricksWon[playerIndex];
+            // we don't have no players and should get the partner ids from the server itself
+            let partnerIndex=(this._partners&&playerIndex<this._partners.length?this._partners[playerIndex]:-1);
+            if(partnerIndex>=0&&partnerIndex<this._numberOfTricksWon.length)numberOfTricksWonByPlayer+=this._numberOfTricksWon[partnerIndex];
+        }/*else
+            alert("Ongeldige speler index "+playerIndex+".");*/
+        return numberOfTricksWonByPlayer;
     }
 
     // MDH@20JAN2020: will be receiving the new trick event when a new trick starts
@@ -1430,6 +1468,18 @@ class PlayerGameProxy extends PlayerGame {
     */
 
     newCard(cardInfo){
+        
+        // MDH@05FEB2020: if this is the card I actually just played I have to do some more!!!!
+        if(playedCardInfo){
+            let playedCard=playedCardInfo[0];
+            toPlayACard=0; // done playing a card
+            playedCardInfo=null; // remove playedCardInfo until the next card to play is being asked
+            if(playablecardCell){playablecardCell.innerHTML="";playablecardCell=null;} // get rid of the card that was played, sent and accepted
+            // it's a serious bug when the card played by me is not returned as played!!!!
+            if(playedCard.suite!=cardInfo.suite||playedCard.rank!=cardInfo.rank)
+                bug("Gespeelde kaart niet gelijk aan geregistreerde kaart!");
+        }
+
         // MDH@27JAN2020: cardInfo does not need to contain the askingForPartnerCard flag per se
         //                it actually only need to contain it when asking for the partner card blind as in all
         //                other cases the trick can determine it itself and should NOT rely on information sent by the server
@@ -1441,7 +1491,7 @@ class PlayerGameProxy extends PlayerGame {
         */
         // I don't think we can do that????? this._trick.winner=cardInfo.winner;
         let error=this._trick.addCard(new HoldableCard(cardInfo.suite,cardInfo.rank));
-        if(error instanceof Error)return error;
+        if(error instanceof Error)return bug(error); // which would be a serious bug????????
 
         // MDH@27JAN2020: if we're receiving the play suite we can determine askingForPartnerCard ourselves
         if(cardInfo.hasOwnProperty("playSuite")){

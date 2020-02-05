@@ -1018,16 +1018,16 @@ module.exports=(socket_io_server,gamesListener,numberOfGamesPlayedSoFar,acknowle
                                 break;
                         }
                         // prefix the response with the text that was sent over
-                        if(textSent.length>0)response+=" Ontvangen: <span style='color:lightgray'><b>"+textSent+"</b></span>";
+                        if(textSent.length>0)response+="<span style='color:lightgray'> Ontvangen: <b>"+textSent+"</b></span>";
                     }
                 }else
-                    response="Speler onbekend!";
+                    response="U bent niet geregistreerd als speler! Laad de webpagina opnieuw!";
             }else
-                response="Zender onbekend.";
+                response="Sorry, ik ken U niet. Laad de webpagina opnieuw!";
             gameEngineLog("Response to send back: '"+response+"'.");
             if(typeof callback==='function')
                 callback(response);
-            else 
+            else
             if(remotePlayer)
                 remotePlayer._sendNewEvent('INFO',response);
             else
