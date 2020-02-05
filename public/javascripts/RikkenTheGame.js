@@ -667,7 +667,7 @@ class RikkenTheGame extends PlayerGame{
         let player=this._players[this._player];
         let partnerRank=(player?Card.RANK_ACE:-1);
         while(partnerRank>=0){
-            let partnerSuites=player.getSuitesWithRank(partnerRank); // all the suites with that rank
+            let partnerSuites=player.getSuitesWithRank(partnerRank); // all the suites with aces, kings, queens etc.
             // remove trump suite
             let partnerTrumpSuiteIndex=partnerSuites.indexOf(this._trumpSuite);
             if(partnerTrumpSuiteIndex>=0)partnerSuites.splice(partnerTrumpSuiteIndex,1);

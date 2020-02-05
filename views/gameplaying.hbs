@@ -19,7 +19,7 @@
         <!-- MDH@31JAN2020: we can put a single button here that can be used to (re)send stuff to the server -->
         <span>&nbsp;</span>
         <div id='receive-message'>
-            <span>Server:&nbsp;</span>
+            <span id='info-source' placeholder='Zender'></span>:&nbsp;
             <span id='info' placeholder='Ontvangen berichten wordt hier getoond'></span>
         </div>
         <div id='send-message'>
@@ -154,8 +154,8 @@
             </div>
             <!-- the cards of the current player (made visible on request) -->
             <!-- now turned into a 'collapsable' (see w3schools) -->
-            <button type="button" id="bidder-suitecards-button" value="0" class='collapsible-button active-bid-button'>Kaarten</button>
-            <div id='bidder-suitecards-table'>
+            <button type="button" value="0"  class='collapsing-button active-button' data-collapsible='bidder-suitecards-table'>Kaarten</button>
+            <div id='bidder-suitecards-table' class='collapsible'>
                 <div class='diamond suite-cards'>
                     <span class='card-text'></span>
                     <span class='card-text'></span>
@@ -277,8 +277,8 @@
                     <input type='button' data-suite='3' class='spade suite bid-trump' value='\u2660'/>
                 </div>
             </div>
-            <button type="button" id="bidder-suitecards-button" value="0" class='collapsible-button active-bid-button'>Kaarten</button>
-            <div id='trump-suitecards-table'>
+            <button type="button" value="0" class='collapsing-button active-button' data-collapsible='trump-suitecards-table'>Kaarten</button>
+            <div id='trump-suitecards-table' class='collapsible'>
                 <div class='diamond suite-cards'>
                     <span class='card-text'></span>
                     <span class='card-text'></span>
@@ -372,8 +372,8 @@
                     <input type='button' data-suite='3' class='spade suite bid-partner' value='\u2660'/>
                 </div>
             </div>
-            <button type="button" id="bidder-suitecards-button" value="0" class='collapsible-button active-bid-button'>Kaarten</button>
-            <div id='partner-suitecards-table'>
+            <button type="button" value="0" class='collapsing-button active-button' data-collapsible='partner-suitecards-table'>Kaarten</button>
+            <div id='partner-suitecards-table' class='collapsible'>
                 <div class='diamond suite-cards'>
                     <span class='card-text'></span>
                     <span class='card-text'></span>
@@ -485,7 +485,8 @@
                         <input type="checkbox" id='ask-partner-card-checkbox'/><span>De&nbsp;<span class='partner-suite'></span>&nbsp;<span class='partner-rank'></span>&nbsp;<span id='ask-partner-card-blind'></span>vragen</span>
                     </div>
                     <!-- showing the cards of the current player as buttons-->
-                    <div id='player-suitecards-table'>
+                    <button type="button" value="0"  class='collapsing-button active-button' data-collapsible='player-suitecards-table'>Kaarten</button>
+                    <div id='player-suitecards-table' class='collapsible'>
                         <div class='diamond suite-cards'>
                             <span class='playable card-text' data-suite-id='0' data-suite-index='0'></span>
                             <span class='playable card-text' data-suite-id='0' data-suite-index='1'></span>

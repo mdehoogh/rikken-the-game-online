@@ -1,10 +1,16 @@
 var infoElement=document.getElementById('info');
-function setInfo(info){
+var infosourceElement=document.getElementById('info-source');
+function setInfo(info,infosource){
     if(!info)return;
     console.log(document.title+" >>> INFO: "+info);
     if(infoElement)infoElement.innerHTML=info;
+    if(infosourceElement)infosourceElement.innerHTML=(infosource?infosource.toString():"?");
 }
-function clearInfo(){if(infoElement)infoElement.innerHTML="";}
+
+function clearInfo(){
+    if(infoElement)infoElement.innerHTML="";
+    if(infosourceElement)infosourceElement.innerHTML="";
+}
 
 function showGameState(state){
     let colonPos=document.title.indexOf(': ');

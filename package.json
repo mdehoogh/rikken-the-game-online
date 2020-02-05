@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "start": "node ./test_gameengine.js",
-    "test": "browserify ./public/javascripts/client.js --standalone setPlayerName -o ./public/javascripts/gameplaying.js --debug && node ./test_gameengine.js --debug"
+    "testlocal": "browserify ./public/javascripts/client.js --standalone setPlayerName -o ./public/javascripts/gameplaying.js --debug && node ./test_gameengine.js --debug"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -39,5 +39,8 @@
   "bugs": {
     "url": "https://github.com/mdehoogh/rikken-the-game-online/issues"
   },
-  "homepage": "https://github.com/mdehoogh/rikken-the-game-online#readme"
+  "homepage": "https://github.com/mdehoogh/rikken-the-game-online#readme",
+  "devDependencies": {
+    "open": "^7.0.2"
+  }
 }

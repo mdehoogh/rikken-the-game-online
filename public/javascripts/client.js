@@ -70,9 +70,8 @@ function newGame(){
         currentPlayer.playsTheGameAtIndex(null,-1);
 }
 
-var toMakeABid=false; // MDH@03FEB2020: some protection for preventing making a bid when not being asked or after having made a bid
-var toPlayACard=0; // MDH@05FEB2020: some more protection for preventing playing a card when not being asked or after having played a card
-var playedCardInfo=null; // MDH@05FEB2020: the card played that needs to be remembered so we can send it again
+var toMakeABid=0,bidMadeInfo=null; // MDH@03FEB2020: some protection for preventing making a bid when not being asked or after having made a bid
+var toPlayACard=0,playedCardInfo=null; // MDH@05FEB2020: the card played that needs to be remembered so we can send it again
 
 function getLocaleCardText(card){return Language.DUTCH_SUITE_NAMES[card.suite]+" "+Language.DUTCH_RANK_NAMES[card.rank];}
 
@@ -142,9 +141,9 @@ function sendMessageButtonClicked(){
         let textToSend=(sendMessageText.value!==playerStateMessages[currentPlayerState]?sendMessageText.value:'');
         // if no text entered to be sent, ask player whether
         if(textToSend.trim().length===0&&!prompt("Er is geen te versturen tekst. Wilt U toch versturen?"))return;
-        setInfo("?");
+        setInfo("?","Jij");
         currentGame._socket.emit('PLAYER_SAYS',{'state':currentPlayerState,'text':textToSend},(response)=>{
-            setInfo(response&&response.length>0?response:"Bericht ontvangen, maar geen antwoord gestuurd.");
+            setInfo(response&&response.length>0?response:"Bericht ontvangen, maar geen antwoord gestuurd.","Server");
             // if the message text differed from the default message we clear the message text
             if(sendMessageText.value!==playerStateMessages[currentPlayerState])sendMessageText.value='';
         });
@@ -168,13 +167,14 @@ function difference(a1,a2){var a2Set=new Set(a2);return a1.filter((x)=>!a2Set.ha
 
 var bidderCardsElement=document.getElementById("bidder-cards");
 
-function initializeBidderSuitecardsButton(){
-    let button=document.getElementById("bidder-suitecards-button");
-    button.addEventListener("click",function(){
-        // console.log("Bidder suitecards button clicked!");
-        this.classList.toggle("active-bid-button"); // a ha, didn't know this
-        document.getElementById("bidder-suitecards-table").style.display=(this.classList.contains("active-bid-button")?"block":"none");
-    });
+function handleCollapsingEvent(event){
+    let collapsingButton=event.currentTarget;
+    collapsingButton.classList.toggle("active-button"); // a ha, didn't know this
+    document.getElementById(collapsingButton.getAttribute("data-collapsible")).style.display=(this.classList.contains("active-button")?"block":"none");
+}
+function initializeCollapsingButtons(){
+    // MDH@05FEB2020: attach event handler on click of every collapsible button toggling
+    for(let collapsingButton of document.getElementsByClassName("collapsing-button"))collapsingButton.addEventListener("click",handleCollapsingEvent);
 }
 
 // function getCookie(name) {
@@ -193,6 +193,8 @@ function initializeBidderSuitecardsButton(){
  */
 function showPlayerNames(){
     let rikkenTheGame=(currentPlayer?currentPlayer.game:null);if(!rikkenTheGame)return;
+    // show the player names in the bids table
+    showPlayerNamesInBidsTable();
     // show the player names in the header row of the tricks played table
     for(let tricksPlayedTable of document.getElementsByClassName("tricks-played-table")){
         let tricksPlayedTableHeader=tricksPlayedTable.querySelector("thead");
@@ -210,8 +212,6 @@ function showPlayerNames(){
     showPlayerName(document.getElementById("lefthandside-player-name"),rikkenTheGame.getPlayerName((playerIndex+1)%4));
     showPlayerName(document.getElementById("opposite-player-name"),rikkenTheGame.getPlayerName((playerIndex+2)%4));
     showPlayerName(document.getElementById("righthandside-player-name"),rikkenTheGame.getPlayerName((playerIndex+3)%4));
-    // show the player names in the bids table
-    showPlayerNamesInBidsTable();
 }
 
 // whenever the player changes, show the player name
@@ -241,11 +241,12 @@ function updateGamePlayerNames(){
  * clears the bids table
  * to be called with every new game
  */
-function clearBidsTable(){
+function clearBidsTable(firstColumnIndex){
     let bidTable=document.getElementById("bids-table").querySelector("tbody");
     for(let bidTableRow of bidTable.children)
-        for(let bidTableColumn of bidTableRow.children)
-            bidTableColumn.innerHTML="";
+        for(let bidTableColumnIndex in bidTableRow.children)
+            if(bidTableColumnIndex>=firstColum)
+                bidTableRow.children[bidTableColumnIndex].innerHTML="";
 }
 
 function setSuiteClass(element,suite){
@@ -410,33 +411,37 @@ function updateChoosePartnerSuiteCards(suiteCards){
  * @param {*} suiteCards 
  */
 function updatePlayerSuiteCards(suiteCards){
-    console.log("Showing the (current player) cards to choose from.");
-    //////////if(currentPage==="page-playing")alert("Showing the playing cards again!");
-    let tablebody=document.getElementById("player-suitecards-table");
-    console.log("********* Suite cards: ",suiteCards);
-    let rows=tablebody.querySelectorAll("div");
-    console.log("Number of rows: ",rows.length);
-    for(let suite=0;suite<rows.length;suite++){
-        let row=rows[suite];
-        /////////let suiteColor=SUITE_COLORS[suite%2];
-        let cardsInSuite=(suite<suiteCards.length?suiteCards[suite]:[]);
-        // console.log("Number of cards in suite #"+suite+": "+cardsInSuite.length);
-        let columns=row.querySelectorAll("span");
-        // console.log("Number of columns: ",columns.length);
-        for(let suiteCard=0;suiteCard<columns.length;suiteCard++){
-            let cellbutton=columns[suiteCard]/*.querySelector("input[type=button]")*/;
-            if(!cellbutton){console.log("No cell button!");continue;}
-            let cardInSuite=(suiteCard<cardsInSuite.length?cardsInSuite[suiteCard]:null);
-            if(cardInSuite){
-                // console.log("Showing card: ",cardInSuite);
-                cellbutton.innerHTML=cardInSuite.getTextRepresentation();
-                cellbutton.classList.add(Card.SUITE_NAMES[cardInSuite.suite]); // replacing: cellbutton.style.color=suiteColor;
-                cellbutton.style.display="inline";
-            }else // hide the button
-                cellbutton.style.display="none";
+    try{
+        console.log("Showing the (current player) cards to choose from.");
+        //////////if(currentPage==="page-playing")alert("Showing the playing cards again!");
+        let tablebody=document.getElementById("player-suitecards-table");
+        console.log("********* Suite cards: ",suiteCards);
+        let rows=tablebody.querySelectorAll("div");
+        console.log("Number of rows: ",rows.length);
+        for(let suite=0;suite<rows.length;suite++){
+            let row=rows[suite];
+            /////////let suiteColor=SUITE_COLORS[suite%2];
+            let cardsInSuite=(suite<suiteCards.length?suiteCards[suite]:[]);
+            // console.log("Number of cards in suite #"+suite+": "+cardsInSuite.length);
+            let columns=row.querySelectorAll("span");
+            // console.log("Number of columns: ",columns.length);
+            for(let suiteCard=0;suiteCard<columns.length;suiteCard++){
+                let cellbutton=columns[suiteCard]/*.querySelector("input[type=button]")*/;
+                if(!cellbutton){console.log("No cell button!");continue;}
+                let cardInSuite=(suiteCard<cardsInSuite.length?cardsInSuite[suiteCard]:null);
+                if(cardInSuite){
+                    // console.log("Showing card: ",cardInSuite);
+                    cellbutton.innerHTML=cardInSuite.getTextRepresentation();
+                    cellbutton.classList.add(Card.SUITE_NAMES[cardInSuite.suite]); // replacing: cellbutton.style.color=suiteColor;
+                    cellbutton.style.display="inline";
+                }else // hide the button
+                    cellbutton.style.display="none";
+            }
         }
+        console.log("Current player cards to choose from shown!");
+    }finally{
+        updatePlayableCardButtonClickHandlers(true); // whenever the suite cards showing change we make them clickable
     }
-    console.log("Current player cards to choose from shown!");
 }
 
 function updatePlayerResultsTable(){
@@ -659,39 +664,49 @@ class OnlinePlayer extends Player{
 
     // make a bid is called with 
     makeABid(playerBidsObjects,possibleBids){
-        // if(document.getElementById("page-bidding").style.visibility==="hidden")return;
-        toMakeABid=true; // MDH@03FEB2020: some additional protection in case the buttons won't hide
-        forceFocus(this.name);
-        // ascertain to be looking at the bidding page (in which case we can safely use VISIBLE)
-        if(currentPage!="page-bidding")setPage("page-bidding"); 
-        // removed: document.getElementById("wait-for-bid").style.visibility="hidden"; // show the bidding element
-        // MDH@03FEB2020: inherit is safer because if this happens by accident (when not on the bidding page)
-        document.getElementById("bidding").style.visibility=VISIBLE; // show the bidding element, essential to hide it immediately after a bid
-        // currentPlayer=this; // remember the current player
-        setInfo("Doe een bod.");
-        console.log("Possible bids player '"+this.name+"' could make: ",possibleBids);
-
-        //setInfo("Maak een keuze uit een van de mogelijke biedingen.");
-        // it's always you!!!! document.getElementById("bidder").innerHTML=this.name;
-        /* replacing:
-        document.getElementById("toggle-bidder-cards").innerHTML="Toon kaarten";
-        bidderCardsElement.innerHTML="";
-        document.getElementById("toggle-bidder-cards").value=this.getTextRepresentation("<br>");
-        */
-        // either show or hide the bidder cards immediately
-        document.getElementById("bidder-suitecards-table").style.display="block";
-        if(/*playmode==PLAYMODE_DEMO*/0^document.getElementById("bidder-suitecards-button").classList.contains("active-bid-button"))
-            document.getElementById("bidder-suitecards-button").classList.toggle("active-bid-button");
-        /* MDH@11JAN2020: moved over to when the player cards are received!!!
-        // NOTE because every player gets a turn to bid, this._suiteCards will be available when we ask for trump/partner!!!
-        updateBidderSuiteCards(this._suiteCards=this._getSuiteCards());
-        */
-        // only show the buttons corresponding to possible bids
-        for(let bidButton of document.getElementsByClassName("bid"))
-            bidButton.style.display=(possibleBids.indexOf(parseInt(bidButton.getAttribute('data-bid')))>=0?"inline":"none");
-        // show the player bids in the body of the bids table
-        updateBidsTable(playerBidsObjects);
-        setPlayerState(PLAYERSTATE_BID);
+        // request of game engine (server) to make a bid
+        toMakeABid++;
+        if(toMakeABid===1){ // first time request for the bid
+            forceFocus(this.name);
+            // ascertain to be looking at the bidding page (in which case we can safely use VISIBLE)
+            if(currentPage!="page-bidding")setPage("page-bidding"); 
+            // removed: document.getElementById("wait-for-bid").style.visibility="hidden"; // show the bidding element
+            // MDH@03FEB2020: inherit is safer because if this happens by accident (when not on the bidding page)
+            document.getElementById("bidding").style.visibility=VISIBLE; // show the bidding element, essential to hide it immediately after a bid
+            // currentPlayer=this; // remember the current player
+            setInfo("Doe een bod.","Server");
+            console.log("Possible bids player '"+this.name+"' could make: ",possibleBids);
+    
+            //setInfo("Maak een keuze uit een van de mogelijke biedingen.");
+            // it's always you!!!! document.getElementById("bidder").innerHTML=this.name;
+            /* replacing:
+            document.getElementById("toggle-bidder-cards").innerHTML="Toon kaarten";
+            bidderCardsElement.innerHTML="";
+            document.getElementById("toggle-bidder-cards").value=this.getTextRepresentation("<br>");
+            */
+            // either show or hide the bidder cards immediately
+            document.getElementById("bidder-suitecards-table").style.display="block";
+            if(/*playmode==PLAYMODE_DEMO*/0^document.getElementById("bidder-suitecards-button").classList.contains("active-bid-button"))
+                document.getElementById("bidder-suitecards-button").classList.toggle("active-bid-button");
+            /* MDH@11JAN2020: moved over to when the player cards are received!!!
+            // NOTE because every player gets a turn to bid, this._suiteCards will be available when we ask for trump/partner!!!
+            updateBidderSuiteCards(this._suiteCards=this._getSuiteCards());
+            */
+            // only show the buttons corresponding to possible bids
+            for(let bidButton of document.getElementsByClassName("bid"))
+                bidButton.style.display=(possibleBids.indexOf(parseInt(bidButton.getAttribute('data-bid')))>=0?"inline":"none");
+            // show the player bids in the body of the bids table
+            updateBidsTable(playerBidsObjects);
+            setPlayerState(PLAYERSTATE_BID);    
+        }else // not the first time a bid was requested
+        if(bidMadeInfo){
+            let error=(currentPlayer?currentPlayer._setBid(bidMadeInfo):new Error(bug("Je bent geen speler meer!")));
+            if(error instanceof Error)
+                setInfo("Nog steeds problemen bij het versturen van je bod. We blijven het proberen.","Speler");
+            else
+                setInfo("Je bod is nogmaals verstuurd. Hopelijk hebben we nu meer geluk!","Speler");
+        }else
+            setInfo("Er wordt op je bod gewacht!","Server");
     }
     chooseTrumpSuite(suites){
         forceFocus(this.name);
@@ -727,7 +742,7 @@ class OnlinePlayer extends Player{
         if(!trick)return bug("De slag ontbreekt!");
         if(trick.numberOfCards>0&&trick.playSuite<0)return bug("De te spelen kleur is onbekend!");
         toPlayACard++;
-        if(toPlayACard==1){ // first request, no card was played so far
+        if(toPlayACard===1){ // first request, no card was played so far
             playedCardInfo=null; // initialize cardPlayed to null
             forceFocus(this.name);
             /* replacing:
@@ -735,7 +750,7 @@ class OnlinePlayer extends Player{
             document.getElementById("playing").style.visibility=VISIBLE; // show the play element
             */
             // MDH@19JAN2020: allow the current player to play a card by clicking one
-            updatePlayableCardButtonClickHandlers(true); // ready to rock 'n' roll
+            // MDH@05FEB2020 removing because we're keeping all cards clickable and stop them programmatically from doing harm: updatePlayableCardButtonClickHandlers(true); // ready to rock 'n' roll
             // MDH@05FEB2020 overkill: setInfo("Speel een "+(trick.playSuite>=0?Language.DUTCH_SUITE_NAMES[trick.playSuite]:"kaart")+".");
             // if this is a new trick update the tricks played table with the previous trick
             // if(trick.numberOfCards==0)updateTricksPlayedTables();
@@ -765,20 +780,24 @@ class OnlinePlayer extends Player{
             // send the card played again
             let error=this._setCard(...playedCardInfo);
             if(error instanceof Error){
-                setInfo("Versturen van de gespeelde kaart ("+getLocaleCardText(playableCardInfo[0])+") mislukt! Fout: "+error.message+".");
+                setInfo("Versturen van de gespeelde kaart ("+getLocaleCardText(playableCardInfo[0])+") mislukt! Fout: "+error.message+".","Speler");
                 console.log("ERROR: ",error);
-            }else
-                setInfo(capitalize(getLocaleCardText(playableCardInfo[0]))+" opnieuw verstuurd!");
+            }else{
+                setInfo(capitalize(getLocaleCardText(playableCardInfo[0]))+" opnieuw verstuurd!","Speler");
+                console.log("Card played send again.");
+            }
         }else
-            setInfo("We wachten op je kaart!");
+            setInfo("We wachten op je kaart!","Server");
     }
 
+    // _cardPlayedWithSuiteAndIndex replaced by _getCardWithSuiteAndIndex() combined with _cardPlayed
+
+    _getCardWithSuiteAndIndex(suite,index){return(suite<this._suiteCards.length&&this._suiteCards[suite].length?this._suiteCards[suite][index]:null);}
     // not to be confused with _cardPlayed() defined in the base class Player which informs the game
     // NOTE cardPlayed is a good point for checking the validity of the card played
     // NOTE can't use _cardPlayed (see Player superclass)
     // MDH@20JAN2020: deciding to return true on acceptance, false otherwise
-    _cardPlayedWithSuiteAndIndex(suite,index){
-        let card=(suite<this._suiteCards.length&&this._suiteCards[suite].length?this._suiteCards[suite][index]:null);
+    _newCardPlayed(card){
         if(card){
             // TODO checking should NOT be done by the player BUT by the trick itself!!!
             // BUG FIX: do NOT do the following here, but only at the start of a trick, or NOT at all!!!!!
@@ -800,7 +819,7 @@ class OnlinePlayer extends Player{
                     // which means that the trump player does not have 
                     if(trick.canAskForPartnerCard>0){ // non-blind
                         // TODO should be detected by the game preferably
-                        if(suite==this._game.getPartnerSuite()){
+                        if(card.suite===this._game.getPartnerSuite()){
                             askingForPartnerCard=1;
                             ////alert("\tNON_BLIND");
                         }
@@ -810,7 +829,7 @@ class OnlinePlayer extends Player{
                         // he will be asking for the 
                         // MDH@14JAN2020 BUG FIX: was using ask-partner-card-blind instead of ask-partner-card-checkbox!!!
                         if(document.getElementById("ask-partner-card-checkbox").checked&&
-                            (suite!=this._game.getTrumpSuite()||confirm("Wilt U de "+Language.DUTCH_SUITE_NAMES[this._game.getPartnerSuite()]+" "+Language.DUTCH_RANK_NAMES[this._game.getPartnerRank()]+" (blind) vragen met een troef?"))){
+                            (card.suite!==this._game.getTrumpSuite()||confirm("Wilt U de "+Language.DUTCH_SUITE_NAMES[this._game.getPartnerSuite()]+" "+Language.DUTCH_RANK_NAMES[this._game.getPartnerRank()]+" (blind) vragen met een troef?"))){
                             askingForPartnerCard=-1; // yes, asking blind!!
                             /////alert("\tBLIND!");
                         }
@@ -825,27 +844,24 @@ class OnlinePlayer extends Player{
                 }
             }else{ // not the first card in the trick played
                 // the card needs to be the same suite as the play suite (if the player has any)
-                if(suite!==trick.playSuite&&this.getNumberOfCardsWithSuite(trick.playSuite)>0)
-                    return new Error("Je kunt "+card.getTextRepresentation()+" niet spelen, want "+Language.DUTCH_SUITE_NAMES[trick.playSuite]+" is gevraagd.");
+                if(card.suite!==trick.playSuite&&this.getNumberOfCardsWithSuite(trick.playSuite)>0)
+                    return new Error("Je kunt "+getLocaleCardText(card)+" niet spelen, want "+Language.DUTCH_SUITE_NAMES[trick.playSuite]+" is gevraagd.");
                 // when being asked for the partner card that would be the card to play!
                 if(trick.askingForPartnerCard!=0){
                     let partnerSuite=this._game.getPartnerSuite(),partnerRank=this._game.getPartnerRank();
                     if(this.containsCard(partnerSuite,partnerRank)){
-                        if(card.suite!=partnerSuite||card.rank!=partnerRank)
-                            return new Error("Je kunt "+card.getTextRepresentation()+" niet spelen, want de "+Language.DUTCH_SUITE_NAMES[partnerSuite]+" "+Language.DUTCH_RANK_NAMES[partnerRank]+" is gevraagd.");
+                        if(card.suite!==partnerSuite||card.rank!==partnerRank)
+                            return new Error("Je kunt "+getLocaleCardText(card)+" niet spelen, want de "+Language.DUTCH_SUITE_NAMES[partnerSuite]+" "+Language.DUTCH_RANK_NAMES[partnerRank]+" is gevraagd.");
                     }
                 }
             }
+            // MDH@05FEB2020: at this point the card played was accepted (theoretically), it only needs to be sent successfully to the server, and returned as played card
+            playedCardInfo=[card,askingForPartnerCard]; // by remembering the card being played here and now we block further attempts for a player to change the card (s)he played
             // MDH@14JAN2020: we have to also return whatever trick value that might've changed
             //                which in this case could wel be the asking for partner card 'flag'
             // MDH@27JAN2020: I suggest changing askingForPartnerCard to askingForPartnerCard<0 i.e. blind request!!!
             //                we're taking care of that when CARD is sent (so not to interfere with RikkenTheGame.js itself)
-            let error=this._setCard(card,askingForPartnerCard);
-            if(error instanceof Error)return error;
-            // MDH@05FEB2020: remember the card played, and do NOT clear it until we receive it back as a played card
-            //                this way we can send it again by calling this._setCard(...playedCardInfo) the next time when we are asked to do so
-            playedCardInfo=[card,askingForPartnerCard]; 
-            return null;
+            return this._setCard(card,askingForPartnerCard);
             /* MDH@27JAN2020: removing the following might be wrong BUT by passing askingForPartnerCard to the server
                               all players including myself will receive the card played and update askingForPartnerCard
                               accordingly, basically addCard() will set it to 1 if it so detects, but cannot set it to -1
@@ -855,8 +871,10 @@ class OnlinePlayer extends Player{
             return null;
             */
         }
-        return new Error("Ongeldige kaart kleur "+DUTCH_SUITE_NAMES[suite]+" en/of kaart kleur positie ("+String(index)+").");
+        return new Error("Geen kaart gespeeld!");
     }
+    _cardPlayedWithSuiteAndIndex(suite,index){bug("Deze methode mag niet meer worden aangeroepen.");}
+
     playsTheGameAtIndex(game,index){
         if(this._game){
             if(!game){
@@ -871,7 +889,7 @@ class OnlinePlayer extends Player{
                 this._partner=-1;
                 // other things to do???????
                 if(this.numberOfCards>0){
-                    setInfo("De overgebleven kaarten in je hand worden verwijderd!");
+                    setInfo("De overgebleven kaarten in je hand worden verwijderd!","Spel");
                     this._removeCards();
                 }
                 // if sending the DONE event succeeds ready again to play in a next game (without leaving the game playing)
@@ -918,19 +936,21 @@ class OnlinePlayer extends Player{
  */
 function bidButtonClicked(event){
     // MDH@03FEB2020: prevent making a bid when not supposed to do so
-    if(!toMakeABid){alert("Je hebt al een bod uitgebracht!");return;}
+    if(toMakeABid<=0)return alert("Je mag nu niet bieden! Het wachten is op een seintje van de server.");
+    if(bidMadeInfo)return alert("Je hebt al een bod uitgebracht!");
     try{
         let bid=parseInt(event.currentTarget.getAttribute("data-bid"));
-        if(isNaN(bid)||bid<0){alert("Ernstige programmafout: ongeldig bod ("+(bid?bid:"?")+")! Probeer het nog eens.");return;}
+        if(isNaN(bid)||bid<0)return alert(bug("Ongeldig bod ("+(bid?bid:"?")+")!"));
+        bidMadeInfo=bid; // remember the bid in case we need to send it again
         // document.getElementById("bidding").style.visibility="hidden"; // hide the bidding element
-        console.log("Bid chosen: ",bid);
-        let error=currentPlayer._setBid(bid); // the value of the button is the made bid
+        console.log("Bid chosen (to be sent for the first time): ",bidMadeInfo);
+        let error=currentPlayer._setBid(bidMadeInfo); // the value of the button is the made bid
         if(error instanceof Error)
-            alert(error);
+            setInfo("Problemen bij het versturen van je bod: "+error.message+". We blijven het proberen.","Spel");
         else // bid done!!!
-            toMakeABid=false;
+            setInfo("Bod verstuurd!","Spel");
     }finally{
-        document.getElementById("bidding").style.visibility=(toMakeABid?VISIBLE:"hidden"); // show again
+        document.getElementById("bidding").style.visibility=(bidMadeInfo?"hidden":VISIBLE); // show again
     }
 }
 /**
@@ -965,6 +985,8 @@ var playablecardCell,playablecardCellContents;
 function playablecardButtonClicked(event){
     
     // MDH@05FEB2020: prevent from playing a card when a card has already been played (and not yet confirmed by the server)
+    if(toPlayACard<=0)return alert("Je mag nu geen kaart spelen! Het wachten is op een seintje van de server.");
+    
     if(playedCardInfo)return alert("Je hebt al een kaart ("+getLocaleCardText(playedCardInfo[0])+") gespeeld.");
 
     playablecardCell=(event&&event.currentTarget); // remember the 'cell' of the card clicked!!!!
@@ -975,7 +997,9 @@ function playablecardButtonClicked(event){
     if(cardSuite<Card.SUITE_DIAMOND||cardSuite>Card.SUITE_SPADE||cardRank<Card.RANK_TWO||cardRank>Card.RANK_ACE)return;
 
     ////////if(playablecardCell.style.border="0px")return; // empty 'unclickable' cell
-    let error=currentPlayer._cardPlayedWithSuiteAndIndex(cardSuite,cardRank);
+    // MDH@05FEB2020: replacing the original call to _cardPlayedWithSuiteAndIndex() with the calls to the OnlinePlayer() methods replacing the single call so we know the card played!!
+    let cardPlayed=currentPlayer._getCardWithSuiteAndIndex(cardSuite,cardRank);
+    let error=currentPlayer._newCardPlayed(cardPlayed); 
     if(playedCardInfo){ // MDH@05FEB2020 replacing: !(error instanceof Error)){ // card accepted!!!
         forceFocus(null); // no need to prompt the user anymore, (s)he only needs to wait for the card to be arrived by the server
         /* MDH@05FEB2020: NOT to remove the card from showing until it was confirmed by the server to have been played, we only need to prevent playing another card!!!
@@ -983,9 +1007,9 @@ function playablecardButtonClicked(event){
         playablecardCell.innerHTML="";
         updatePlayableCardButtonClickHandlers(false); // disable the card buttons
         */
-        document.getElementById("play-card-prompt").innerHTML="Gespeelde kaart geaccepteerd en verstuurd."; // MDH@23JAN2020: get rid of the play card prompt!
+        document.getElementById("play-card-prompt").innerHTML="Je hebt "+getLocaleCardText(playedCardInfo[0])+" gespeeld."; // MDH@23JAN2020: get rid of the play card prompt!
     }else // report the error to the end user
-        document.getElementById("play-card-prompt").innerHTML="Versturen mislukt. Probeer het nog eens!";
+        document.getElementById("play-card-prompt").innerHTML="Je mag "+getLocaleCardText(cardPlayed)+" niet spelen. Speel een andere kaart!";
 }
 /**
  * convenient to be able to turn the playable card buttons on and off at the right moment
@@ -1005,24 +1029,24 @@ function _gameStateChanged(fromstate,tostate){
     console.log("GAMEPLAYING >>> Toestand verandert van "+fromstate+" naar "+tostate+".");
     switch(tostate){
         case PlayerGame.IDLE:
-            setInfo("Een spel is aangemaakt.");
+            setInfo("Een spel is aangemaakt.","Server");
             break;
         case PlayerGame.DEALING:
-            setInfo("De kaarten worden geschud en gedeeld.");
+            setInfo("De kaarten worden geschud en gedeeld.","Server");
             break;
         case PlayerGame.BIDDING:
             // when moving from the DEALING state to the BIDDING state clear the bid table
             // ALTERNATIVELY this could be done when the game ends
             // BUT this is a bit safer!!!
-            setInfo("Het bieden is begonnen!");
+            setInfo("Het bieden is begonnen!","Server");
             /* if(fromstate===PlayerGame.DEALING)*/
-            clearBidsTable();
+            clearBidsTable(1);
             ////// let's wait until a bid is requested!!!! 
             // MDH@09JAN2020: NO, we want to indicate that the bidding is going on
             setPage("page-bidding");
             break;
         case PlayerGame.PLAYING:
-            setInfo("Het spelen kan beginnen!");
+            setInfo("Het spelen kan beginnen!","Server");
             // updatePlayableCardButtonClickHandlers(true); // allowing the user to cl
             /* MDH@19JAN2020: in due course we will be removing the following two lines
             document.getElementById("wait-for-play").style.visibility="hidden"; // hide the wait-for-play element
@@ -1035,7 +1059,7 @@ function _gameStateChanged(fromstate,tostate){
             currentPlayer.game._numberOfTricksPlayed+=1; // QUICK FIX to get to see the last trick at the right position!!!!!
             updateTricksPlayedTables(); // so we get to see the last trick as well!!!
             updatePlayerResultsTable(); // show the player results so far
-            setInfo("Het spel is afgelopen!");
+            setInfo("Het spel is afgelopen!","Server");
             clearCardsPlayedTable();
             setPage("page-finished");
             break;
@@ -1073,7 +1097,7 @@ function setPage(newPage){
                     case "setup-game": // when playing in demo mode, the user should enter four player names
                         {
                             showDefaultPlayerNames();
-                            setInfo("Vul de namen van de spelers in. Een spelernaam is voldoende.");
+                            setInfo("Vul de namen van de spelers in. Een spelernaam is voldoende.","Spel");
                         }
                         break;
                     case "auth": // page-auth
@@ -1163,7 +1187,7 @@ function newPlayers(){
     }
     if(noPlayerNames){
         players=null;
-        setInfo("Geen spelernamen opgegeven. Heb tenminste een spelernaam nodig!");
+        setInfo("Geen spelernamen opgegeven. Heb tenminste een spelernaam nodig!","Spel");
         return;
     }
     console.log("Rikken - het spel: Nieuwe spelers aangemaakt!");
@@ -1256,7 +1280,7 @@ class PlayerGameProxy extends PlayerGame {
         let bidMadeSentResult=this._setEventToSend('BID',bid,function(result){
             if(result){
                 setInfo("Bod niet geaccepteerd"+
-                            (result.hasOwnProperty('error')?" (fout: "+result.error+")":"")+"!");
+                            (result.hasOwnProperty('error')?" (fout: "+result.error+")":"")+"!","Server");
                 // TODO what now???
             }
         }); // hide the bidding element again
@@ -1269,7 +1293,7 @@ class PlayerGameProxy extends PlayerGame {
     //                askingForPartnerCard doesn't end up in the local RikkenTheGame trick
     // MDH@27JAN2020: we're receiving true for askingForPartnerCardBlind when the player is doing so
     cardPlayed(card,askingForPartnerCard){
-        if(this._state===PlayerGame.OUT_OF_ORDER){setInfo("Het spel kan niet verder gespeeld worden!");return false;}
+        if(this._state===PlayerGame.OUT_OF_ORDER){setInfo("Het spel kan niet verder gespeeld worden!","Spel");return false;}
         // MDH@17JAN2020: disable the buttons once the card is accepted (to be played!!!)
         //                TODO perhaps hiding the cards should also be done here!!!
         /* replacing:
@@ -1306,29 +1330,29 @@ class PlayerGameProxy extends PlayerGame {
         return cardSentResult;
     }
     trumpSuiteChosen(trumpSuite){
-        if(this._state===PlayerGame.OUT_OF_ORDER){setInfo("Het spel kan niet verder gespeeld worden!");return false;}
+        if(this._state===PlayerGame.OUT_OF_ORDER){setInfo("Het spel kan niet verder gespeeld worden!","Spel");return false;}
         document.getElementById("trump-suite-input").style.visibility="hidden";
         let trumpSuiteChosenSentResult=this._setEventToSend('TRUMPSUITE',trumpSuite,function(result){
                 if(result){
                     setInfo("Gekozen troefkleur niet geaccepteerd"+
-                                (result.hasOwnProperty('error')?" (fout: "+result.error+")":"")+"!");
+                                (result.hasOwnProperty('error')?" (fout: "+result.error+")":"")+"!","Server");
                     // TODO what to do now?
                 }else
-                    setInfo("Gekozen troefkleur geaccepteerd.");
+                    setInfo("Gekozen troefkleur geaccepteerd.","Server");
             });
         if(trumpSuiteChosenSentResult)setPlayerState(PLAYERSTATE_TRUMP_DONE);
         return trumpSuiteChosenSentResult;
     }
     partnerSuiteChosen(partnerSuite){
-        if(this._state===PlayerGame.OUT_OF_ORDER){setInfo("Het spel kan niet verder gespeeld worden!");return false;}
+        if(this._state===PlayerGame.OUT_OF_ORDER){setInfo("Het spel kan niet verder gespeeld worden!","Spel");return false;}
         document.getElementById("partner-suite-input").style.visibility="hidden";
         let partnerSuiteChosenSentResult=this._setEventToSend('PARTNERSUITE',partnerSuite,function(result){
                 if(result){
                     setInfo("Gekozen partner kleur niet geaccepteerd!"+
-                    (result.hasOwnProperty('error')?" (fout: "+result.error+")":"")+"!");
+                    (result.hasOwnProperty('error')?" (fout: "+result.error+")":"")+"!","Server");
                     // TODO what to do now?
                 }else
-                    setInfo("Gekozen partner kleur geaccepteerd!");
+                    setInfo("Gekozen partner kleur geaccepteerd!","Server");
             });
          // replacing: {'player':this._playerIndex,'suite':partnerSuite}));
          if(partnerSuiteChosenSentResult)setPlayerState(PLAYERSTATE_PARTNER_DONE);
@@ -1339,7 +1363,7 @@ class PlayerGameProxy extends PlayerGame {
         return this._setEventToSend('DONE',null,function(){
             console.log("DONE event acknowledged.");
             this._playerIndex=-1; // MDH@29JAN2020: I have to do this otherwise I won't be able to play in a new game (see set playerNames!!!!)
-            setInfo("Zodra er weer vier niet-spelende deelnemers zijn kun je weer spelen.");
+            setInfo("Zodra er weer vier niet-spelende deelnemers zijn kun je weer spelen.","Server");
         });
     }
     exit(reason){
@@ -1348,7 +1372,7 @@ class PlayerGameProxy extends PlayerGame {
         return this._setEventToSend('EXIT',data,function(){
             console.log("EXIT event "+data+" acknowledged!");
             // we're NOT going anywhere anymore: setPage("page-rules");
-            setInfo("Bedankt voor het spelen.");
+            setInfo("Bedankt voor het spelen.","Server");
         });
     }
 
@@ -1511,7 +1535,7 @@ class PlayerGameProxy extends PlayerGame {
         // showTrickCard(this._trick.getLastCard(),this._trick.numberOfCards);
         showTrick(this._trick);//if(this._trickWinner){this._trickWinner=null;showTrick(this._trick);}
         setPlayerState(PLAYERSTATE_CARD_RECEIVED);
-        setInfo(capitalize(Language.DUTCH_SUITE_NAMES[cardInfo.suite])+" "+Language.DUTCH_RANK_NAMES[cardInfo.rank]+" gespeeld.");
+        setInfo(capitalize(Language.DUTCH_SUITE_NAMES[cardInfo.suite])+" "+Language.DUTCH_RANK_NAMES[cardInfo.rank]+" gespeeld.","Spel");
         return null;
     }
     /* replacing:
@@ -1605,7 +1629,7 @@ class PlayerGameProxy extends PlayerGame {
         console.log("**************************** PROCESSING EVENT "+event+" >>>"+JSON.stringify(data));
         switch(event){
             case "INFO":
-                setInfo("Spel server zegt: "+data);
+                setInfo(data,"Server");
                 break;
             case "STATECHANGE":
                 this.state=data.to;
@@ -1662,9 +1686,9 @@ class PlayerGameProxy extends PlayerGame {
             case "TO_BID":
                 if(data!==currentPlayer.name){
                     setPlayerState(PLAYERSTATE_WAIT_FOR_BID);
-                    setInfo("We wachten op het bod van "+data+".");
+                    setInfo("We wachten op het bod van "+data+".","Server");
                 }else
-                    setInfo("U wordt zo om een bod gevraagd.");
+                    setInfo("U wordt zo om een bod gevraagd.","Server");
                 // if(data!==currentPlayer.name)
                 //     document.getElementById("bid-info").innerHTML="We wachten op het bod van <b>"+data+"</b>.";
                 // else
@@ -1676,22 +1700,26 @@ class PlayerGameProxy extends PlayerGame {
                 break;
             case "BID_MADE": // returned when a bid is made by someone
                 /////////if(data.player===this._playerIndex)
-                document.getElementById("bidding").style.visibility="hidden";
+                if(toMakeABid>0){ // it's our bid!!!!
+                    toMakeABid=0;bidMadeInfo=null;
+                    document.getElementById("bidding").style.visibility="hidden";
+                }
                 setPlayerState(PLAYERSTATE_BID_RECEIVED);
+                document.getElementById("bid-info").innerHTML=getBidInfo(data.bid,data.player===currentPlayer.index?null:this.getPlayerName(data.player));
                 // assuming to receive in data both the player and the bid
                 document.getElementById("bid-info").innerHTML=getBidInfo(data.bid,data.player===currentPlayer.index?null:this.getPlayerName(data.player));
                 this._playersBids[data.player].push(data.bid);
                 // TODO how to show the bids?????
                 updateBidsTable(this._getPlayerBidsObjects());
                 // MDH@03FEB2020: fail-safe BUT this should be done another way TODO
-                setInfo("Bod van "+this.getPlayerName(data.player)+": "+PlayerGame.BID_NAMES[data.bid]+".");
+                setInfo("Bod van "+this.getPlayerName(data.player)+": "+PlayerGame.BID_NAMES[data.bid]+".","Server");
                 break;
             case "TO_PLAY":
                 if(currentPlayer.name!==data){
                     setPlayerState(PLAYERSTATE_WAIT_FOR_CARD);
-                    setInfo("We wachten op de kaart van "+data+".");
+                    setInfo("We wachten op de kaart van "+data+".","Server");
                 }else
-                    setInfo("U wordt zo om een kaart gevraagd!");
+                    setInfo("U wordt zo om een kaart gevraagd!","Server");
                 /*
                 if(currentPlayer.name!==data)
                     document.getElementById("play-info").innerHTML="We wachten op de kaart van <b>"+data+"</b>.";
@@ -1728,19 +1756,22 @@ class PlayerGameProxy extends PlayerGame {
                 break;
             */
             case "PLAY_A_CARD":
-                setPlayerState(PLAYERSTATE_CARD);
-                // MDH@03FEB2020: taking over from PLAYER_INFO as the cards are now received in the PLAY_A_CARD event!!!!
-                currentPlayer._removeCards(); // TODO find a way NOT to have to do this!!!
-                data.cards.forEach((cardInfo)=>{new HoldableCard(cardInfo[0],cardInfo[1],currentPlayer);});
-                currentPlayer.renderCards();
-                // we're receiving trick info in data
-                // MDH@20JAN2020: NOT anymore
-                if(!this._trick){
-                    alert("Programmafout: U wordt om een kaart gevraagd in een ongedefinieerde slag! We wachten even op slaginformatie.");
-                    return; // MDH@27JAN2020: doing this and hoping the next request is received AFTER receiving a new trick!!!
+                // MDH@05FEB2020: this is a bit of a nuisance, since we use the toPlayACard flag in playACard, but we need it here so not to do the extra work
+                if(toPlayACard<=0){ // first time request
+                    setPlayerState(PLAYERSTATE_CARD);
+                    // MDH@03FEB2020: taking over from PLAYER_INFO as the cards are now received in the PLAY_A_CARD event!!!!
+                    currentPlayer._removeCards(); // TODO find a way NOT to have to do this!!!
+                    data.cards.forEach((cardInfo)=>{new HoldableCard(cardInfo[0],cardInfo[1],currentPlayer);});
+                    currentPlayer.renderCards();
+                    // we're receiving trick info in data
+                    // MDH@20JAN2020: NOT anymore
+                    if(!this._trick){
+                        alert("Programmafout: U wordt om een kaart gevraagd in een ongedefinieerde slag! We wachten even op slaginformatie.");
+                        return; // MDH@27JAN2020: doing this and hoping the next request is received AFTER receiving a new trick!!!
+                    }
+                    // MDH@22JAN2020: occassionally we may receive the request to play BEFORE actually having received the state change!!
+                    if(currentPage!=="page-playing")setPage("page-playing");    
                 }
-                // MDH@22JAN2020: occassionally we may receive the request to play BEFORE actually having received the state change!!
-                if(currentPage!=="page-playing")setPage("page-playing");
                 currentPlayer.playACard();
                 break;
             case "CHOOSE_TRUMP_SUITE":
@@ -1748,14 +1779,14 @@ class PlayerGameProxy extends PlayerGame {
                 break;
             case "TRUMP_SUITE_CHOSEN":
                 setPlayerState(PLAYERSTATE_TRUMP_RECEIVED);
-                setInfo(capitalize(Language.DUTCH_SUITE_NAMES[data])+" gekozen als troef.");
+                setInfo(capitalize(Language.DUTCH_SUITE_NAMES[data])+" gekozen als troef.","Server");
                 break;
             case "CHOOSE_PARTNER_SUITE":
                 currentPlayer.choosePartnerSuite(data.suites,data.partnerRankName);
                 break;
             case "PARTNER_SUITE_CHOSEN":
                 setPlayerState(PLAYERSTATE_PARTNER_RECEIVED);
-                setInfo(capitalize(Language.DUTCH_SUITE_NAMES[data.suite])+" "+Language.DUTCH_RANK_NAMES[data.rank]+" meegevraagd.");
+                setInfo(capitalize(Language.DUTCH_SUITE_NAMES[data.suite])+" "+Language.DUTCH_RANK_NAMES[data.rank]+" meegevraagd.","Server");
                 break;
             case "TRICK":
                 updateTricks(this.parseTrick(data));
@@ -1788,7 +1819,7 @@ class PlayerGameProxy extends PlayerGame {
                 break;
             case "disconnect":
                 // MDH@22JAN2020: better not to go out of order when this happens!!!!!!
-                setInfo("Verbinding met de server (tijdelijk) verbroken!"); // replacing: this.state=PlayerGame.OUT_OF_ORDER;
+                setInfo("Verbinding met de server (tijdelijk) verbroken!","Server"); // replacing: this.state=PlayerGame.OUT_OF_ORDER;
                 break;
             default:
                 console.log("ERROR: Unknown event "+event+" received!");
@@ -1994,7 +2025,7 @@ function prepareForPlaying(){
     for(let bidButton of document.getElementsByClassName("bid"))bidButton.onclick=bidButtonClicked;
     
     // prepare for showing/hiding the cards of the current bidder
-    initializeBidderSuitecardsButton();
+    initializeCollapsingButtons();
     // replacing: document.getElementById("toggle-bidder-cards").onclick=toggleBidderCards;
 
     // event handler for selecting a suite
@@ -2054,19 +2085,19 @@ function _setPlayer(player,errorcallback){
                     setPage("page-wait-for-players");    
                     if(typeof errorcallback==='function')errorcallback(null);
                 }else
-                    setInfo("De verbinding met de spel server is hersteld.");
+                    setInfo("De verbinding is hersteld.","Server");
                 // MDH@23JAN2020: push the player name to the server again, so it can resend what needs sending!!!!
                 if(currentPlayer)clientsocket.emit('PLAYER',currentPlayer.name,()=>{
-                    setInfo("Aangemeld bij de spel server!");
+                    setInfo("Je bent als speler aangemeld!","Server");
                 });
             }else{
-                setInfo("De verbinding met de spel server is verbroken.");
+                setInfo("De verbinding is verbroken.","Server");
                 (typeof errorcallback!=='function'||errorcallback(new Error("Failed to connect to the server.")));
             }
         });
         clientsocket.on('connect_error',(err)=>{
             console.log("Connect error: ",err);
-            setInfo("Er is een probleem met de verbinding met de spel server ("+err.message+")!");
+            setInfo("Er is een probleem met de verbinding ("+err.message+")!","Server");
             (typeof errorcallback!=='function'||errorcallback(err));
         });
         // try to connect to the server catching whatever happens through events

@@ -138,7 +138,7 @@ const mongoose=require('mongoose');
 mongoose.connect(process.env.MONGODB_CONNECTION_STRING,{useNewUrlParser:true,useUnifiedTopology:true})
   .then(() => {
 
-    console.log('Connected to MongoDB!');
+    console.log('Connected to the game database!');
 
     // running with the acknowledgmentRequired flag set to true would result in multiple users being asked to send their bid
     // which must mean that an event isn't actually acknowledged!!!!!
@@ -232,6 +232,12 @@ app.get('/ironhackers',(req,res)=>{res.render('ironhackers');}); // the test pag
 // MDH@24JAN2020: replacing gameplaying by spelen and player by als
 app.get('/spelen',(req,res)=>{res.render('gameplaying',(req.query.als?null:{username:"Marc"}));}); // each player 
 
+app.locals.developing=(process.env.NODE_ENV&&process.env.NODE_ENV==="development");
+
+app.get('/herstarten',(req,res)=>{
+    res.send("Tsja, dat zou ik zelf ook wel willen, maar het zal nog wel even op zich laten wachten.");
+});
+
 // either use the environment defined PORT or 3000
 let port=(process.env.PORT||3000);
 server.listen(port,()=>{
@@ -240,7 +246,7 @@ server.listen(port,()=>{
 
 console.log("Environment: "+process.env.NODE_ENV+".");
 
-if(!process.env.NODE_ENV||process.env.NODE_ENV!=="development")return;
+if(!app.locals.developing)return;
 
 var inspectingEventLog=false;
 ///*
@@ -303,4 +309,8 @@ stdin.on( 'data', function( key ){
     else
         console.log("ERROR: Failed to start inspecting the game events.");
 });
+
+// MDH@05FEB2020: open a browser window immediately
+require('open')('http://localhost:'+port);
+
 //*/
