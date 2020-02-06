@@ -50,6 +50,33 @@ var currentPlayer=null; // the current game player
 
 var currentGame=null; // we remember the game until we no longer need it
 
+// MDH@06FEB2020: as we're sending with acknowledging we can keep track of the response time of the server to use when exiting the game
+class ServerResponseStats{
+    constructor(){
+        this._minimumResponseMs=null;
+        this._maximumResponseMs=null;
+        this._lastResponseMs=null;
+    }
+    get minimumResponseMs(){return this._minimumResponseMs;}
+    get maximumResponseMs(){return this._maximumResponseMs;}
+    get lastResponseMs(){return this._lastResponseMs;}
+    add(responseMs){
+        console.log("***** Adding server response time "+responseMs+".");
+        this._lastResponseMs=responseMs;
+        if(!this._maximumResponseMs||this._lastResponseMs>this._maximumResponseMs)this._maximumResponseMs=this._lastResponseMs;
+        if(!this._minimumResponseMs||this._lastResponseMs<this._minimumResponseMs)this._minimumResponseMs=this._lastResponseMs;
+    }
+}
+var serverResponseStats=new ServerResponseStats();
+function sendToServer(socket,event,data,callback){
+    let sendToServerTimeMs=window.performance.now();
+    socket.emit(event,data,(response)=>{
+        serverResponseStats.add(window.performance.now()-sendToServerTimeMs); // remember how long acknowledging took
+        if(typeof callback==='function')callback(response);
+    });
+    return true;
+}
+
 // MDH@05FEB2020: if somebody wants to stop playing completely, (s)he wants to be completely forgotten
 //                setPlayerName() 
 function stopPlaying(){
@@ -139,6 +166,7 @@ function sendMessageButtonClicked(){
         // if no text entered to be sent, ask player whether
         if(textToSend.trim().length===0&&!prompt("Er is geen te versturen tekst. Wilt U toch versturen?"))return;
         setInfo("?","Jij");
+        // MDH@06FEB2020: NOT using sendToServer here because not sure if sendToServer is re-entrant!!!!
         currentGame._socket.emit('PLAYER_SAYS',{'state':currentPlayerState,'text':textToSend},(response)=>{
             setInfo(response&&response.length>0?response:"Bericht ontvangen, maar geen antwoord gestuurd.","Server");
             // if the message text differed from the default message we clear the message text
@@ -1251,7 +1279,7 @@ class PlayerGameProxy extends PlayerGame {
     _sendEvent(){
         let result=false;
         try{
-            this._socket.emit(this._eventToSend[0],this._eventToSend[1],this._sentEventReceived);
+            sendToServer(this._socket,this._eventToSend[0],this._eventToSend[1],this._sentEventReceived);
             this._eventToSend[2]++;
             result=true;
             // MDH@01FEB2020: we show how often a certain event was sent on the sendMessageButton
