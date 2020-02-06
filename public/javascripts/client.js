@@ -663,7 +663,7 @@ function updateBidsTable(playerBidsObjects){
         let playerBidsObject=playerBidsObjects[playerBidsIndex];
         let playerIndex=rikkenTheGame.getPlayerIndex(playerBidsObject.name);
         // on the safe side, get the player index from the game passing in  player name
-        if(playerIndex<0){alert("Player "+playerBidsObject.name+" unknown!");continue;}
+        if(playerIndex<0){alert("Speler "+playerBidsObject.name+" onbekend!");continue;}
         let playerBidsRow=bidTable.children[playerIndex];
         // MDH@23JAN2020 showing the player names once: playerBidsRow.children[0].innerHTML=capitalize(playerBidsObject.name); // write the name of the player
         // write the bids (we have to clear the table with every new game though)
@@ -1795,7 +1795,7 @@ class PlayerGameProxy extends PlayerGame {
                     // we're receiving trick info in data
                     // MDH@20JAN2020: NOT anymore
                     if(!this._trick){
-                        alert("Programmafout: U wordt om een kaart gevraagd in een ongedefinieerde slag! We wachten even op slaginformatie.");
+                        setInfo("Programmafout: U wordt om een kaart gevraagd in een ongedefinieerde slag! We wachten even op slaginformatie.","Server");
                         return; // MDH@27JAN2020: doing this and hoping the next request is received AFTER receiving a new trick!!!
                     }
                     // MDH@22JAN2020: occassionally we may receive the request to play BEFORE actually having received the state change!!
