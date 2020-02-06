@@ -712,8 +712,8 @@ class OnlinePlayer extends Player{
             */
             // either show or hide the bidder cards immediately
             document.getElementById("bidder-suitecards-table").style.display="block";
-            if(/*playmode==PLAYMODE_DEMO*/0^document.getElementById("bidder-suitecards-button").classList.contains("active-bid-button"))
-                document.getElementById("bidder-suitecards-button").classList.toggle("active-bid-button");
+            if(document.getElementById("bidder-suitecards-button").classList.contains("active-button"))
+                document.getElementById("bidder-suitecards-button").classList.toggle("active-button");
             /* MDH@11JAN2020: moved over to when the player cards are received!!!
             // NOTE because every player gets a turn to bid, this._suiteCards will be available when we ask for trump/partner!!!
             updateBidderSuiteCards(this._suiteCards=this._getSuiteCards());
