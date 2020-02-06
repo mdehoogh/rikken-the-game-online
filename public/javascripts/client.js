@@ -271,7 +271,7 @@ function clearBidsTable(firstColumnIndex){
     let bidTable=document.getElementById("bids-table").querySelector("tbody");
     for(let bidTableRow of bidTable.children)
         for(let bidTableColumnIndex in bidTableRow.children)
-            if(bidTableColumnIndex>=firstColum)
+            if(bidTableColumnIndex>=firstColumn)
                 bidTableRow.children[bidTableColumnIndex].innerHTML="";
 }
 
