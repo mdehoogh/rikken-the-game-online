@@ -4,11 +4,12 @@
   <h1 class="display-4">{{title}}, het spel!</h1>
   <p class="lead">Multiplayer {{title}} nu beschikbaar!</p>
   <hr class="my-4">
+  {{!-- if a user name is known the user is logged in and should be allowed to log out obviously, if not a user should be allowed to log in --}}
   {{#if username}}
-    <p>Hallo, {{username}}.</p>
+    <a href='/logout'>Afmelden</a>>
   {{else}}
-    <p>Maak vandaag nog een account aan!</p>
-    <a class="btn btn-primary btn-lg" href="/signup" role="button">Inschrijven</a>
+    <a href='/login'>Aanmelden</a>
+    {{!-- <p>Maak vandaag nog een account aan!</p><a class="btn btn-primary btn-lg" href="/signup" role="button">Inschrijven</a> --}}
   {{/if}}
 </div>
 {{> footer}}
