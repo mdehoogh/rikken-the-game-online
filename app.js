@@ -152,8 +152,9 @@ app.use((err, req, res, next) => {
   res.render('error');
 });
 
-server.listen(3000,()=>{
-  console.log("Express server listening on port 3000.");
+let port=(process.env.PORT||3000);
+server.listen(port,()=>{
+  console.log("Express server listening on port "+port+".");
   console.log("Google client ID: "+process.env.GOOGLE_CLIENT_ID+".");
   console.log("Google client secret: '"+process.env.GOOGLE_CLIENT_SECRET+".");
 });
