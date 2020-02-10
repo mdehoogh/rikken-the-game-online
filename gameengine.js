@@ -856,7 +856,7 @@ module.exports=(socket_io_server,gamesListener,numberOfGamesPlayedSoFar,acknowle
             // if the remote player left the table the game should be canceled
             if(remotePlayer.tableId)gameOver(remotePlayer.tableId,true);
         }
-        return(l>=0?(remotePlayers.splice(l,1)>0):true);
+        return(l>=0?(remotePlayers.splice(l,1).length>0):true);
     }
 
     socket_io_server.on('connection', client => {
@@ -869,17 +869,27 @@ module.exports=(socket_io_server,gamesListener,numberOfGamesPlayedSoFar,acknowle
         //console.log("Client: ",client);
         showRemotePlayersInfo("Connect");
         // if a client disconnect they cannot play anymore
-        client.on('disconnect', (callback) => {
+        // MDH@09FEB2020: it's NOT callback it's reason
+        client.on('disconnect', (reason) => {
+            console.log("Client disconnect reason: "+reason+".");
             let remotePlayerIndex=getIndexOfRemotePlayerOfClient(client);
             if(remotePlayerIndex>=0){
                 let remotePlayer=remotePlayers[remotePlayerIndex];
-                gameEngineLog("Remote player "+(remotePlayer.name||"?")+" disconnecting...");
-                // we could remove the client?????? yes, good idea as we're NOT expecting any data from this client anymore
-                remotePlayer.client=null;
+                // MDH@09FEB2020: considering 'transport close' to be a hard disconnect (e.g. by closing the window/tab)
+                if(reason==='transport close'){
+                    if(unregisterClient(client))
+                        gameEngineLog("Remote player "+(remotePlayer.name||"?")+" removed successfully on disconnecting forcefully...");
+                    else
+                        gameEngineLog("ERROR: Failed to remove remote player "+(remotePlayer.name||"?")+" on disconnecting forcefully...");
+                }else{
+                    gameEngineLog("Remote player "+(remotePlayer.name||"?")+" disconnecting...");
+                    // we could remove the client?????? yes, good idea as we're NOT expecting any data from this client anymore
+                    // MDH@09FEB2020 perhaps not such a good idea... removing: remotePlayer.client=null;
+                }
             }else
-                gameEngineLog("ERROR: Unknown remote player client disconnecting!");
+                gameEngineLog("ERROR: Unknown remote player client disconnecting "+(reason==='transport close'?'forcefully':'')+"!");
             showRemotePlayersInfo("Disconnect");
-            if(typeof callback==='function')callback();else gameEngineLog("No callback on disconnect event.");
+            // see above: if(typeof callback==='function')callback();else gameEngineLog("No callback on disconnect event.");
             /* replacing:
             // if still playing a game might reconnect, otherwise accept
             if(remotePlayers[remotePlayerIndex].tableId)
@@ -1149,6 +1159,8 @@ module.exports=(socket_io_server,gamesListener,numberOfGamesPlayedSoFar,acknowle
         });
         // when a client sends in it's ID which it should
         client.on('PLAYER',(data,callback)=>{
+            // MDH@09FEB2020: how about distnguishing between a reconnect and a first connect????????
+            //                this would allow throwing away any previous connections
             // MDH@10JAN2020: this client could be a player we already know about (when a reconnect occurred)
             //                it's easier to remove the other client instead of 
             let indexOfRemotePlayerOfClient=getIndexOfRemotePlayerOfClient(client);

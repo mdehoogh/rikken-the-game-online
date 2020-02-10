@@ -164,7 +164,7 @@ function sendMessageButtonClicked(){
         // don't send any text if sending the default text
         let textToSend=(sendMessageText.value!==playerStateMessages[currentPlayerState]?sendMessageText.value:'');
         // if no text entered to be sent, ask player whether
-        if(textToSend.trim().length===0&&!prompt("Er is geen te versturen tekst. Wilt U toch versturen?"))return;
+        if(textToSend.trim().length===0&&!confirm("Er is geen te versturen tekst. Wilt U toch versturen?"))return;
         setInfo("?","Jij");
         // MDH@06FEB2020: NOT using sendToServer here because not sure if sendToServer is re-entrant!!!!
         currentGame._socket.emit('PLAYER_SAYS',{'state':currentPlayerState,'text':textToSend},(response)=>{
@@ -2101,6 +2101,14 @@ function _setPlayer(player,errorcallback){
     // if(errorcallback)setPage("page-rules"); // the page we can show if there's no player!!!! (TODO or page-auth?????)
     if(player){
         let clientsocket=io(location.protocol+'//'+location.host);
+        // MDH@09FEB2020: adding all other possible errors we should be handling
+        clientsocket.on('connecting',()=>{console.log("Connecting...");});
+        clientsocket.on('disconnect',()=>{console.log("Disconnect");});
+        clientsocket.on('connect_failed',()=>{console.log("Connect failed...");});
+        clientsocket.on('error',(err)=>{console.log("ERROR: "+err.message+".");});
+        clientsocket.on('reconnect',()=>{console.log("Reconnect successful!");});
+        clientsocket.on('reconnecting',()=>{console.log("Reconnecting...");});
+        clientsocket.on('reconnect_failed',()=>{console.log("Reconnecting failed.");});
         clientsocket.on('connect',()=>{
             if(clientsocket.connected){
                 console.log((currentPlayer?"Reconnected":"Connected")+" to the game server!");

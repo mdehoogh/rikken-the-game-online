@@ -174,7 +174,8 @@ app.use(express.static(path.join(__dirname,'public'))); // so we can access test
 
 const server=require('http').createServer(app);
 // MDH@07JAN2020: if you use a different path here, it can't find /socket.io/socket.io.js at the client side
-const socket_io_server=require('socket.io')(server/*,{
+// MDH@09FEB2020: suggestion to increase pingInterval server-side to prevent ping timeouts
+const socket_io_server=require('socket.io')(server,{ pingInterval: 60000 }/*,{
     path: '/test',
     serveClient: false,
     // below are engine.IO options
