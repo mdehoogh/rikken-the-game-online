@@ -1,15 +1,19 @@
 <div class="spacer"></div>
 
 <div class="jumbotron">
-  <h1 class="display-4">{{title}}, het spel!</h1>
-  <p class="lead">Multiplayer {{title}} nu beschikbaar!</p>
-  <hr class="my-4">
+  {{!--replacing: <h1 class="display-4">{{title}}, het spel!</h1>
+  <p class="lead">{{title}} online spelen nu mogelijk!</p>
+  <hr class="my-4"> --}}
   {{!-- if a user name is known the user is logged in and should be allowed to log out obviously, if not a user should be allowed to log in --}}
-  {{#if username}}
-    <a href='/logout'>Afmelden</a>>
-  {{else}}
-    <a href='/login'>Aanmelden</a>
-    {{!-- <p>Maak vandaag nog een account aan!</p><a class="btn btn-primary btn-lg" href="/signup" role="button">Inschrijven</a> --}}
-  {{/if}}
+  <div>
+    {{#if user}}
+      <a href='/afmelden'>Afmelden</a>
+      <p><a href='/profiel'>Verder spelen</a></p>
+    {{else}}
+      <p>Zodra je bent ingeschreven, kun je je aanmelden om te spelen.</p>
+      <a href='/aanmelden'>Aanmelden</a>
+      <p><a class="btn btn-primary btn-lg" href="/inschrijven" role="button">Inschrijven</a></p>
+    {{/if}}
+  </div>
 </div>
-{{> footer}}
+{{!-- moved over to layout.hbs: {{> footer}} --}}

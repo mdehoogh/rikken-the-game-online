@@ -2,7 +2,7 @@
 const express = require("express");
 const router = express.Router();
 
-const User = require("../models/User");
+const User = require("../models/user");
 
 const bcrypt = require("bcryptjs");
 const bcryptSalt = 10;
@@ -12,8 +12,8 @@ const GoogleStrategy = require("passport-google-oauth20").Strategy;
 const passport = require("passport");
 
 //signup
-router.get("/signup", (req, res, next) => {
-  res.render("auth/signup");
+router.get("/inschrijven", (req, res, next) => {
+  res.render("auth/signup",{route:"Inschrijven"});
 });
 
 router.post("/signup", (req, res, next) => {
@@ -21,14 +21,14 @@ router.post("/signup", (req, res, next) => {
   const password = req.body.password;
 
   if (username === "" || password === "") {
-    res.render("auth/signup", { message: "Geef gebruikersnaam en wachtwoord op" });
+    res.render("auth/signup", { message: "Geef gebruikersnaam en wachtwoord op.",route:"Inschrijven" });
     return;
   }
 
   User.findOne({ username })
   .then(user => {
     if (user !== null) {
-      res.render("auth/signup", { message: "Gebruikersnaam al genomen" });
+      res.render("auth/signup", { message: "Gebruikersnaam al in gebruik." ,route:"Inschrijven"});
       return;
     }
 
@@ -42,9 +42,10 @@ router.post("/signup", (req, res, next) => {
 
     newUser.save((err) => {
       if (err) {
-        res.render("auth/signup", { message: "Er is iets fout gegaan" });
+        res.render("auth/signup", { message: "Er is iets fout gegaan.",route:"Inschrijven" });
       } else {
-        res.redirect("/");
+        // MDH@12FEB2020: how about going to log in immediately????
+        res.redirect("/aanmelden");
       }
     });
   })
@@ -53,28 +54,22 @@ router.post("/signup", (req, res, next) => {
   })
 });
 
-
 //login
-router.get("/login", (req, res, next) => {
-    res.render("auth/login");
+router.get("/aanmelden", (req, res, next) => {
+    res.render("auth/login",{route:"Aanmelden"});
 });
   
 router.post("/login", passport.authenticate("local", {
-  successRedirect: "/loggedin", // MDH@07FEB2020: instead of redirecting to the 'profile' page, redirecting to home
-  failureRedirect: "/login",
+  successRedirect: "/dashboard",
+  failureRedirect: "/aanmelden",
   failureFlash: true,
   passReqToCallback: true
 }));
 
-// MDH@07FEB2020: decided to only expose the user name to the home page...
-router.get('/loggedin',ensureLogin.ensureLoggedIn(),(req,res)=>{
-  res.render('home',{ username: req.user.username});
-});
-// MDH@07FEB2020 END
-
 //redirect to "profile" needs to be finished
-router.get("/private-page", ensureLogin.ensureLoggedIn(), (req, res) => {
-  res.render("private-page", { user: req.user });
+router.get("/dashboard", ensureLogin.ensureLoggedIn(), (req, res) => {
+  // console.log("After successful login user",req.user);
+  res.render("auth/private", { user: req.user,route:"Dashboard" });
 });
 
 passport.serializeUser((user, cb) => {
@@ -94,19 +89,19 @@ passport.use(new LocalStrategy((username, password, next) => {
       return next(err);
     }
     if (!user) {
-      return next(null, false, { message: "Foute gebruikersnaam of wachtwoord" });
+      return next(null, false, { message: "Foute gebruikersnaam of wachtwoord." });
     }
     if (!bcrypt.compareSync(password, user.password)) {
-      return next(null, false, { message: "Foute gebruikersnaam of wachtwoord" });
+      return next(null, false, { message: "Foute gebruikersnaam of wachtwoord." });
     }
 
     return next(null, user);
   });
 }));
 
-router.get("/logout", (req, res) => {
+router.get("/afmelden", (req, res) => {
   req.logout();
-  res.redirect("/login");
+  res.redirect("/aanmelden");
 });
 
 
@@ -124,7 +119,7 @@ router.get(
 router.get(
   "/auth/google/callback",
   passport.authenticate("google", {
-    successRedirect: "/private-page",
+    successRedirect: "/profiel",
     failureRedirect: "/" 
   })
 );
@@ -138,7 +133,7 @@ passport.use(
     },
     (accessToken, refreshToken, profile, done) => {
       console.log("Google account details:", profile);
-      debugger
+      //  debugger
       User.findOne({ googleID: profile.id })
         .then(user => {
           if (user) {

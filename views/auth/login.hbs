@@ -1,24 +1,23 @@
-<h2 class="signup">Inloggen</h2>
+{{!-- <h2 class="signup">Aanmelden</h2> --}}
 <div class="loginform">
 
   <form action="/login" method="POST">
+
     <div class="fields">
       <label for="username">Gebruikersnaam:</label>
-      <input class= "field" type="text" name="username">
+      <input type="text" name="username" class= "field">
       <label for="password">Wachtwoord:</label>
       <input type="password" name="password" class="field">
     </div>
 
-    {{#if message}}
-    <div class="error-message">{{ message }}</div>
-    {{/if}}
+    {{#if message}}<div class="error-message">{{ message }}</div>{{/if}}
 
-    <button class="submitbutton" type="submit" value="Inloggen">Inloggen</button>
+    <button class="submitbutton" type="submit" value="Inloggen">Aanmelden</button>
     <p>of</p>
     <div id="google">
-      <button class="submitbutton"><a id="glink" href="/auth/google">Inloggen met Google</a></button>
+      <button class="submitbutton"><a id="glink" href="/auth/google">Aanmelden met Google</a></button>
     </div>
-    </form>
+  </form>
 
 
 {{!-- 

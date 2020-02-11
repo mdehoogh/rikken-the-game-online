@@ -1,34 +1,50 @@
 {{#if user}}
-<div class="page">
-  <div id="greeting">
-    <h1>Hallo {{{user.username}}}</h1>
+  <div class="page">
+    {{!-- <div id="greeting"><h1>Hallo {{user.username}}</h1></div> --}}
+    <div><a href="/spelen">Ik wil spelen</a></div>
+    <div><a href="/profiel">Profiel bewerken</a></div>
+    <div><a href='/afmelden'>Afmelden</a></div>
+    <div id="score table">
+      {{#if gamesPlayed.length}}
+        {{!-- <h2>Spelresultaten</h2> --}}
+        <table style="width:100%">
+          <thead>
+            <tr>
+              <th>Datum</th>
+              <th>Spel</th>
+              <th>Spelers</th>
+              <th>Slagen</th>
+              <th>Score</th>
+            </tr>
+          </thead>
+          <tbody>
+            {{#each gamesPlayed}}
+              {{#with this}}
+                <tr>
+                  <td>{{getTimestamp created_at}}</td>
+                  <td>{{getBidName bid}}</td>
+                  <td>{{getGamePlayerNames scores user.username}}</td>
+                  <td>{{getGamePlayerTricksWon scores user.username}}</td>
+                  <td>{{getGamePlayerScore scores user.username}}</td>
+                </tr>
+              {{/with}}
+            {{/each}}
+          </tbody>
+        </table>
+      {{else}}
+        <h2>Je spelresultaten komen hier te staan!</h2>
+      {{/if}}
+    </div>
   </div>
-  <div id="score table">
-    <table style="width:100%">
-      <thead>
-        <tr>
-          <th>Datum</th>
-          <th>Aantal Punten</th>
-          <th>Resultaat</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td>{{{this.games}}}</td>
-          <td>{{{user.games}}}</td>
-          <td>{{{user.games}}}</td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-</div>
+{{else}}
+  <div>Je mag hier alleen komen als je je aangemeld hebt!</div>
 {{/if}}
 
-{{#each gamesPlayed}}
+{{!-- {{#each gamesPlayed}}
   <h1>{{name}}</h1>
   {{#each scores}}
       <h3>user: {{user.username}}</h3>
       <h3>score: {{score}}</h3>
   {{/each}}
-{{/each}}
-{{> footer}}
+{{/each}} --}}
+{{!-- {{> footer}} --}}

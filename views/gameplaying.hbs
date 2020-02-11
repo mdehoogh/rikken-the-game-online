@@ -10,7 +10,7 @@
     <div>
         <div class='play-header'>
             <!-- don't make it a title because that would increase the font -->
-            U speelt <span id='game-name'>?</span> als <span class='player-name'>?</span>.
+            U speelt&nbsp;<span id='game-name'>?</span>&nbsp;als&nbsp;<span class='player-name'>?</span>.
             <!-- a single Help button in the play header!!! -->
             <input type='button' id="help-button" class='help' value='Help'>
         </div>
@@ -35,7 +35,7 @@
         <!-- we have different 'pages' depending on where we are in the game -->
         <div id='page-rules' class='page'>
             <div class='page-header'>
-                <p class='page-title'>Spelregels</p>
+                <div class='page-title'>Spelregels</div>
                 <div class="page-button-group">
                     <!-- changed from a next to a back button -->
                     <input type='button' class="back" value='Klaar'/>
@@ -43,7 +43,7 @@
             </div>
             <div>
                 <ol>
-                    <li>{{__ 'The Game'}}</li>
+                    {{!-- <li>{{__ 'The Game'}}</li> --}}
                     <li>Rikken wordt gespeeld door vier spelers met &eacute;&eacute;n spel kaarten.</li>
                     <li>Elk spel staat op zich. Alleen de deler (en de volgorde van de te verdelen kaarten) veranderd.</li>
                     <li>Bij aanvang van elk afzonderlijk spel worden de kaarten door een van de spelers (de deler) geschud en gedeeld.</li>
@@ -82,7 +82,7 @@
         <!-- page-settings replaced by page-help -->
         <div id='page-help' class='page'>
             <div class='page-header'>
-                <p class='page-title'>Help</p>
+                <div class='page-title'>Help</div>
                 <div class="page-button-group">
                     <input type='button' class="back" value='Terug'>
                 </div>
@@ -95,7 +95,7 @@
         <!-- which is identifiable with the undefined data-player-id -->
         <div id='page-auth' class='page'>
             <div class='page-header'>
-                <p class='page-title'>Aanmelden</p>
+                <div class='page-title'>Aanmelden</div>
                 <div class="page-button-group">
                     <input type='button' class="cancel" value='Terug'/>
                     <input type='button' id='single-player-game-button' value='Speel'/>
@@ -103,14 +103,14 @@
             </div>
             <div class='player-name-input'>
                 Ik speel als&nbsp;
-                <input id='single-player-name' data-player-id='' type='text' size='30' placeholder='Uw spelernaam'/>
+                <input id='single-player-name' data-player-id='' type='text' size='30' placeholder='Je spelernaam'/>
             </div>
         </div>
         <div id='page-wait-for-players' class='page'>
             <div class='page-header'>
-                <p class='page-title'>Spelers</p>
+                <div class='page-title'>Spelers</div>
                 <div class="page-button-group">
-                    <input type='button' class="stop" value='Stoppen met spelen'/>
+                    <input type='button' class="stop" value='Stoppen'/>
                 </div>
             </div>
             <!-- now in header... <div>Spel id: <span id='game-id'></span></div> -->
@@ -121,7 +121,7 @@
         </div>
         <div id='page-bidding' class='page'>
             <div class='page-header'>
-                <p class='page-title'>Bieden</p>
+                <div class='page-title'>Bieden</div>
                 <div class="page-button-group">
                     {{!-- <input type='button' class="cancel-game" value='Afbreken'> --}}
                     {{!-- <input type='button' class="next" value='Klaar'> --}}
@@ -261,7 +261,7 @@
         </div>
         <div id='page-trump-choosing' class='page'>
             <div class='page-header'>
-                <p class='page-title'>Troefkleur kiezen</p>
+                <div class='page-title'>Troefkleur kiezen</div>
                 <div class="page-button-group">
                     {{!-- <button class="cancel-game">Afbreken</button> --}}
                 </div>
@@ -355,7 +355,7 @@
         </div>
         <div id='page-partner-choosing' class='page'>
             <div class='page-header'>
-                <p class='page-title'>Aas of heer meevragen</p>
+                <div class='page-title'>Aas of heer meevragen</div>
                 <div class="page-button-group">
                     {{!-- <input type='button' class="cancel-game" value='Afbreken'> --}}
                 </div>
@@ -451,7 +451,7 @@
         <div id='page-play-reporting' class='page'>
             {{!-- this page is not being used anymore --}}
             <div class='page-header'>
-                <p class='page-title'>Te spelen</p>
+                <div class='page-title'>Te spelen</div>
                 <div class="page-button-group">
                     <input type='button' class="cancel-game" value='Afbreken'/>
                     <input type='button' class="next" value='Gelezen'/>
@@ -460,7 +460,7 @@
         </div>
         <div id='page-playing' class='page'>
             <div class='page-header'>
-                <p class='page-title'>Spelen</p>
+                <div class='page-title'>Spelen</div>
                 <div class="page-button-group">
                     {{!-- <input type='button' class="cancel-game" value='Afbreken'> --}}
                     {{!-- <input type='button' class="next" value='Klaar'> --}}
@@ -598,7 +598,7 @@
         </div>
         <div id='page-finished' class='page'>
             <div class='page-header'>
-                <p class='page-title'>Spelresultaat</p>
+                <div class='page-title'>Spelresultaat</div>
                 <div class="page-button-group">
                     <input type='button' value='Stoppen' class='stop'/>
                     <input type='button' value='Nog eens' class='new-game'/>

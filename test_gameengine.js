@@ -8,7 +8,6 @@ const GamesListener=require('./gameslistener.js');
 const User=require('./models/user.js');
 const Game=require('./models/game.js');
 
-
 class RikkenGamesListener extends GamesListener{
     log(tolog){
         console.log("GAMES LISTENER >>> "+tolog);
@@ -200,6 +199,8 @@ app.use(function(req, res, next) {
 
 app.set('views',path.join(__dirname,'views')); // MDH@31JAN2020: changed to views as well...
 app.set('view engine','hbs'); // for testing
+//registering partials
+hbs.registerPartials(__dirname + '/views/partials');
 /*
 // register hbs helpers in res.locals' context which provides this.locale
 hbs.registerHelper('__',()=>{

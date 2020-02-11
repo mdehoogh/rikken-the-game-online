@@ -90,7 +90,11 @@ function updateGameOverButtons(enable){
 function stopButtonClicked(){
     if(!currentPlayer)return alert("Helaas kennen we je niet, dus je zult niet kunnen spelen!");
     updateGameOverButtons(false); // disable the game over buttons
-    _setPlayer(null); // killing the player should do the rest!!!!!
+    // leaving the page is easiest... QUICK FIX to do so when we're in a session (i.e. assuming a registered player)
+    if(getCookie('connect.sid'))
+        window.history.back();
+    else
+        _setPlayer(null); // killing the player should do the rest!!!!!
     /* MDH@05FEB2020 replacing: 
     // ASSERT assuming not playing in a game anymore i.e. newGame() has been called before
     // a NORMAL exit
@@ -213,10 +217,10 @@ function initializeCollapsingButtons(){
     for(let collapsingButton of document.getElementsByClassName("collapsing-button"))collapsingButton.addEventListener("click",handleCollapsingEvent);
 }
 
-// function getCookie(name) {
-//     var v = document.cookie.match('(^|;) ?' + name + '=([^;]*)(;|$)');
-//     return v ? v[2] : null;
-// }
+function getCookie(name) {
+    var v = document.cookie.match('(^|;) ?' + name + '=([^;]*)(;|$)');
+    return v ? v[2] : null;
+}
 // function setCookie(name, value, days) {
 //     var d = new Date;
 //     d.setTime(d.getTime() + 24*60*60*1000*days);

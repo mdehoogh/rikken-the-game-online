@@ -1,5 +1,11 @@
-module.exports = function(userId){
+// MDH@11FEB2020: to return an array of games the user played in
+const User=require('../models/user');
+const Game=require('../models/game');
+
+module.exports = async(userId)=>{
     
+    return(await User.findById(userId).populate('games').exec()).games;
+    /* replacing:
     return [{
         name: "Rikken on Thursdays",
         scores: [{
@@ -25,4 +31,5 @@ module.exports = function(userId){
         }]
 
     }]
+    */
 }

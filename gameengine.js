@@ -941,7 +941,13 @@ module.exports=(socket_io_server,gamesListener,numberOfGamesPlayedSoFar,acknowle
                         switch(data.state){
                             case PLAYERSTATE_WAIT_FOR_GAME:
                             case PLAYERSTATE_GAME_OVER:
-                                response='Er zijn '+getNumberOfIdlePlayers()+" spelers vrij nu.";
+                                {
+                                    let numberOfIdlePlayers=getNumberOfIdlePlayers()-1;
+                                    if(numberOfIdlePlayers<=1)
+                                        response="Er is nu "+(numberOfIdlePlayers<=0?"g":"")+"een andere speler vrij.";
+                                    else
+                                        response="Er zijn momenteel "+numberOfIdlePlayers+" andere spelers vrij.";
+                                }
                                 break; // player waits for other players
                             case PLAYERSTATE_WAIT_FOR_BID:
                             case PLAYERSTATE_WAIT_FOR_CARD:
