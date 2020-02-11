@@ -50,6 +50,8 @@ var currentPlayer=null; // the current game player
 
 var currentGame=null; // we remember the game until we no longer need it
 
+var onExitHandler=null; // the on exit handler supplied by caller of setPlayerName() (null when running 'standalone')
+
 // MDH@06FEB2020: as we're sending with acknowledging we can keep track of the response time of the server to use when exiting the game
 class ServerResponseStats{
     constructor(){
@@ -77,9 +79,17 @@ function sendToServer(socket,event,data,callback){
     return true;
 }
 
+// MDH@07FEB2020: when in the process of 
+function updateGameOverButtons(enable){
+    for(let stopButton of document.getElementsByClassName('stop'))stopButton.disabled=!enable;
+    for(let newGameButton of document.getElementsByClassName("new-game"))newGameButton.disabled=!enable;
+}
+
 // MDH@05FEB2020: if somebody wants to stop playing completely, (s)he wants to be completely forgotten
 //                setPlayerName() 
-function stopPlaying(){
+function stopButtonClicked(){
+    if(!currentPlayer)return alert("Helaas kennen we je niet, dus je zult niet kunnen spelen!");
+    updateGameOverButtons(false); // disable the game over buttons
     _setPlayer(null); // killing the player should do the rest!!!!!
     /* MDH@05FEB2020 replacing: 
     // ASSERT assuming not playing in a game anymore i.e. newGame() has been called before
@@ -93,19 +103,19 @@ function stopPlaying(){
     window.history.back();
     */
 }
-
 // MDH@10JAN2020: newGame() is a bid different than in the demo version in that we return to the waiting-page
-function newGame(){
+function newGameButtonClicked(){
     // means: do not forget about me playing i.e. keep me on the gameplaying page
     // MDH@05FEB2020: it's prudent to start completely over with a new player with the same name!!!!
-    if(!currentPlayer)
-        alert("Helaas kennen we je niet, dus je zult niet kunnen spelen!");
-    else
-        setPlayerName(currentPlayer.name);
+    if(!currentPlayer)return alert("Helaas kennen we je niet, dus je zult niet kunnen spelen!");
+    updateGameOverButtons(false); // disable the game over buttons
+    setPlayerName(currentPlayer.name);
 }
 
-var toMakeABid=0,bidMadeInfo=null; // MDH@03FEB2020: some protection for preventing making a bid when not being asked or after having made a bid
+var toMakeABid=0,bidMade=-1; // MDH@03FEB2020: some protection for preventing making a bid when not being asked or after having made a bid
 var toPlayACard=0,playedCardInfo=null; // MDH@05FEB2020: the card played that needs to be remembered so we can send it again
+var toChooseTrumpSuite=0,chosenTrumpSuite=-1;
+var toChoosePartnerSuite=0,chosenPartnerSuite=-1;
 
 function getLocaleCardText(card){return Language.DUTCH_SUITE_NAMES[card.suite]+" "+Language.DUTCH_RANK_NAMES[card.rank];}
 
@@ -693,6 +703,7 @@ class OnlinePlayer extends Player{
         // request of game engine (server) to make a bid
         toMakeABid++;
         if(toMakeABid===1){ // first time request for the bid
+            bidMade=-1; // MDH@07FEB2020: yes, I think we need this as well!!!
             forceFocus(this.name);
             // ascertain to be looking at the bidding page (in which case we can safely use VISIBLE)
             if(currentPage!="page-bidding")setPage("page-bidding"); 
@@ -700,7 +711,7 @@ class OnlinePlayer extends Player{
             // MDH@03FEB2020: inherit is safer because if this happens by accident (when not on the bidding page)
             document.getElementById("bidding").style.visibility=VISIBLE; // show the bidding element, essential to hide it immediately after a bid
             // currentPlayer=this; // remember the current player
-            setInfo("Doe een bod.","Server");
+            setInfo("Doe een bod, "+this.name+".","Server");
             console.log("Possible bids player '"+this.name+"' could make: ",possibleBids);
     
             //setInfo("Maak een keuze uit een van de mogelijke biedingen.");
@@ -725,8 +736,8 @@ class OnlinePlayer extends Player{
             updateBidsTable(playerBidsObjects);
             setPlayerState(PLAYERSTATE_BID);    
         }else // not the first time a bid was requested
-        if(bidMadeInfo){
-            let error=(currentPlayer?currentPlayer._setBid(bidMadeInfo):new Error(bug("Je bent geen speler meer!")));
+        if(bidMade>=0){
+            let error=(currentPlayer?currentPlayer._setBid(bidMade):new Error(bug("Je bent geen speler meer!")));
             if(error instanceof Error)
                 setInfo("Nog steeds problemen bij het versturen van je bod. We blijven het proberen.","Speler");
             else
@@ -735,29 +746,49 @@ class OnlinePlayer extends Player{
             setInfo("Er wordt op je bod gewacht!","Server");
     }
     chooseTrumpSuite(suites){
-        forceFocus(this.name);
-        console.log("Possible trump suites:",suites);
-        setPage("page-trump-choosing");
-        document.getElementById("trump-suite-input").style.visibility=VISIBLE; // ascertain to allow choosing the trump suite
-        updateChooseTrumpSuiteCards(this._suiteCards);
-        // iterate over the trump suite buttons
-        for(let suiteButton of document.getElementById("trump-suite-buttons").getElementsByClassName("suite"))
-            suiteButton.style.display=(suites.indexOf(parseInt(suiteButton.getAttribute('data-suite')))<0?"none":"inline");
-        setPlayerState(PLAYERSTATE_TRUMP);
+        toChooseTrumpSuite++;
+        if(toChooseTrumpSuite===1){
+            chosenTrumpSuite=-1;
+            forceFocus(this.name);
+            console.log("Possible trump suites:",suites);
+            setPage("page-trump-choosing");
+            document.getElementById("trump-suite-input").style.visibility=VISIBLE; // ascertain to allow choosing the trump suite
+            updateChooseTrumpSuiteCards(this._suiteCards);
+            // iterate over the trump suite buttons
+            for(let suiteButton of document.getElementById("trump-suite-buttons").getElementsByClassName("suite"))
+                suiteButton.style.display=(suites.indexOf(parseInt(suiteButton.getAttribute('data-suite')))<0?"none":"inline");
+            setPlayerState(PLAYERSTATE_TRUMP);    
+        }else
+        if(chosenTrumpSuite>=0){
+            // MDH@07FEB2020: a shortcut of sending the chosen trump suite
+            if(!this._game)return alert(bug("Het spel is verdwenen!"));
+            this._game.trumpSuiteChosen(chosenTrumpSuite);
+        }else
+            setInfo("Er wordt op de troefkleur gewacht","Server");
     }
     choosePartnerSuite(suites,partnerRank){ // partnerRankName changed to partnerRank (because Language should be used at the UI level only!)
-        forceFocus(this.name);
-        console.log("Possible partner suites:",suites);
-        setPage("page-partner-choosing");
-        document.getElementById("partner-suite-input").style.visibility=VISIBLE; // ascertain to allow choosing the trump suite
-        updateChoosePartnerSuiteCards(this._suiteCards);
-        // because the suites in the button array are 0, 1, 2, 3 and suites will contain
-        for(let suiteButton of document.getElementById("partner-suite-buttons").getElementsByClassName("suite"))
-            suiteButton.style.display=(suites.indexOf(parseInt(suiteButton.getAttribute('data-suite')))<0?"none":"inline");
-        // show the partner rank (ace or king) being asked
-        for(let rankElement of document.getElementsByClassName('partner-rank'))
-            rankElement.innerHTML=Language.DUTCH_RANK_NAMES[partnerRank];
-        setPlayerState(PLAYERSTATE_PARTNER);
+        toChoosePartnerSuite++;
+        if(toChoosePartnerSuite===1){
+            chosenPartnerSuite=-1;
+            forceFocus(this.name);
+            console.log("Possible partner suites:",suites);
+            setPage("page-partner-choosing");
+            document.getElementById("partner-suite-input").style.visibility=VISIBLE; // ascertain to allow choosing the trump suite
+            updateChoosePartnerSuiteCards(this._suiteCards);
+            // because the suites in the button array are 0, 1, 2, 3 and suites will contain
+            for(let suiteButton of document.getElementById("partner-suite-buttons").getElementsByClassName("suite"))
+                suiteButton.style.display=(suites.indexOf(parseInt(suiteButton.getAttribute('data-suite')))<0?"none":"inline");
+            // show the partner rank (ace or king) being asked
+            for(let rankElement of document.getElementsByClassName('partner-rank'))
+                rankElement.innerHTML=Language.DUTCH_RANK_NAMES[partnerRank];
+            setPlayerState(PLAYERSTATE_PARTNER);    
+        }else
+        if(chosenPartnerSuite>=0){
+            if(!this._game)return alert(bug("Het spel is verdwenen!"));
+            // MDH@07FEB2020: a shortcut of sending the chosen partner suite
+            this._game.partnerSuiteChosen(chosenPartnerSuite);
+        }else
+            setInfo("Er wordt op de kleur van de mee te vragen "+Language.DUTCH_RANK_NAMES[partnerRank]+" gewacht.");
     }
     // almost the same as the replaced version except we now want to receive the trick itself
     playACard(){
@@ -963,20 +994,22 @@ class OnlinePlayer extends Player{
 function bidButtonClicked(event){
     // MDH@03FEB2020: prevent making a bid when not supposed to do so
     if(toMakeABid<=0)return alert("Je mag nu niet bieden! Het wachten is op een seintje van de server.");
-    if(bidMadeInfo)return alert("Je hebt al een bod uitgebracht!");
+    // MDH@07FEB2020: OOPS, bidMade can be 0 which would be considered a falsy value so we should not use bidMade itself as condition!!!!
+    if(bidMade>=0)return alert("Je hebt al een bod uitgebracht!");
     try{
         let bid=parseInt(event.currentTarget.getAttribute("data-bid"));
-        if(isNaN(bid)||bid<0)return alert(bug("Ongeldig bod ("+(bid?bid:"?")+")!"));
-        bidMadeInfo=bid; // remember the bid in case we need to send it again
-        // document.getElementById("bidding").style.visibility="hidden"; // hide the bidding element
-        console.log("Bid chosen (to be sent for the first time): ",bidMadeInfo);
-        let error=currentPlayer._setBid(bidMadeInfo); // the value of the button is the made bid
+        if(isNaN(bid)||bid<0)return alert(bug("Je bod ("+(bid?Card.BID_NAMES[bid]:"?")+" is ongeldig!"));
+        bidMade=bid; // remember the bid in case we need to send it again
+        let error=currentPlayer._setBid(bidMade); // the value of the button is the made bid
         if(error instanceof Error)
             setInfo("Problemen bij het versturen van je bod: "+error.message+". We blijven het proberen.","Spel");
         else // bid done!!!
             setInfo("Bod verstuurd!","Spel");
+    }catch(err){
+        console.error(err);
     }finally{
-        document.getElementById("bidding").style.visibility=(bidMadeInfo?"hidden":VISIBLE); // show again
+        document.getElementById("bidding").style.visibility=(bidMade>=0?"hidden":VISIBLE); // show again
+        if(bidMade>=0)forceFocus(null);
     }
 }
 /**
@@ -986,21 +1019,46 @@ function bidButtonClicked(event){
 function trumpSuiteButtonClicked(event){
     // either trump or partner suite selected
     // OOPS using parseInt() here is SOOOO important
+    if(toChooseTrumpSuite<=0)return alert("Je mag nu geen troefkleur kiezen. Het wachten is op een seintje van de server.");
+    if(chosenTrumpSuite>=0)return alert("Je hebt de troefkleur al gekozen!");
     let trumpSuite=parseInt(event.currentTarget.getAttribute("data-suite"));
-    console.log("Trump suite "+trumpSuite+" chosen.");
-    currentPlayer._setTrumpSuite(trumpSuite);
+    if(isNaN(trumpSuite)||trumpSuite<0)return alert(bug("Ongeldige troefkleur!"));
+    try{
+        currentPlayer._setTrumpSuite(trumpSuite);
+        chosenTrumpSuite=trumpSuite;
+    }catch(err){
+        console.error(err);
+    }finally{
+        if(chosenTrumpSuite>=0){
+            document.getElementById("trump-suite-input").style.visibility="hidden";
+            forceFocus(null);
+            console.log("Trump suite "+chosenTrumpSuite+" chosen.");    
+        }
+    }
 }
 /**
  * clicking a partner suite button registers the chosen partner suite with the current player 
  * @param {*} event 
  */
 function partnerSuiteButtonClicked(event){
+    if(toChoosePartnerSuite<=0)return alert("Je mag de kleur van de meegevraagde kaart nu niet kiezen. Het wachten is op een seintje van de server.");
+    if(chosenPartnerSuite>=0)return alert("Je hebt de kleur van de meegevraagde kaart al gekozen!");
     // either trump or partner suite selected
     // parseInt VERY IMPORTANT!!!!
     let partnerSuite=parseInt(event.currentTarget.getAttribute("data-suite"));
-    console.log("Partner suite "+partnerSuite+" chosen.");
-    // go directly to the game (instead of through the player)
-    currentPlayer._setPartnerSuite(partnerSuite);
+    if(isNaN(partnerSuite)||partnerSuite<0)return alert(bug("Kleur van de meegevraagde kaart ongeldig!"));
+    try{
+        currentPlayer._setPartnerSuite(partnerSuite);
+        chosenPartnerSuite=partnerSuite;
+    }catch(err){
+        console.error(err);
+    }finally{
+        if(chosenPartnerSuite>=0){
+            document.getElementById("partner-suite-input").style.visibility="hidden";
+            forceFocus(null);
+            console.log("Partner suite "+chosenPartnerSuite+" chosen.");    
+        }
+    }
 }
 
 var playablecardCell,playablecardCellContents;
@@ -1013,7 +1071,7 @@ function playablecardButtonClicked(event){
     // MDH@05FEB2020: prevent from playing a card when a card has already been played (and not yet confirmed by the server)
     if(toPlayACard<=0)return alert("Je mag nu geen kaart spelen! Het wachten is op een seintje van de server.");
     
-    if(playedCardInfo)return alert("Je hebt al een kaart ("+getLocaleCardText(playedCardInfo[0])+") gespeeld.");
+    if(playedCardInfo)return alert("Je hebt al een kaart (nl. "+getLocaleCardText(playedCardInfo[0])+") gespeeld.");
 
     playablecardCell=(event&&event.currentTarget); // remember the 'cell' of the card clicked!!!!
     if(!playablecardCell)return; // TODO should we respond here????
@@ -1035,7 +1093,7 @@ function playablecardButtonClicked(event){
         */
         document.getElementById("play-card-prompt").innerHTML="Je hebt "+getLocaleCardText(playedCardInfo[0])+" gespeeld."; // MDH@23JAN2020: get rid of the play card prompt!
     }else // report the error to the end user
-        document.getElementById("play-card-prompt").innerHTML="Je mag "+getLocaleCardText(cardPlayed)+" niet spelen. Speel een andere kaart!";
+        document.getElementById("play-card-prompt").innerHTML=(error instanceof Error?error.message:"Je mag "+getLocaleCardText(cardPlayed)+" niet spelen.")+" Speel een andere kaart!";
 }
 /**
  * convenient to be able to turn the playable card buttons on and off at the right moment
@@ -1269,49 +1327,63 @@ class PlayerGameProxy extends PlayerGame {
     // MDH@25JAN2020: game cannot continue until succeeding in getting the action over to the game server
     //                to guarantee delivery we run a resend timer that will continue sending until the callback gets called
     // _eventSent will get called when the event was received by the game server
-    _sentEventReceived(){
+    _sentEventReceived(result){
         if(this._eventToSendIntervalId){clearInterval(this._eventToSendIntervalId);this._eventToSendIntervalId=null;}
+        /* MDH@07FEB2020 should be dealt with in the callback preferably!!!
         forceFocus(null);
-        console.log("Event "+this._eventToSend[0]+" received by game server.");
+        */
         this._eventToSend=null;
-        if(this._eventSendCallback)this._eventSentCallback();
+        if(this._eventReceivedCallback)this._eventReceivedCallback(result,false);
+        console.log("Event "+this._eventToSend[0]+" processed by game server.");
     }
     _sendEvent(){
         let result=false;
         try{
-            sendToServer(this._socket,this._eventToSend[0],this._eventToSend[1],this._sentEventReceived);
-            this._eventToSend[2]++;
-            result=true;
-            // MDH@01FEB2020: we show how often a certain event was sent on the sendMessageButton
-            if(this._eventToSend[2]>1)
-                sendMessageButton.value=playerStateMessages[currentPlayerState]+" ("+this._eventToSend[2]+"x)";
-            console.log("Event "+this._eventToSend[0]+(this._eventToSend[1]?" with data "+JSON.stringify(data):"")+" sent (attempt: "+this._eventToSend[2]+").");
+            // if this is a timeout call the callback and make it determine whether to give up sending or not
+            let tosend=(this._eventToSend[2]===0||!this._eventReceivedCallback||this._eventReceivedCallback(null,this._eventToSend[2]));
+            if(tosend){
+                sendToServer(this._socket,this._eventToSend[0],this._eventToSend[1],this._sentEventReceived);
+                this._eventToSend[2]++;
+                result=true; 
+                /*
+                // MDH@01FEB2020: we show how often a certain event was sent on the sendMessageButton
+                if(this._eventToSend[2]>1)sendMessageButton.value=playerStateMessages[currentPlayerState]+" ("+this._eventToSend[2]+"x)";
+                */
+                console.log("Event "+this._eventToSend[0]+(this._eventToSend[1]?" with data "+JSON.stringify(data):"")+" sent (attempt: "+this._eventToSend[2]+").");
+            }else
+                console.log("Resending event "+this._eventToSend[0]+" canceled!");
         }catch(error){
             console.log("ERROR: Failed to send event "+this._eventToSend[0]+" to the game server (reason: "+error.message+").");
         }
         return result;
     }
-    _setEventToSend(event,data,callback){
-        this._eventSentCallback=callback;
+    // MDH@07FEB2020: if there is a callback we're NOT resending i.e. we rely on the acknowledging
+    //                the callback will be called on a timeout (if requested) as well with second argument set to true (and result to null)
+    _setEventToSend(event,data,resendInterval,callback){
+        if(this._eventToSend)return false; // MDH@07FEB2020: can have only one pending event to send at a time
+        this._eventReceivedCallback=null; // in case we fail
+        if(this._eventToSendIntervalId){clearInterval(this._eventToSendIntervalId);this._eventToSendIntervalId=null;}
+        // no callback specified, so using resend mechanism
         this._eventToSend=[event,data,0]; // keep track of the send event count
-        if(!this._sendEvent())return false; // user must make their choice again
-        // schedule next resends
-        this._eventToSendIntervalId=setInterval(this._sendEvent,5000);
+        if(!this._sendEvent())return false; // _eventReceivedCallback does not need to be known the first time for sure...
+        this._eventReceivedCallback=callback; // so we can set it here
+        // schedule a resend if so desired
+        if(typeof resendInterval==='number'&&resendInterval>0)this._eventToSendIntervalId=setInterval(this._sendEvent,resendInterval);
         return true;
     }
 
     // what the player will be calling when (s)he made a bid, played a card, choose trump or partner suite
     bidMade(bid){
         if(this._state===PlayerGame.OUT_OF_ORDER)return false;
-        // MDH@03FEB2020: unfortunately I encountered problems with the bidding buttons not hiding
-        //                and because it does not really matter who made the bid
-        document.getElementById("bidding").style.visibility="hidden";
-        let bidMadeSentResult=this._setEventToSend('BID',bid,function(result){
+        // MDH@07FEB2020 removing: document.getElementById("bidding").style.visibility="hidden";
+        // MDH@07FEB2020 because we pass in a callback no automatic resending!!!!
+        let bidMadeSentResult=this._setEventToSend('BID',bid,function(result,failureCount){
             if(result){
                 setInfo("Bod niet geaccepteerd"+
                             (result.hasOwnProperty('error')?" (fout: "+result.error+")":"")+"!","Server");
-                // TODO what now???
-            }
+                // TODO what now??? technically the user should be allowed to make a new bid?????????
+            }else
+                setInfo("Bod verwerkt.","Server");
         }); // hide the bidding element again
         if(bidMadeSentResult)setPlayerState(PLAYERSTATE_BID_DONE);
         return bidMadeSentResult;
@@ -1336,7 +1408,7 @@ class PlayerGameProxy extends PlayerGame {
         //                because the only thing that the other side cannot determine is whether the partner card is asked blind!!!!
         // replacing: if(askingForPartnerCard<0)cardPlayedInfo.push(true); // set the asking for partner card blind flag!!!
         let cardSentResult=
-            this._setEventToSend('CARD',[card.suite,card.rank,askingForPartnerCard],function(result){
+            this._setEventToSend('CARD',[card.suite,card.rank,askingForPartnerCard],0,function(result,failureCount){
                 if(result)
                     document.getElementById("play-card-prompt").innerHTML="Gespeelde kaart niet geaccepteerd"+
                                 (result.hasOwnProperty('error')?" (fout: "+result.error+")":"")+"!";
@@ -1360,8 +1432,8 @@ class PlayerGameProxy extends PlayerGame {
     }
     trumpSuiteChosen(trumpSuite){
         if(this._state===PlayerGame.OUT_OF_ORDER){setInfo("Het spel kan niet verder gespeeld worden!","Spel");return false;}
-        document.getElementById("trump-suite-input").style.visibility="hidden";
-        let trumpSuiteChosenSentResult=this._setEventToSend('TRUMPSUITE',trumpSuite,function(result){
+        // MDH@07FEB2020 because already done when a trump suite button is clicked!!!! removing: document.getElementById("trump-suite-input").style.visibility="hidden";
+        let trumpSuiteChosenSentResult=this._setEventToSend('TRUMPSUITE',trumpSuite,0,function(result,failureCount){
                 if(result){
                     setInfo("Gekozen troefkleur niet geaccepteerd"+
                                 (result.hasOwnProperty('error')?" (fout: "+result.error+")":"")+"!","Server");
@@ -1374,8 +1446,8 @@ class PlayerGameProxy extends PlayerGame {
     }
     partnerSuiteChosen(partnerSuite){
         if(this._state===PlayerGame.OUT_OF_ORDER){setInfo("Het spel kan niet verder gespeeld worden!","Spel");return false;}
-        document.getElementById("partner-suite-input").style.visibility="hidden";
-        let partnerSuiteChosenSentResult=this._setEventToSend('PARTNERSUITE',partnerSuite,function(result){
+        // MDH@07FEB2020 because already done when a trump suite button is clicked!!!! removing: document.getElementById("partner-suite-input").style.visibility="hidden";
+        let partnerSuiteChosenSentResult=this._setEventToSend('PARTNERSUITE',partnerSuite,0,function(result,failureCount){
                 if(result){
                     setInfo("Gekozen partner kleur niet geaccepteerd!"+
                     (result.hasOwnProperty('error')?" (fout: "+result.error+")":"")+"!","Server");
@@ -1389,7 +1461,7 @@ class PlayerGameProxy extends PlayerGame {
     }
     // MDH@26JAN2020: when the user finished reading the results, and wants to continue playing done() should be called
     done(){
-        return this._setEventToSend('DONE',null,function(){
+        return this._setEventToSend('DONE',null,0,function(result,failureCount){
             console.log("DONE event acknowledged.");
             this._playerIndex=-1; // MDH@29JAN2020: I have to do this otherwise I won't be able to play in a new game (see set playerNames!!!!)
             setInfo("Zodra er weer vier niet-spelende deelnemers zijn kun je weer spelen.","Server");
@@ -1398,10 +1470,18 @@ class PlayerGameProxy extends PlayerGame {
     exit(reason){
         // player is exiting somehow...
         let data=(reason?reason:(currentPlayer?currentPlayer.name:""));
-        return this._setEventToSend('EXIT',data,function(){
-            console.log("EXIT event "+data+" acknowledged!");
-            // we're NOT going anywhere anymore: setPage("page-rules");
-            setInfo("Bedankt voor het spelen.","Server");
+        // it is crucial that the EXIT event is received by the game server
+        return this._setEventToSend('EXIT',data,serverResponseStats.maximumResponseMs,function(result,failureCount){
+            let acknowledged=(typeof failureCount!==number);
+            if(acknowledged){
+                console.log("EXIT event "+data+" acknowledged!");
+                // we're NOT going anywhere anymore: setPage("page-rules");
+                setInfo("Bedankt voor het spelen.","Server");
+            }else{ // allow user to try again...
+                setInfo("Stoppen nog niet bevestigd. Probeer het zo nog eens!","Spel");
+                updateGameOverButtons(true); // enable game over buttons
+            }
+            return false;
         });
     }
 
@@ -1475,7 +1555,7 @@ class PlayerGameProxy extends PlayerGame {
     newTrick(trickInfo){
         
         // ASSERT only call when trickInfo is not NULL!!!!!
-        if(!trickInfo){alert("BUG: No trick info!");return;}
+        if(!trickInfo)return alert(bug("Geen slaginformatie!"));
 
         clearCardsPlayedTable(); // remove the cards showing from the previous trick
 
@@ -1730,8 +1810,8 @@ class PlayerGameProxy extends PlayerGame {
             case "BID_MADE": // returned when a bid is made by someone
                 /////////if(data.player===this._playerIndex)
                 if(toMakeABid>0){ // it's our bid!!!!
-                    toMakeABid=0;bidMadeInfo=null;
-                    document.getElementById("bidding").style.visibility="hidden";
+                    toMakeABid=0;bidMade=-1;
+                    // MDH@07FEB2020 removing: document.getElementById("bidding").style.visibility="hidden";
                 }
                 setPlayerState(PLAYERSTATE_BID_RECEIVED);
                 document.getElementById("bid-info").innerHTML=getBidInfo(data.bid,data.player===currentPlayer.index?null:this.getPlayerName(data.player));
@@ -2016,10 +2096,15 @@ function prepareForPlaying(){
     };
     // if we actually end up in leaving this URL, we definitely want to kill the connection to the server for good
     window.onpopstate=function(){
+        // MDH@07FEB2020: it's kinda rude to leave the page in the middle of a game without telling the game engine
+        //                I suppose we should handle this differently e.g. by running some sort of ping timer telling the game to be alive
+        //                so that the game engine can throw a person out at the right time
         if(currentPlayer&&currentPlayer.game&&currentPlayer.game.state!==PlayerGame.FINISHED)
             console.log("WARNING: Player '"+currentPlayer.name+"' has stopped playing the game any further, effectively canceling it.");
+        /* not much use to do anything...
         if(currentPlayer)currentPlayer.exit('EXIT'); // if we haven't done so yet!!!!
         setPlayerName(null,null); // without callback no page should be shown anymore...
+        */
     }
 
     // MDH@09JAN2020: hide the bidding and playing elements
@@ -2038,11 +2123,12 @@ function prepareForPlaying(){
     // event handlers for next, cancel, and newPlayers buttons
     for(let nextButton of document.getElementsByClassName('next'))nextButton.onclick=nextPage;
     for(let cancelButton of document.getElementsByClassName('cancel'))cancelButton.onclick=cancelPage;
-    for(let stopButton of document.getElementsByClassName('stop'))stopButton.onclick=stopPlaying;
+
+    for(let stopButton of document.getElementsByClassName('stop'))stopButton.onclick=stopButtonClicked;
     
     // let's assume that the game is over when new-game buttons are showing
     // we're not to kill the connection, we'll just keep using the same connection
-    for(let newGameButton of document.getElementsByClassName("new-game"))newGameButton.onclick=newGame;
+    for(let newGameButton of document.getElementsByClassName("new-game"))newGameButton.onclick=newGameButtonClicked;
     /*
     // whenever we have new player(name)s
     for(let newGamePlayersButton of document.getElementsByClassName('new-game-players'))newGamePlayersButton.onclick=newGamePlayers;
@@ -2076,12 +2162,12 @@ function prepareForPlaying(){
     var urlParams = new URLSearchParams(window.location.search);
     // MDH@24JAN2020: changed 'player' to 'als'!!! NOTE this is a back-door
     let initialPlayerName=(urlParams.has("als")?urlParams.get("als").trim():null);
-    if(initialPlayerName)setPlayerName(initialPlayerName,(err)=>{});
-
-};
+    // standalone execution i.e. no on exit callback!!!
+    if(initialPlayerName&&initialPlayerName.length>0)setPlayerName(initialPlayerName,null);
+}
 
 // MDH@08JAN2020: great idea to make everything work by allowing to set the player name
-function _setPlayer(player,errorcallback){
+function _setPlayer(player){
     visitedPages=[]; // forget visited pages
     currentPage=null; // ascertain to not have a page to store
     // get rid of the current player (if any), and in effect we'll loose the game as well
@@ -2122,47 +2208,43 @@ function _setPlayer(player,errorcallback){
                     */
                     currentGame=new PlayerGameProxy(clientsocket); // let's create the game that is to register the event handlers
                     setPage("page-wait-for-players");    
-                    if(typeof errorcallback==='function')errorcallback(null);
+                    // MDH@07FEB2020 removed: if(typeof errorcallback==='function')errorcallback(null);
                 }else
                     setInfo("De verbinding is hersteld.","Server");
                 // MDH@23JAN2020: push the player name to the server again, so it can resend what needs sending!!!!
-                if(currentPlayer)clientsocket.emit('PLAYER',currentPlayer.name,()=>{
-                    setInfo("Je bent als speler aangemeld!","Server");
-                });
+                if(currentPlayer)clientsocket.emit('PLAYER',currentPlayer.name,()=>{setInfo("Je bent als speler aangemeld!","Server");});
             }else{
                 setInfo("De verbinding is verbroken.","Server");
-                (typeof errorcallback!=='function'||errorcallback(new Error("Failed to connect to the server.")));
+                // MDH@07FEB2020 removed: (typeof errorcallback!=='function'||errorcallback(new Error("Failed to connect to the server.")));
             }
         });
         clientsocket.on('connect_error',(err)=>{
             console.log("Connect error: ",err);
             setInfo("Er is een probleem met de verbinding ("+err.message+")!","Server");
-            (typeof errorcallback!=='function'||errorcallback(err));
+            // (typeof errorcallback!=='function'||errorcallback(err));
         });
         // try to connect to the server catching whatever happens through events
         clientsocket.connect();
     }else{ // no player anymore to play
         currentGame=null; // get rid of the current game (if any)
-        (typeof errorcallback!=='function'||errorcallback(null));
-        // good idea to quit our gameplaying 'page'
-        window.history.back();
+        (!onExitHandler||onExitHandler());
     }
 }
 
 // call setPlayerName with the (new) name of the current player whenever the player wants to play
 // call setPlayerName with null (or empty) player name
 // to make it callable from anywhere we attach setPlayerName to window (because client.js will be browserified!!!)
-function setPlayerName(playerName,errorCallback){
+function setPlayerName(playerName,donePlayingCallBack){
     (preparedForPlaying||prepareForPlaying()); // prepare for playing once
+    onExitHandler=(typeof donePlayingCallback==='function'?donePlayingCallback:null); // register the done playing callback
     // if(errorCallback)setPage("page-rules"); // ascertain to not be in a non-player page
     // playerName needs to be a string (if it is defined)
-    if(playerName&&typeof playerName!=="string")
-        return(typeof errorCallback!=='function'||errorCallback(new Error("Invalid player name.")));
+    if(playerName&&typeof playerName!=="string")return(!onExitHandler||onExitHandler(new Error("Invalid player name.")));
     // if playerName matches the current player's name, nothing to do
     if(playerName&&currentPlayer&&currentPlayer.name===playerName)
-        (typeof errorCallback!=='function'||errorCallback(null));
+        (!onExitHandler||onExitHandler(null));
     else
-        _setPlayer(playerName&&playerName.length>0?new OnlinePlayer(playerName):null,errorCallback);
+        _setPlayer(playerName&&playerName.length>0?new OnlinePlayer(playerName):null);
 }
 
 window.onload=prepareForPlaying;

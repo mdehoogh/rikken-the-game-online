@@ -60,15 +60,21 @@ router.get("/login", (req, res, next) => {
 });
   
 router.post("/login", passport.authenticate("local", {
-  successRedirect: "/private-page",
+  successRedirect: "/loggedin", // MDH@07FEB2020: instead of redirecting to the 'profile' page, redirecting to home
   failureRedirect: "/login",
   failureFlash: true,
   passReqToCallback: true
 }));
 
+// MDH@07FEB2020: decided to only expose the user name to the home page...
+router.get('/loggedin',ensureLogin.ensureLoggedIn(),(req,res)=>{
+  res.render('home',{ username: req.user.username});
+});
+// MDH@07FEB2020 END
+
 //redirect to "profile" needs to be finished
 router.get("/private-page", ensureLogin.ensureLoggedIn(), (req, res) => {
-    res.render("auth/private", { user: req.user });
+  res.render("private-page", { user: req.user });
 });
 
 passport.serializeUser((user, cb) => {

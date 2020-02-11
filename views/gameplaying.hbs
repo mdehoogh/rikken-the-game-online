@@ -654,6 +654,6 @@
     <script src='/socket.io/socket.io.js'></script>
     <script src='./javascripts/gameplaying.js'></script>
     {{! if we have a username use it immediately }}
-    {{#if username}}<script>setPlayerName("{{username}}");</script>{{/if}}
+    {{#if username}}<script>setPlayerName("{{username}}",(result)=>{window.history.back();});</script>{{/if}}
   </body>
 </html>
