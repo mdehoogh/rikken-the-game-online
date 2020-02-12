@@ -89,7 +89,7 @@ function updateGameOverButtons(enable){
 //                setPlayerName() 
 function stopButtonClicked(){
     window.history.back();
-    /* replacing:
+    /* MDH@12FEB2020: replacing:
     if(!currentPlayer)return alert("Helaas kennen we je niet, dus je zult niet kunnen spelen!");
     updateGameOverButtons(false); // disable the game over buttons
     // leaving the page is easiest... QUICK FIX to do so when we're in a session (i.e. assuming a registered player)
@@ -112,6 +112,7 @@ function stopButtonClicked(){
 }
 // MDH@10JAN2020: newGame() is a bid different than in the demo version in that we return to the waiting-page
 function newGameButtonClicked(){
+    _setPlayer(null); // MDH@12FEB2020: this will allow us to test for it in onbeforeunload...
     // MDH@12FEB2020: the easiest way to do this is by forcing a reload BUT see how the game engine responds
     window.location.reload(/*true*/); // from cache is fine as long as setPlayerName() is executed again!!!!
     /* replacing:
@@ -292,7 +293,7 @@ function clearBidsTable(firstColumnIndex){
     let bidTable=document.getElementById("bids-table").querySelector("tbody");
     for(let bidTableRow of bidTable.children)
         for(let bidTableColumnIndex in bidTableRow.children)
-            if(bidTableColumnIndex>=firstColumn)
+            if(bidTableColumnIndex>=firstColumnIndex)
                 bidTableRow.children[bidTableColumnIndex].innerHTML="";
 }
 
@@ -672,7 +673,7 @@ function showPlayerNamesInBidsTable(){
     let bidTable=document.getElementById("bids-table").querySelector("tbody");
     for(let playerIndex=0;playerIndex<rikkenTheGame.numberOfPlayers;playerIndex++){
         let playerBidsRow=bidTable.children[playerIndex];
-        playerBidsRow.children[0].innerHTML=rikkenTheGame.getPlayerName(playerIndex); // write the name of the player
+        playerBidsRow.children[0].innerHTML=rikkenTheGame.getPlayerName(playerIndex)+": "; // write the name of the player
     }
 }
 // MDH@21NOV2020: the game would call this method each time a bid made is received!!!
@@ -2099,6 +2100,7 @@ function prepareForPlaying(){
 
     // MDH@10JAN2020: we want to know when the user is trying to move away from the page
     window.onbeforeunload=function(){
+        if(!currentPlayer)return null; // MDH@12FEB2020: if no current player (anymore) no warning
         // how about prompting the user?????
         // if(!currentPlayer||!currentPlayer.game)return; // do not ask the user whether they want to stay or not (as they cannot stay)
         // if the user is viewing the results page we may assume that the game is actually over
