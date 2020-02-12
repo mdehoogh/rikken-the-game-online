@@ -88,6 +88,8 @@ function updateGameOverButtons(enable){
 // MDH@05FEB2020: if somebody wants to stop playing completely, (s)he wants to be completely forgotten
 //                setPlayerName() 
 function stopButtonClicked(){
+    window.history.back();
+    /* replacing:
     if(!currentPlayer)return alert("Helaas kennen we je niet, dus je zult niet kunnen spelen!");
     updateGameOverButtons(false); // disable the game over buttons
     // leaving the page is easiest... QUICK FIX to do so when we're in a session (i.e. assuming a registered player)
@@ -95,6 +97,7 @@ function stopButtonClicked(){
         window.history.back();
     else
         _setPlayer(null); // killing the player should do the rest!!!!!
+    */
     /* MDH@05FEB2020 replacing: 
     // ASSERT assuming not playing in a game anymore i.e. newGame() has been called before
     // a NORMAL exit
@@ -109,11 +112,15 @@ function stopButtonClicked(){
 }
 // MDH@10JAN2020: newGame() is a bid different than in the demo version in that we return to the waiting-page
 function newGameButtonClicked(){
+    // MDH@12FEB2020: the easiest way to do this is by forcing a reload BUT see how the game engine responds
+    window.location.reload(/*true*/); // from cache is fine as long as setPlayerName() is executed again!!!!
+    /* replacing:
     // means: do not forget about me playing i.e. keep me on the gameplaying page
     // MDH@05FEB2020: it's prudent to start completely over with a new player with the same name!!!!
     if(!currentPlayer)return alert("Helaas kennen we je niet, dus je zult niet kunnen spelen!");
     updateGameOverButtons(false); // disable the game over buttons
     setPlayerName(currentPlayer.name);
+    */
 }
 
 var toMakeABid=0,bidMade=-1; // MDH@03FEB2020: some protection for preventing making a bid when not being asked or after having made a bid
@@ -2128,8 +2135,11 @@ function prepareForPlaying(){
     for(let nextButton of document.getElementsByClassName('next'))nextButton.onclick=nextPage;
     for(let cancelButton of document.getElementsByClassName('cancel'))cancelButton.onclick=cancelPage;
 
-    for(let stopButton of document.getElementsByClassName('stop'))stopButton.onclick=stopButtonClicked;
-    
+    if(getCookie('connect.sid')) // supposedly in a registered user session
+        for(let stopButton of document.getElementsByClassName('stop'))stopButton.onclick=stopButtonClicked;
+    else // no need for stop buttons
+        for(let stopButton of document.getElementsByClassName('stop'))stopButton.style.display="none";
+
     // let's assume that the game is over when new-game buttons are showing
     // we're not to kill the connection, we'll just keep using the same connection
     for(let newGameButton of document.getElementsByClassName("new-game"))newGameButton.onclick=newGameButtonClicked;
@@ -2179,7 +2189,7 @@ function _setPlayer(player){
         currentPlayer.exit('STOP'); // exit the current player from whatever game (s)he has played!!!!
         // no need to change currentPlayer because it's gonna be replaced anyway
         // but will disconnect from the server anyway
-        let clientsocket=currentPlayer._client;
+        let clientsocket=(currentGame?currentGame._socket:null); // MDH@12FEB2020: the game keeps a reference to the socket
         // disconnect if need be
         (!clientsocket||!clientsocket.connected||clientsocket.disconnect());
         // replacing: currentPlayer.game=null; // get rid of the game (which will disconnect the socket as well) WISHFUL THINKING...
