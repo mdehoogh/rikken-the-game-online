@@ -138,11 +138,13 @@ router.get(
 );
 
 passport.use(
+  // MDH@13FEB2020: proxy:true should solve the problem of returning to http instead of https
   new GoogleStrategy(
     {
       clientID: process.env.RIKKEN_GOOGLE_CLIENT_ID,
       clientSecret: process.env.RIKKEN_GOOGLE_CLIENT_SECRET,
-      callbackURL: "/auth/google/callback"
+      callbackURL: "/auth/google/callback",
+      proxy:true
     },
     (accessToken, refreshToken, profile, done) => {
       console.log("Google account details:", profile);

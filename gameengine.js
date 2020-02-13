@@ -188,7 +188,12 @@ module.exports=(socket_io_server,gamesListener,numberOfGamesPlayedSoFar,acknowle
             this._pendingEvents=[]; // keep track of all pending events
             this._unacknowledgedEvents=[]; // keep track of all unacknowledged events
             this._client=client;
+            this._id=null;
         }
+
+        // additional id property
+        set id(_id){this._id=_id;}
+        get id(){return this._id;}
 
         // _sendPendingEvents will send any events that couldn't be send due to missing client
         _sendPendingEvents(){
