@@ -21,14 +21,14 @@ router.post("/signup", (req, res, next) => {
   const password = req.body.password;
 
   if (username === "" || password === "") {
-    res.render("auth/signup", { message: "Geef gebruikersnaam en wachtwoord op.",route:"Inschrijven" });
+    res.render("auth/login", { signup:true, route:"Inschrijven", message: "Geef gebruikersnaam en wachtwoord op." });
     return;
   }
 
   User.findOne({ username })
   .then(user => {
     if (user !== null) {
-      res.render("auth/signup", { message: "Gebruikersnaam al in gebruik." ,route:"Inschrijven"});
+      res.render("auth/login", { signup:true, route:"Inschrijven", message: "Gebruikersnaam al in gebruik."});
       return;
     }
 
@@ -42,10 +42,17 @@ router.post("/signup", (req, res, next) => {
 
     newUser.save((err) => {
       if (err) {
-        res.render("auth/signup", { message: "Er is iets fout gegaan.",route:"Inschrijven" });
-      } else {
-        // MDH@12FEB2020: how about going to log in immediately????
-        res.redirect("/aanmelden");
+        // MDH@2020: with signup replaced by login passing the signup flag will force the signup flag checkbox to be initially set
+        res.render("auth/login", { signup:true, route:"Inschrijven", message: "Er is iets fout gegaan."});
+      }else{
+        // MDH@12FEB2020: I suppose that if the sign up succeeds, can't we do the same as login does??????? wondering if that will work!!!!
+        //                as far as I can tell from the passportJS documentation I should call login instead of authenticate to login the new user immediately
+        //                NOTE I'm conjecturing that we can use newUser as that's the document that got saved!!!!
+        req.login(newUser,function(err){
+          if(err)return next(err);
+          console.log("New user logged in: "+req.user.username);
+          return res.redirect('/dashboard');
+        });
       }
     });
   })
@@ -54,14 +61,16 @@ router.post("/signup", (req, res, next) => {
   })
 });
 
+/* MDH@13FEB2020: log in now moved over to the root (home page)
 //login
 router.get("/aanmelden", (req, res, next) => {
     res.render("auth/login",{route:"Aanmelden"});
 });
-  
+*/
+
 router.post("/login", passport.authenticate("local", {
   successRedirect: "/dashboard",
-  failureRedirect: "/aanmelden",
+  failureRedirect: "/", // MDH@13FEB2020: replacing "/aanmelden"
   failureFlash: true,
   passReqToCallback: true
 }));
@@ -69,7 +78,7 @@ router.post("/login", passport.authenticate("local", {
 //redirect to "profile" needs to be finished
 router.get("/dashboard", ensureLogin.ensureLoggedIn(), (req, res) => {
   // console.log("After successful login user",req.user);
-  res.render("auth/private", { user: req.user,route:"Dashboard" });
+  res.render("auth/private", { user: req.user,route:"Dashboard",dashboard:true });
 });
 
 passport.serializeUser((user, cb) => {
@@ -101,9 +110,9 @@ passport.use(new LocalStrategy((username, password, next) => {
 
 router.get("/afmelden", (req, res) => {
   req.logout();
-  res.redirect("/aanmelden");
+  // MDH@13FEB2020: with the Home page now being the login page, it's best to go there
+  res.redirect("/"); // replacing: res.redirect('/aanmelden');
 });
-
 
 //passport OAuth
 

@@ -33,26 +33,26 @@
     {{/if}}
 </nav> --}}
 
-  <nav class="navbar navbar-light bg-light">
+<nav class="navbar navbar-light bg-light">
   <a class="navbar-brand" href="/">
     <img src="\images\contract-bridge-playing-card-suit-card-game-cards-s-png-clip-art.png" width="60" height="30" class="d-inline-block align-top" alt="">
     Rikken
   </a>
   <ul class="nav justify-content-end">
-  {{#if user}}
-  <li class="nav-item">
-    <a href="/afmelden">Afmelden</a>
-  </li>
-  <li class="nav-item">
-    <a href="/waiting">Ik wil spelen</a>
-  </li>
-  {{else}}
-  <li class="nav-item">
-    <a class="nav-link" href="/inschrijven">Inschrijven</a>
-  </li>
-  <li class="nav-item">
-    <a class="nav-link active" href="/aanmelden">Aanmelden</a>
-  </li>
-  {{/if}}
-</ul>
+    {{#if user}}
+      <li class="nav-item">
+        <a href="/afmelden">Afmelden</a>
+      </li>
+      <li class="nav-item">
+        <a href="/spelen">Ik wil spelen</a>
+      </li>
+    {{else}}
+      <li class="nav-item">
+        <a class="nav-link" href="/inschrijven">Inschrijven</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link active" href="/aanmelden">Aanmelden</a>
+      </li>
+    {{/if}}
+  </ul>
 </nav>

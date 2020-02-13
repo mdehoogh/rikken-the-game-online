@@ -1,12 +1,4 @@
-<!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="UTF-8"><!-- we'll be needing this!! -->
-    <title>Rikken</title>
-    <link rel='stylesheet' href='./stylesheets/mdhrikkenthegame.css' />
-  </head>
-  <body>
-    <!-- will this work?????? -->
+<div class='gameplaying'>
     <div>
         <div class='play-header'>
             <!-- don't make it a title because that would increase the font -->
@@ -19,8 +11,7 @@
         <!-- MDH@31JAN2020: we can put a single button here that can be used to (re)send stuff to the server -->
         <span>&nbsp;</span>
         <div id='receive-message'>
-            <span id='info-source' placeholder='Zender'></span>:&nbsp;
-            <span id='info' placeholder='Ontvangen berichten wordt hier getoond'></span>
+            <span id='info-source' placeholder='Zender'></span><span id='info' placeholder='Ontvangen berichten wordt hier getoond' style='background:"black"'></span>
         </div>
         <div id='send-message'>
             <input id='send-message-button' type='button' value='Verstuur'/>
@@ -648,12 +639,10 @@
             </div>
         </div>
     </div>
-    <!-- END DEMO VERSION BODY -->
+</div>
 
-    <!-- link socket.io-client script from the server -->
-    <script src='/socket.io/socket.io.js'></script>
-    <script src='./javascripts/gameplaying.js'></script>
-    {{! if we have a username use it immediately }}
-    {{#if username}}<script>setPlayerName("{{username}}",(result)=>{window.history.back();});</script>{{/if}}
-  </body>
-</html>
+<!-- link socket.io-client script from the server -->
+<script src='/socket.io/socket.io.js'></script>
+<script src='./javascripts/gameplaying.js'></script>
+{{! if we have a username use it immediately }}
+{{#if username}}<script>setPlayerName("{{username}}",(result)=>{window.history.back();});</script>{{/if}}

@@ -267,8 +267,9 @@ app.use("/profiel", require("./routes/private-profile"));
 app.use('/', require("./routes/auth-routes"));
 
 // routes rendering
+// MDH@13FEB2020: no need for a separate home page, we allow users to log in immediately at the root route
 app.get('/', (req, res, next) => {
-  res.render('home',{user:req.user,route:"Home"});
+  res.render('auth/login',{user:req.user,route:"Aanmelden"});
 });
 
 // app.get('/wachten', (req, res, next) => {

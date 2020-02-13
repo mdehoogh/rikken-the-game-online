@@ -1,23 +1,44 @@
 {{!-- <h2 class="signup">Aanmelden</h2> --}}
+<div class='background'>
+
 <div class="loginform">
 
-  {{#if message}}<div class="error-message">{{ message }}</div>{{/if}}
+  {{!-- because this page is used as Home page we should  both deal with a user that is logged in and one that is not --}}
+  {{#if user}}
 
-  <form action="/login" method="POST">
+    <button class="submitbutton"><a id="glink" href="/afmelden">Afmelden</a></div></button>
 
-    <div class="fields">
-      {{!-- <label for="username">Gebruikersnaam:</label> --}}
-      <input type="text" name="username" class= "field" placeholder="Je gebruikersnaam">
-      {{!-- <label for="password">Wachtwoord:</label> --}}
-      <input type="password" name="password" class="field" placeholder="Je wachtwoord">
-    </div>
+  {{else}}
 
-    <button class="submitbutton" type="submit" value="Inloggen">Aanmelden</button>
+    {{!-- signup determines whether or not this is supposedly a sign up (or alternatively a login) --}}
+    <form id='login-or-signup-form' action={{#if signup}}"/signup"{{else}}"/login"{{/if}} method="POST">
 
-    <p>of</p>
-    <div id="google"><a id="glink" href="/auth/google">Aanmelden met Google</a></div>
-  </form>
+      <div class="fields">
+        
+        <label for="username">Gebruikersnaam:</label>
+        <input type="text" name="username" class= "field" placeholder="">
+        
+        <label for="password">Wachtwoord:</label>
+        <input type="password" name="password" class="field" placeholder="">
 
+        {{#if message}}<div class="error-message">{{message}}</div>{{/if}}
+
+        {{!-- to allow both sign up and log in in this form we add a checkbox that the user can check if this is the first log in unchecked by default!!!!! --}}
+        {{!-- by rendering with signup either set to "" or " checked" we can determine whether or not the checkbox should be checked or not --}}
+        <label class='checkbox-label'><input type="checkbox" onclick="firsttimeFlagChangeHandler()" id='firsttime-flag-checkbox' {{#if signup}} checked{{/if}}>De eerste keer</label>
+        <script>function firsttimeFlagChangeHandler(event){document.getElementById('login-or-signup-form').action=(document.getElementById('firsttime-flag-checkbox').checked?"/signup":"/login");}</script>
+      
+      </div>
+
+      <button class="submitbutton" type="submit" value="Inloggen">Aanmelden</button>
+
+      <p>of</p>
+
+      {{!-- MDH@13FEB2020: originally this linked was wrapped in a button but forgot which one --}}
+      <div id="google"><button class="submitbutton"><a id="glink" href="/auth/google">Aanmelden met Google</a></button></div>
+
+    </form>
+  {{/if}}
 
 {{!-- 
     <div class="dropdown-menu">
@@ -44,5 +65,7 @@
       <a class="dropdown-item" href="#">New around here? Sign up</a>
       <a class="dropdown-item" href="#">Forgot password?</a>
     </div> --}}
+
+</div>
 
 </div>

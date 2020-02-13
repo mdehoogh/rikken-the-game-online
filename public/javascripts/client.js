@@ -87,6 +87,7 @@ function updateGameOverButtons(enable){
 
 // MDH@05FEB2020: if somebody wants to stop playing completely, (s)he wants to be completely forgotten
 //                setPlayerName() 
+var registeringPlayerId=null; // the id of the timer to register the player on every socket.io connect
 function stopButtonClicked(){
     window.history.back();
     /* MDH@12FEB2020: replacing:
@@ -110,6 +111,26 @@ function stopButtonClicked(){
     window.history.back();
     */
 }
+function registerPlayer(clientsocket){
+    if(!registeringPlayerId)return; // if a response was received registeringPlayerId will be null (see below)
+    try{
+        setInfo("Je wordt aangemeld als speler.","Spel");
+        currentGame._socket.emit('PLAYER',
+                            {name:currentPlayer.name,id:getCookie('connect.sid')},
+                            (success)=>{ // the server responded!!!!
+                                    registeringPlayerId=null; // get rid of the reference so registering will stop!!!!
+                                    if(!success){
+                                        alert("Je bent als speler afgewezen, omdat je elders al meespeelt!");
+                                        stopButtonClicked();
+                                    }else
+                                        setInfo("Je bent als speler aangemeld!","Server");
+                                }
+                            );
+    }finally{
+        registeringPlayerId=setTimeout(registerPlayer,2500); // try again in 2.5 seconds
+    }
+} // every 2.5 seconds
+
 // MDH@10JAN2020: newGame() is a bid different than in the demo version in that we return to the waiting-page
 function newGameButtonClicked(){
     _setPlayer(null); // MDH@12FEB2020: this will allow us to test for it in onbeforeunload...
@@ -2228,7 +2249,8 @@ function _setPlayer(player){
                 }else
                     setInfo("De verbinding is hersteld.","Server");
                 // MDH@23JAN2020: push the player name to the server again, so it can resend what needs sending!!!!
-                if(currentPlayer)clientsocket.emit('PLAYER',currentPlayer.name,()=>{setInfo("Je bent als speler aangemeld!","Server");});
+                // MDH@13FEB2020: we should be pushing PLAYER identification until we get a response
+                if(currentPlayer)registeringPlayerId=setTimeout(registerPlayer,1); // 1 ms delay is sufficient???????
             }else{
                 setInfo("De verbinding is verbroken.","Server");
                 // MDH@07FEB2020 removed: (typeof errorcallback!=='function'||errorcallback(new Error("Failed to connect to the server.")));

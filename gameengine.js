@@ -1165,58 +1165,47 @@ module.exports=(socket_io_server,gamesListener,numberOfGamesPlayedSoFar,acknowle
         });
         // when a client sends in it's ID which it should
         client.on('PLAYER',(data,callback)=>{
-            // MDH@09FEB2020: how about distnguishing between a reconnect and a first connect????????
-            //                this would allow throwing away any previous connections
-            // MDH@10JAN2020: this client could be a player we already know about (when a reconnect occurred)
-            //                it's easier to remove the other client instead of 
-            let indexOfRemotePlayerOfClient=getIndexOfRemotePlayerOfClient(client);
-            if(indexOfRemotePlayerOfClient>=0){ // we should have this client registered (of course)
-                let remotePlayer=remotePlayers[indexOfRemotePlayerOfClient]; // the associated player
-                let indexOfRemotePlayerWithName=getIndexOfRemotePlayerWithName(data);
-                if(indexOfRemotePlayerWithName<0){ // haven't got a player with the same name
-                    if(data)remotePlayer.name=data;
-                    gameEngineLog("Name of remote player #"+(indexOfRemotePlayerOfClient+1)+" set to '"+remotePlayer.name+"'.");
-                    checkForStartingNewGames();
-                    return;
-                }else{ // there's already a registered player with that name
-                    // it's possible we received the name twice??????
-                    if(indexOfRemotePlayerOfClient!==indexOfRemotePlayerWithName){
-                        // MDH@25JAN2020: we're going to do it a bit different!!!!!
-                        // simply plug the new client associated with the player into the original player
-                        remotePlayers[indexOfRemotePlayerWithName].client=client;
-                        // and remove the new client player we created before we knew that it wasn't a new player at all!!!
-                        remotePlayers.splice(indexOfRemotePlayerOfClient,1);
-                        /* replacing:
-                        if(data)remotePlayer.name=data;
-                        // now we have two remote players with the same name
-                        // delete the OLD one, and get it's game instance so we can assign that to the new one
-                        let removedRemotePlayer=remotePlayers.splice(indexOfRemotePlayerWithName,1)[0];
-                        if(removedRemotePlayer&&removedRemotePlayer.game){
-                            remotePlayer.index=removedRemotePlayer.index;
-                            remotePlayer.game=removedRemotePlayer.game;
-                            // TODO all events sent to this player that have not been acknowledged yet have to be sent immediately
-                            //      to do so we need to add the unacknowledged events AGAIN FIRST
-                            remotePlayer.consumePendingEvents(removedRemotePlayer.getUnacknowledgedEvents());
-                            remotePlayer.consumePendingEvents(removedRemotePlayer.getPendingEvents());
-                            // MDH@23JAN2020: we can do a bit more if this is the current player!!!!
-                            if(remotePlayer.index===this._player){
-                                gameEngineLog("********************** Prompting the reconnected player ********************************");
-                                switch(this.state){
-                                    case PlayerGame.BIDDING:remotePlayer.game._askPlayerForBid();break;
-                                    case PlayerGame.CHOOSE_TRUMP_SUITE:remotePlayer.game._askPlayerForTrumpSuite();break;
-                                    case PlayerGame.CHOOSE_PARTNER_SUITE:remotePlayer.game._askPlayerForPartnerSuite();break;
-                                    case PlayerGame.PLAYING:remotePlayer.game._askPlayerForCard();break;
-                                }
+            let success=false;
+            try{
+                if(data&&data.name&&data.name.length>0){ // a name is provided!!!
+                    // MDH@09FEB2020: how about distnguishing between a reconnect and a first connect????????
+                    //                this would allow throwing away any previous connections
+                    // MDH@10JAN2020: this client could be a player we already know about (when a reconnect occurred)
+                    //                it's easier to remove the other client instead of 
+                    let indexOfRemotePlayerOfClient=getIndexOfRemotePlayerOfClient(client);
+                    // MDH@13FEB2020 NOTE: an associated player MUST exist of course
+                    if(indexOfRemotePlayerOfClient>=0){ // we should have this client registered (of course)
+                        let remotePlayer=remotePlayers[indexOfRemotePlayerOfClient]; // the associated player
+                        // we have to be careful here because we might have another remote player instance with the same name
+                        let indexOfRemotePlayerWithName=getIndexOfRemotePlayerWithName(data.name);
+                        if(indexOfRemotePlayerWithName<0){ // this is when none of the remote players has this name yet
+                            success=true;
+                            remotePlayer.name=data.name;
+                            remotePlayer.id=data.id; // MDH@13FEB2020: store the id as well
+                            gameEngineLog("Name of remote player #"+(indexOfRemotePlayerOfClient+1)+" set to '"+remotePlayer.name+"'.");
+                            checkForStartingNewGames();
+                        }else{ // a player with the new name is already registered (as well)
+                            // if different players, use the original one with the same to test the id against
+                            if(indexOfRemotePlayerOfClient!==indexOfRemotePlayerWithName)
+                                remotePlayer=remotePlayers[indexOfRemotePlayerWithName];
+                            // EVEN if the ids do NOT match we do remove the newer one because we can not allow two remote players with the same name!!!!
+                            if(remotePlayer.id===data.id) // ids match
+                                success=true;
+                            else
+                                gameEngineLog("ERROR: The id of remote player '"+data.name+"' does not match '"+data.id+"'.");
+                            // update the client on this reconnect (with a new client)
+                            if(indexOfRemotePlayerOfClient!==indexOfRemotePlayerWithName){
+                                remotePlayer.client=client;
+                                remotePlayers.splice(indexOfRemotePlayerOfClient,1); // get rid of the duplicate remote player
                             }
                         }
-                        */
-                    }else
-                        gameEngineLog("WARNING: Player name '"+data+"' received again!");
+                    }else // an unassociated client
+                        gameEngineLog("BUG: No remote player instance registered with name '"+data.name+"'.");
+                    showRemotePlayersInfo("Player ID");
                 }
-            }else
-                gameEngineLog("ERROR: Name of unregistered player ("+data+") received!");
-            showRemotePlayersInfo("Player ID");
-            if(typeof callback==='function')callback();else console.log("No callback on PLAYER event");
+            }finally{
+                if(typeof callback==='function')callback(success);else gameEngineLog("WARNING: No callback on the PLAYER event.");
+            }
         });
 
         // what's coming back from the players are bids, cards played, trump and/or partner suites choosen

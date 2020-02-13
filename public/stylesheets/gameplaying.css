@@ -1,48 +1,139 @@
+/* MDH@13FEB2020: original in mdhrikkenthegame.css but now for playing the game inside the gameplaying class div */
+@font-face {
+    font-family: 'Suit-Regular';
+    src: url('../font/suit-regular.eot');
+    src: url('../font/suit-regular.eot?#iefix') format('embedded-opentype'),
+         url('../font/suit-regular.woff') format('woff'),
+         url('../font/suit-regular.ttf') format('truetype'),
+         url('../font/suit-regular.svg#suit-regular') format('svg');
+    font-weight:normal;
+    font-style:normal;
+}
 
+/* MDH@13FEB2020: in order to get the font size relative to .gameplaying I changed all rem references to em */
+.gameplaying {
+    font-family: Verdana, Geneva, Tahoma, sans-serif;
+    background: #eee;
+    background-image:none;
+    font-size:16px;
+    text-align:left;
+}
+@media(min-width:640px)and(max-width:767px){
+    .gameplaying{
+        font-size:18px;
+    }
+}
+@media(min-width:768px)and(max-width:1023px){
+    .gameplaying{
+        font-size:20px;
+    }
+}
+@media(min-width:1024px)and(max-width:1199px){
+    .gameplaying{
+        font-size:22px;
+    }
+}
+@media(min-width:1200px){
+    .gameplaying{
+        font-size:24px;
+    }
+}
 
-#info {
-    background:white;
+.gameplaying #info {
     color:blue;
-    font-family:Arial, Helvetica, sans-serif;
-    font-size:1em;
+    /* font-family:Arial, Helvetica, sans-serif; */
+    /* font-size:1em; */
+    /* padding-top:0.2em; */
+    vertical-align:middle;
 }
 
-.prompt {
-    font-size:2em;
+.gameplaying .prompt {
+    font-size:1.25em;
 }
 
-input[type=button] {
-    font-size:2.5em;
+.gameplaying input[type=button] {
+    font-size:0.8em;
 }
 
-.pages {
+.gameplaying .pages {
     color:#333;
+    background:plum;
+    max-width:100%;
+    overflow-x:hidden;
 }
 
-.trick {
+.gameplaying .trick {
     height:100px;
 }
 
-.page {
+.gameplaying #tricks-played-table tr:nth-child(even) {
+    background-color: #ccc;
+}
+
+.gameplaying .separator {
+    background:grey;
+    height:2px;
+    width:100%;
+    /* margin-left:10px;
+    margin-right:10px; */
+}
+
+.gameplaying tr {
+    border-color:grey;
+    border-bottom:1px;
+}
+.gameplaying td, th {
+    text-align:center;
+    font-size:1em;
+    height:1em;
+}
+
+.gameplaying .button-group {
+    position:absolute;
+    /* top:1.6em; */
+    right:1.6em;
+    /* margin:auto; */
+    font-size:1.25em;
+}
+
+.gameplaying .page {
     /* every page should be positioned relative to the parent in the top-left corner */
     position:absolute;
-    x:0;
-    y:0;
+    x:0px;
+    y:0px;
     width:100%;
+    /* max-width:100%;
+    overflow-x:hidden; */
 }
 
 /* page-button-groups to show in the right top corner */
-.page-button-group {
+.gameplaying .page-button-group {
     position:absolute;
-    top:2rem;
-    right:2rem;
-    margin:auto;
-    font-size:2rem;
+    top:0.5em;
+    right:0.5em;
+    /* margin:auto; */
+    font-size:1.25em;
 }
 
 /* h1 is used for page titles */
-.page-title{
-    font-size:2rem;
+.gameplaying .page-title{
+    font-size:1.25em;
+    padding:0.5rem 0em;
+    width:100%;
+}
+
+.gameplaying .page-header{
+    position:relative; /* but leaving it where is is */
+    background-color: rgb(44, 103, 170);
+    /* padding-left:8px; */
+    color:white;
+    width:100%;
+    /*border-top:5px;
+    border-bottom:5px;
+    border-color:red;
+    */
+    /* margin-left:16px;
+    margin-right:16px; */
 }
 
 /* setup rules page */
@@ -58,23 +149,23 @@ input[type=button] {
     background:black;
 }
 */
-.player-name {
+.gameplaying .player-name-input {
     width:100%;
 }
-.player-name input{
+.gameplaying .player-name-input input{
     text-align:center;
     width:200px;
     height:40px;
 }
 
 /* bidding page */
-.pas{
+.gameplaying .pas{
     color:grey;
 }
-.rik{
+.gameplaying .rik{
     color:green;
 }
-.solitary{
+.gameplaying .solitary{
     color:blue;
 }
 /*
@@ -83,49 +174,56 @@ input[type=button] {
 }
 */
 
+.gameplaying .bid-partner{
+    font-size:1.4em;
+}
+
 /* show the bids buttons in a row wrapping to the next line if possible */
-.bid-buttons{
+.gameplaying .bid-buttons{
     display:flex;
     flex-wrap:wrap;
 }
 
-.bid input[type=button] {
-    margin:10px;
-    padding:5px;
-
+.gameplaying .bid-buttons input[type=button] {
+    margin:4px 8px;
+    height:3em;
+    padding:4px 2px;
+    font-size:1.4em;
 }
 
 /* playing page */
-.trump .diamond,.heart{
+.gameplaying .trump .diamond,.heart{
     color:purple;
 }
-.diamond,.heart{
+.gameplaying .diamond,.heart{
     color:red;
-    font-size:1.2rem;
+    /* font-size:1.2em; */
 }
-.trump .club,.spade {
+.gameplaying .trump .club,.spade {
     color:blue;
 }
-.club,.spade {
+.gameplaying .club,.spade {
     color:black;
-    font-size:1.2rem;
+    /* font-size:1.4em; */
 }
-.card{
-    font-size:1.2rem;
+
+.gameplaying .card-text{
+    font-family:'Apple Symbols';
+    font-size:600%;
+    /* font-size:1.4em; */
 }
-.partner{
+
+.gameplaying .partner{
     color:green;
 }
-.trick-cards{
-    margin:0 1rem;
+.gameplaying .trick-cards{
+    margin:0 1em;
 }
-.game-info{
+
+/* #game-info{
     margin:0 10px;
-}
-.trick-info{
-    display:flex;
-    flex-direction: column;
-}
+} */
+
 /*
 #page-playing {
     background:black;
@@ -139,53 +237,88 @@ input[type=button] {
 */
 
 /* playing finished page */
-#page-finished {
-    background:blue;
+.gameplaying #page-finished {
+    background:beige;
 }
 
 /* COLLAPSABLE BID CARDS (source: https://www.w3schools.com/howto/howto_js_collapsible.asp) */
 /* Style the button that is used to open and close the collapsible content */
-.collapsible-button {
-  background-color: #eee;
-  color: #444;
-  cursor: pointer;
-  padding: 10px;
-  width: 100%;
-  border: none;
-  text-align: left;
-  outline: none;
-  font-size: 15px;
+.gameplaying .collapsing-button {
+    background-color: #eee;
+    color: #444;
+    cursor: pointer;
+    /* padding: 10px; */
+    width: 100%;
+    border: none;
+    text-align: left;
+    outline: none;
+    font-size: 1em;
 }
-
 /* Add a background color to the button if it is clicked on (add the .active class with JS), and when you move the mouse over it (hover) */
-.active-bid-button, .collapsible-button:hover {
-  background-color: #ccc;
+.gameplaying .active-button, .collapsing-button:hover {
+    background-color: #ccc;
 }
-
-/* Style the collapsible content. Note: hidden by default */
-#bidder-suitecards {
-  padding: 0 18px;
-  /* display: none; */
-  overflow: hidden;
-  background-color: #f1f1f1;
+/* Style the collapsible content. Note: now open by default */
+.gameplaying .collapsible {
+    padding: 0 18px;
+    display: block;
+    overflow: hidden;
+    background-color: #f1f1f1;
 }
-
-.collapsible-button:after {
+.gameplaying .collapsing-button:after {
     content: '\02795'; /* Unicode character for "plus" sign (+) */
     font-size: 13px;
     color: white;
     float: right;
     margin-left: 5px;
 }
-  
-.active-bid-button:after {
-content: "\2796"; /* Unicode character for "minus" sign (-) */
+.gameplaying .active-button:after {
+    content: "\2796"; /* Unicode character for "minus" sign (-) */
 }
 
-/* #bid-input,#play-input{
-    position:static;
+.gameplaying #play-card-prompt{
+    color:blue;
 }
-#wait-for-bid,#bidding,#wait-for-play,#playing{
+
+/* MDH@31JAN2020: some extra CSS */
+.gameplaying .play-header{
     position:relative;
-    top:0px;
+    display:flex;
+    text-align:left;
+    vertical-align:center;
+}
+.gameplaying #help-button{
+    position:absolute;
+    right:1em;
+    top:0.1em;
+}
+.gameplaying #communication{
+    position:relative;
+    width:100%;
+    display:flex;
+    text-align:left;
+    font-size:0.85em;
+    padding:4px 0px;
+    background-color:lightgoldenrodyellow;
+    border:1px solid lightyellow;
+}
+.gameplaying #receive-message{
+    position:absolute;
+    top:4px;
+    left:8px;
+    display:flex;
+    margin-right:10px;
+}
+.gameplaying #send-message{
+    position:absolute;
+    top:4px;
+    right:8px;
+    display:flex;
+}
+/* #send-message-button{
+    width:10em;
+    margin-right:1em;
 } */
+.gameplaying #send-message-input{
+    color:black;
+}

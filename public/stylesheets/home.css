@@ -11,19 +11,18 @@ body {
     background-size: cover;
     background-position: center;
     background-attachment: fixed;
-
 }
 
-#info {
+/* #info {
     display: none;
-}
+} */
 
-.jumbotron {
+/* .jumbotron {
     background-color: teal !important;
     height: 50vh;
-}
+} */
 
-.btn {
+/* .btn {
     color: wheat !important;
     background-color: navy !important;
     border-color: navy !important;
@@ -37,4 +36,4 @@ body {
 
 .spacer {
     height: 50vh;
-}
+} */

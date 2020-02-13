@@ -3,9 +3,9 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "start": "node ./test_gameengine.js",
-    "testlocal": "browserify ./public/javascripts/client.js --standalone setPlayerName -o ./public/javascripts/gameplaying.js --debug && DEBUG=socket.io* node ./test_gameengine.js --debug",
-    "testall": "node ./app.js"
+    "start": "node ./app.js",
+    "testplaying": "browserify ./public/javascripts/client.js --standalone setPlayerName -o ./public/javascripts/gameplaying.js --debug && DEBUG=socket.io* node ./test_gameengine.js --debug",
+    "testall": "browserify ./public/javascripts/client.js --standalone setPlayerName -o ./public/javascripts/gameplaying.js --debug && DEBUG=socket.io* node ./app.js --debug"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

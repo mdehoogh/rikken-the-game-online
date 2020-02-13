@@ -4,7 +4,7 @@ function setInfo(info,infosource){
     if(!info)return;
     console.log(document.title+" >>> INFO: "+info);
     if(infoElement)infoElement.innerHTML=info;
-    if(infosourceElement)infosourceElement.innerHTML=(infosource?infosource.toString():"?");
+    if(infosourceElement)infosourceElement.innerHTML=(infosource?infosource.toString()+":&nbsp;":"?");
 }
 
 function clearInfo(){

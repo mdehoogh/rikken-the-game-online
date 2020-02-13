@@ -1,3 +1,10 @@
-    <header style='padding-top:0.9rem;padding-left:0.4rem;z-index:999;height:2.7rem;position:fixed;top:0;width:100%;border-bottom:1px solid purple;background:rgb(202, 46, 202);color:white;font-size:1.5rem'>
+    <header>
+        {{!-- if the dashboard flag we're showing a menu on the right-hand side  --}}
         {{title}}{{#if route}}: {{route}}{{/if}}
+        {{#if dashboard}}
+            <div class='menu'>
+                <a href='/spelen'>Spelen</a>
+                <a href='/afmelden'>Afmelden</a>
+            </div>
+        {{/if}}
     </header>
