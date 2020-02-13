@@ -5,7 +5,7 @@
   "scripts": {
     "start": "node ./test_gameengine.js",
     "testlocal": "browserify ./public/javascripts/client.js --standalone setPlayerName -o ./public/javascripts/gameplaying.js --debug && DEBUG=socket.io* node ./test_gameengine.js --debug",
-    "testall": "PORT=3001 node ./app.js"
+    "testall": "node ./app.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

@@ -119,7 +119,7 @@ router.get(
 router.get(
   "/auth/google/callback",
   passport.authenticate("google", {
-    successRedirect: "/profiel",
+    successRedirect: "/dashboard",
     failureRedirect: "/" 
   })
 );
@@ -127,8 +127,8 @@ router.get(
 passport.use(
   new GoogleStrategy(
     {
-      clientID: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      clientID: process.env.RIKKEN_GOOGLE_CLIENT_ID,
+      clientSecret: process.env.RIKKEN_GOOGLE_CLIENT_SECRET,
       callbackURL: "/auth/google/callback"
     },
     (accessToken, refreshToken, profile, done) => {
