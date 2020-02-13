@@ -1,31 +1,61 @@
 {{#if user}}
-  <div class="page">
+  <div class="page" style="background:rgba(255,255,255,0.8)">
     {{!-- <div id="greeting"><h1>Hallo {{user.username}}</h1></div> --}}
     {{!-- <div><a href="/spelen">Ik wil spelen</a></div>
     <div><a href="/profiel">Profiel bewerken</a></div>
     <div><a href='/afmelden'>Afmelden</a></div> --}}
-    <div id="score table">
+    {{!-- <div>{{user.username}}</div> --}}
+    <div id="score-table">
       {{#if gamesPlayed.length}}
         {{!-- <h2>Spelresultaten</h2> --}}
         <table style="width:100%">
           <thead>
             <tr>
-              <th>Datum</th>
-              <th>Spel</th>
-              <th>Spelers</th>
-              <th>Slagen</th>
-              <th>Score</th>
+              <th></th>
+              <th></th>
+              <th></th>
+              <th style="text-align:left" colspan="3">Speler 1</th>
+              <th style="text-align:left" colspan="3">Speler 2</th>
+              <th style="text-align:left" colspan="3">Speler 3</th>
+              <th style="text-align:left" colspan="3">Speler 4</th>
+            </tr>
+            <tr>
+              <th style="text-align:left">Naam</th>
+              <th style="text-align:left">Datum</th>
+              <th style="text-align:left">Spel</th>
+              <th style="text-align:left">Naam</th>
+              <th style="text-align:left">Slagen</th>
+              <th style="text-align:left">Score</th>
+              <th style="text-align:left">Naam</th>
+              <th style="text-align:left">Slagen</th>
+              <th style="text-align:left">Score</th>
+              <th style="text-align:left">Naam</th>
+              <th style="text-align:left">Slagen</th>
+              <th style="text-align:left">Score</th>
+              <th style="text-align:left">Naam</th>
+              <th style="text-align:left">Slagen</th>
+              <th style="text-align:left">Score</th>
             </tr>
           </thead>
           <tbody>
             {{#each gamesPlayed}}
               {{#with this}}
                 <tr>
-                  <td>{{getTimestamp created_at}}</td>
-                  <td>{{getBidName bid}}</td>
-                  <td>{{getGamePlayerNames scores user.username}}</td>
-                  <td>{{getGamePlayerTricksWon scores user.username}}</td>
-                  <td>{{getGamePlayerScore scores user.username}}</td>
+                  <td style="text-align:left">{{name}}</td>
+                  <td style="text-align:left">{{getTimestamp created_at}}</td>
+                  <td style="text-align:left">{{getBidName bid}}</td>
+                  <td style="text-align:left">{{scores.0.player_name}}</td>
+                  <td style="text-align:left">{{scores.0.tricks_won}}</td>
+                  <td style="text-align:left">{{scores.0.score}}</td>
+                  <td style="text-align:left">{{scores.1.player_name}}</td>
+                  <td style="text-align:left">{{scores.1.tricks_won}}</td>
+                  <td style="text-align:left">{{scores.1.score}}</td>
+                  <td style="text-align:left">{{scores.2.player_name}}</td>
+                  <td style="text-align:left">{{scores.2.tricks_won}}</td>
+                  <td style="text-align:left">{{scores.2.score}}</td>
+                  <td style="text-align:left">{{scores.3.player_name}}</td>
+                  <td style="text-align:left">{{scores.3.tricks_won}}</td>
+                  <td style="text-align:left">{{scores.3.score}}</td>
                 </tr>
               {{/with}}
             {{/each}}

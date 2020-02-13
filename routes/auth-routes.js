@@ -4,6 +4,8 @@ const router = express.Router();
 
 const User = require("../models/user");
 
+const getPlayerScoreHistory = require("../controllers/getPlayerScoreHistory");
+
 const bcrypt = require("bcryptjs");
 const bcryptSalt = 10;
 const ensureLogin = require("connect-ensure-login");
@@ -76,9 +78,11 @@ router.post("/login", passport.authenticate("local", {
 }));
 
 //redirect to "profile" needs to be finished
-router.get("/dashboard", ensureLogin.ensureLoggedIn(), (req, res) => {
+router.get("/dashboard", ensureLogin.ensureLoggedIn(), async(req, res) => {
   // console.log("After successful login user",req.user);
-  res.render("auth/private", { user: req.user,route:"Dashboard",dashboard:true });
+  let gamesPlayedByUser=await getPlayerScoreHistory(req.user._id);
+  console.log("Games played by user",gamesPlayedByUser);
+  res.render("auth/private", { user: req.user,gamesPlayed:gamesPlayedByUser,route:"Dashboard",dashboard:true });
 });
 
 passport.serializeUser((user, cb) => {

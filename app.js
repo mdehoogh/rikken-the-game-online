@@ -17,18 +17,24 @@ hbs.registerHelper("getTimestamp",function(aDate){return aDate.toLocaleString();
 hbs.registerHelper("getBidName",function(bid){
   return ["pas","rik","rik (beter)","negen alleen","negen alleen (beter)","pico","tien alleen","tien alleen (beter)","elf alleen","elf alleen (beter)","mis\xe8re","twaalf alleen","twaalf alleen (beter)","open mis\xe8re","dertien alleen","dertien alleen (beter)","open mis\xe8re met een praatje","troela","om de schoppen vrouw en de laatste slag","om de laatste slag"][bid];
 });
-hbs.registerHelper("getGamePlayerScore", function(scores,player_name) {
+hbs.registerHelper("getGamePlayerScore", function(player_name,scores){
+  // console.log("Locating the score of '"+player_name+"' in "+JSON.stringify(scores)+'.');
   let scoreIndex=scores.length;
-  while(--scoreIndex>=0&&scores[scoreIndex].player_name!==player_name);
+  while(--scoreIndex>=0&&scores[scoreIndex].player_name!==player_name)
+    //console.log("'"+player_name+"' not matching '"+scores[scoreIndex].player_name+"' in locating the score.")
+    ;
   return(scoreIndex>=0?scores[scoreIndex].score:"?");
 });
-hbs.registerHelper("getGamePlayerTricksWon", function(scores,player_name) {
+hbs.registerHelper("getGamePlayerTricksWon", function(player_name,scores) {
+  console.log("Locating the tricks won of '"+player_name+"' in "+JSON.stringify(scores)+'.');
   let scoreIndex=scores.length;
-  while(--scoreIndex>=0&&scores[scoreIndex].player_name!==player_name);
+  while(--scoreIndex>=0&&scores[scoreIndex].player_name!==player_name)
+    //console.log("'"+player_name+"' not matching '"+scores[scoreIndex].player_name+"' in locating the tricks won.")
+    ;
   return (scoreIndex>=0?scores[scoreIndex].tricks_won:"?");
 });
-hbs.registerHelper("getGamePlayerNames",function(scores,player_name){
-  return scores.map((score)=>(score.player_name===player_name?"<b>"+player_name+"</b>":score.player_name)).join(" ");
+hbs.registerHelper("getGamePlayerNames",function(player_name,scores){
+  return(scores?scores.map((score)=>(score.player_name===player_name?player_name:score.player_name+":"+score.score+"<-"+score.tricks_won)).join(" "):"?");
 });
 
 // MDH@12FEB2020: copied over from ./test_gameengine.js for running the game engine
