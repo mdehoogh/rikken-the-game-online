@@ -254,6 +254,7 @@ app.use(express.static(path.join(__dirname,'public')));
 // passport init and config
 app.use(session({
   secret: "our-passport-local-strategy-app",
+  cookie: {httpOnly:false}, // MDH@13FEB2020: want to use the cookie client-side programmatically
   resave: true,
   saveUninitialized: true
 }));

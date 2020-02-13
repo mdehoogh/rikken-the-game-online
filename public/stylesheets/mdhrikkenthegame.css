@@ -102,7 +102,7 @@ td, th {
     position:absolute;
     x:0px;
     y:0px;
-    width:99%;
+    width:100%;
     /* max-width:100%;
     overflow-x:hidden; */
 }
@@ -110,7 +110,7 @@ td, th {
 /* page-button-groups to show in the right top corner */
 .page-button-group {
     position:absolute;
-    top:0.5rem;
+    top:0.3rem;
     right:0.5rem;
     /* margin:auto; */
     font-size:1.25rem;

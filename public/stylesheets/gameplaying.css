@@ -111,7 +111,7 @@
 /* page-button-groups to show in the right top corner */
 .gameplaying .page-button-group {
     position:absolute;
-    top:0.5em;
+    top:0.3em;
     right:0.5em;
     /* margin:auto; */
     font-size:1.25em;
@@ -292,7 +292,7 @@
 .gameplaying #help-button{
     position:absolute;
     right:1em;
-    top:0.1em;
+    top:0em;
 }
 .gameplaying #communication{
     position:relative;
