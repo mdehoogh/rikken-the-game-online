@@ -81,8 +81,29 @@ router.post("/login", passport.authenticate("local", {
 router.get("/dashboard", ensureLogin.ensureLoggedIn(), async(req, res) => {
   // console.log("After successful login user",req.user);
   let gamesPlayedByUser=await getPlayerScoreHistory(req.user._id);
+  console.log("Games played by user "+req.user._id,gamesPlayedByUser);
+  // MDH@16FEB2020: get the current user as first user in the list of scores
+  let userTotalScores={}; // keep track of the total scores (per user)
+  gamesPlayedByUser.forEach((gamePlayedByUser)=>{
+    let scores=gamePlayedByUser.scores;
+    console.log("Scores",scores);
+    while(scores[0].player_name!==req.user.username)scores.push(scores.shift());
+    console.log("Scores",scores);
+    // change the absolute scores of the other users to relative scores
+    if(userTotalScores.hasOwnProperty(req.user.username))
+      userTotalScores[req.user.username]+=scores[0].score; // the total score of this player
+    else
+      userTotalScores[req.user.username]=scores[0].score; // the total score of this player
+    for(let scoreIndex=1;scoreIndex<scores.length;scoreIndex++)
+      if(userTotalScores.hasOwnProperty(scores[scoreIndex].player_name))
+        userTotalScores[scores[scoreIndex].player_name]+=(scores[scoreIndex].score-scores[0].score);
+      else
+        userTotalScores[scores[scoreIndex].player_name]=(scores[scoreIndex].score-scores[0].score);
+    // add the total score to the scores in the game
+    gamePlayedByUser.scores.forEach((score)=>{score.total_score=userTotalScores[score.user_id]});
+  });
   console.log("Games played by user",gamesPlayedByUser);
-  res.render("auth/private", { user: req.user,gamesPlayed:gamesPlayedByUser,route:"Dashboard",dashboard:true });
+  res.render("auth/private", { user: req.user,gamesPlayed:gamesPlayedByUser.reverse(),route:"Dashboard",dashboard:true });
 });
 
 passport.serializeUser((user, cb) => {
