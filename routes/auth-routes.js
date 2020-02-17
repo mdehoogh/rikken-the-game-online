@@ -169,33 +169,23 @@ router.get(
 passport.use(
   // MDH@13FEB2020: proxy:true should solve the problem of returning to http instead of https
   new GoogleStrategy(
-    {
-      clientID: process.env.RIKKEN_GOOGLE_CLIENT_ID,
-      clientSecret: process.env.RIKKEN_GOOGLE_CLIENT_SECRET,
-      callbackURL: "/auth/google/callback",
-      proxy:true
-    },
-    (accessToken, refreshToken, profile, done) => {
-      console.log("Google account details:", profile);
-      //  debugger
-      User.findOne({ googleID: profile.id })
-        .then(user => {
-          if (user) {
-            done(null, user);
-            return;
-          }
-
-          return User.create({ 
-            googleID: profile.id,
-            username: profile.displayName
-          })
-            .then(newUser => {
-              done(null, newUser);
-            })
-        })
-        .catch(err => done(err)); 
-    }
-  )
+        {
+          clientID: process.env.RIKKEN_GOOGLE_CLIENT_ID,
+          clientSecret: process.env.RIKKEN_GOOGLE_CLIENT_SECRET,
+          callbackURL: "/auth/google/callback",
+          proxy:true
+        },
+        (accessToken, refreshToken, profile, done) => {
+          console.log("Google account details:", profile);
+          // ascertaining that we have a user registered with the given google ID
+          // MDH@17FEB2020: the following takes a shortcut by passing user to the next level, so we only need a single done call for success/failure
+          User
+          .findOne({googleID:profile.id})
+          .then(user=>user||User.create({googleID:profile.id,username:profile.displayName}))
+          .then(user=>done(null,user))
+          .catch(err=>done(err));
+        }
+      )
 );
 
 module.exports = router;
