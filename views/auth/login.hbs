@@ -25,7 +25,14 @@
 
         {{!-- to allow both sign up and log in in this form we add a checkbox that the user can check if this is the first log in unchecked by default!!!!! --}}
         {{!-- by rendering with signup either set to "" or " checked" we can determine whether or not the checkbox should be checked or not --}}
-        <label class='checkbox-label'><input type="checkbox" onclick="firsttimeFlagChangeHandler()" id='firsttime-flag-checkbox' {{#if signup}} checked{{/if}}>De eerste keer</label>
+        {{!-- <label class='checkbox-label'><input type="checkbox" onclick="firsttimeFlagChangeHandler()" id='firsttime-flag-checkbox' {{#if signup}} checked{{/if}}>De eerste keer</label> --}}
+        
+        <!-- replaced by bootstrap checkbox -->
+        <div class="custom-control custom-checkbox">
+            <input type="checkbox" onclick="firsttimeFlagChangeHandler()" class="custom-control-input" id="firsttime-flag-checkbox" {{#if signup}} checked{{/if}}>
+            <label class="custom-control-label" for="firsttime-flag-checkbox">De eerste keer</label>
+        </div>
+
         <script>function firsttimeFlagChangeHandler(event){document.getElementById('login-or-signup-form').action=(document.getElementById('firsttime-flag-checkbox').checked?"/signup":"/login");}</script>
       
       </div>
