@@ -104,14 +104,12 @@ router.get("/dashboard", ensureLogin.ensureLoggedIn(), async(req, res) => {
   }
   // now we can determine the ranks of the players relative to the current player
   // for this we need to sort the total scores
-  let userTotalScoresSortedKeys=Object.keys(userTotalScores).sort((a,b)=>userTotalScores[a]-userTotalScores[b]);
-  let playerRanks={};
-  let rank=1; // the first rank to assign
-  playerRanks[userTotalScoresSortedKeys[0]]=1;
-  for(let userTotalScoresSortedKeyIndex=1;userTotalScoresSortedKeyIndex<userTotalScoresSortedKeys.length;userTotalScoresSortedKeyIndex++){ // iterate over the index of the keys
-    if(userTotalScores[userTotalScoresSortedKey]===userTotalScores[userTotalScoresSortedKeyIndex-1])
-      playerRanks[userTotalScoresSortedKey]=playerRanks[userTotalScoresSortedKeyIndex-1];
-  }
+  let userTotalScoresSortedKeys=Object.keys(userTotalScores).sort((a,b)=>userTotalScores[b]-userTotalScores[a]);
+  // we can assign the rank values by using playerRanks as this in map, NOTE that any element that is not equal to the value in front of it get's index+1 as rank
+  let playerRanks=userTotalScoresSortedKeys.map((element,index,arr)=>{
+                                              return {'name':element,
+                                                      'rank':(index<=0||userTotalScores[arr[index-1]]!==userTotalScores[element]?index+1:null)
+                                                      };});
   console.log("Games played by user",gamesPlayedByUser);
   res.render("auth/private", { user: req.user,gamesPlayed:gamesPlayedByUser.reverse(),playerRanks:playerRanks,route:"Dashboard",dashboard:true });
 });

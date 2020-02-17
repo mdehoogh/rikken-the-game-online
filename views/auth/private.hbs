@@ -5,11 +5,11 @@
     <div><a href="/profiel">Profiel bewerken</a></div>
     <div><a href='/afmelden'>Afmelden</a></div> --}}
     {{!-- <div>{{user.username}}</div> --}}
-    <div>De totaalscores van de andere spelers zijn relatief t.o.v. jouw score in alle partijen waarin je samen speelde!</div>
     <div id="score-table">
       {{#if gamesPlayed.length}}
+        <div>De totaalscores van de andere spelers zijn relatief t.o.v. jouw score in alle partijen waarin je samen speelde!</div>
         {{!-- <h2>Spelresultaten</h2> --}}
-        <table style="width:100%">
+        <table style="width:100%;border-bottom:1px solid purple">
           <thead>
             <tr>
               <th></th>
@@ -64,6 +64,19 @@
                   <td style="text-align:left">{{scores.3.score}}</td>
                   <td style="text-align:left">{{scores.3.total_score}}</td>
                 </tr>
+              {{/with}}
+            {{/each}}
+          </tbody>
+        </table>
+        <div>De huidige rangschikking:</div>
+        <table>
+          <thead>
+            <tr><th>Rang</th><th>Speler</th></tr>
+          </thead>
+          <tbody>
+            {{#each playerRanks}}
+              {{#with this}}
+                <tr><td align='right'>{{#if rank}}{{rank}}.&nbsp;{{/if}}</td><td>{{name}}</td></tr>
               {{/with}}
             {{/each}}
           </tbody>
