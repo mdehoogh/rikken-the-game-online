@@ -196,6 +196,7 @@ const app=express();
 
 // MDH@12FEB2020: copied over from ./test_gameengine.js for using i18n
 app.locals.title="Rikken"; // the title of this nice card game
+app.locals.google_app_client_id=process.env.RIKKEN_GOOGLE_CLIENT_ID; // MDH@17FEB2020: make avaiable to handlebars
 
 // setup multiple language support
 const i18n=require('i18n');

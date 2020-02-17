@@ -25,8 +25,7 @@
 
         {{!-- to allow both sign up and log in in this form we add a checkbox that the user can check if this is the first log in unchecked by default!!!!! --}}
         {{!-- by rendering with signup either set to "" or " checked" we can determine whether or not the checkbox should be checked or not --}}
-        {{!-- <label class='checkbox-label'><input type="checkbox" onclick="firsttimeFlagChangeHandler()" id='firsttime-flag-checkbox' {{#if signup}} checked{{/if}}>De eerste keer</label> --}}
-        
+        {{!-- <label class='checkbox-label'><input type="checkbox" onclick="firsttimeFlagChangeHandler()" id='firsttime-flag-checkbox' {{#if signup}} checked{{/if}}>De eerste keer</label> --}}        
         <!-- replaced by bootstrap checkbox -->
         <div class="custom-control custom-checkbox">
             <input type="checkbox" onclick="firsttimeFlagChangeHandler()" class="custom-control-input" id="firsttime-flag-checkbox" {{#if signup}} checked{{/if}}>
@@ -41,8 +40,34 @@
 
       <p>of</p>
 
+      {{!-- see if we can actually show the Google signin button --}}
+      {{!-- <div class="g-signin2" data-width="200" data-height="50" data-longtitle="false"></div>
+      <script>
+        function onSuccess(googleUser) {
+          console.log('Logged in as: ' + googleUser.getBasicProfile().getName());
+        }
+        function onFailure(error) {
+          console.log(error);
+        }
+        function renderButton() {
+          gapi.signin2.render('my-signin2', {
+            'scope': 'profile email',
+            'width': 240,
+            'height': 50,
+            'longtitle': false,
+            'theme': 'dark',
+            'onsuccess': onSuccess,
+            'onfailure': onFailure
+          });
+        }
+      </script>
+      <script src="https://apis.google.com/js/platform.js?onload=renderButton" async defer></script> --}}
+
       {{!-- MDH@13FEB2020: originally this linked was wrapped in a button but forgot which one --}}
-      <div id="google"><button class="submitbutton"><a id="glink" href="/auth/google">Aanmelden met Google</a></button></div>
+      <div id="google">
+        <img src='images/btn_google_signin_dark_normal_web.png' width="191" height="46"/>
+        <button class="submitbutton"><a id="glink" href="/auth/google">Aanmelden met Google</a></button>
+      </div>
 
     </form>
   {{/if}}
