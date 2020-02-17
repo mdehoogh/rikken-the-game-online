@@ -84,26 +84,36 @@ router.get("/dashboard", ensureLogin.ensureLoggedIn(), async(req, res) => {
   console.log("Games played by user "+req.user._id,gamesPlayedByUser);
   // MDH@16FEB2020: get the current user as first user in the list of scores
   let userTotalScores={}; // keep track of the total scores (per user)
-  gamesPlayedByUser.forEach((gamePlayedByUser)=>{
+  let userTotalScore=0; // the absolute total score of the current player
+  userTotalScores[req.user.username]=0; // obviously the relative score of the 
+  for(let gamePlayedIndex in gamesPlayedByUser){
+    let gamePlayedByUser=gamesPlayedByUser[gamePlayedIndex]; // by ref!!!!
     let scores=gamePlayedByUser.scores;
     console.log("Scores",scores);
     while(scores[0].player_name!==req.user.username)scores.push(scores.shift());
     console.log("Scores",scores);
     // change the absolute scores of the other users to relative scores
-    if(userTotalScores.hasOwnProperty(req.user.username))
-      userTotalScores[req.user.username]+=scores[0].score; // the total score of this player
-    else
-      userTotalScores[req.user.username]=scores[0].score; // the total score of this player
+    userTotalScore+=scores[0].score; // update the total score of the current player
     for(let scoreIndex=1;scoreIndex<scores.length;scoreIndex++)
       if(userTotalScores.hasOwnProperty(scores[scoreIndex].player_name))
         userTotalScores[scores[scoreIndex].player_name]+=(scores[scoreIndex].score-scores[0].score);
       else
         userTotalScores[scores[scoreIndex].player_name]=(scores[scoreIndex].score-scores[0].score);
     // add the total score to the scores in the game
-    gamePlayedByUser.scores.forEach((score)=>{score.total_score=userTotalScores[score.user_id]});
-  });
+    for(let score of scores)score.total_score=(score.player_name===req.user.username?userTotalScore:userTotalScores[score.player_name]);
+  }
+  // now we can determine the ranks of the players relative to the current player
+  // for this we need to sort the total scores
+  let userTotalScoresSortedKeys=Object.keys(userTotalScores).sort((a,b)=>userTotalScores[a]-userTotalScores[b]);
+  let playerRanks={};
+  let rank=1; // the first rank to assign
+  playerRanks[userTotalScoresSortedKeys[0]]=1;
+  for(let userTotalScoresSortedKeyIndex=1;userTotalScoresSortedKeyIndex<userTotalScoresSortedKeys.length;userTotalScoresSortedKeyIndex++){ // iterate over the index of the keys
+    if(userTotalScores[userTotalScoresSortedKey]===userTotalScores[userTotalScoresSortedKeyIndex-1])
+      playerRanks[userTotalScoresSortedKey]=playerRanks[userTotalScoresSortedKeyIndex-1];
+  }
   console.log("Games played by user",gamesPlayedByUser);
-  res.render("auth/private", { user: req.user,gamesPlayed:gamesPlayedByUser.reverse(),route:"Dashboard",dashboard:true });
+  res.render("auth/private", { user: req.user,gamesPlayed:gamesPlayedByUser.reverse(),playerRanks:playerRanks,route:"Dashboard",dashboard:true });
 });
 
 passport.serializeUser((user, cb) => {

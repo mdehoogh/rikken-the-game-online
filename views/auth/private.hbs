@@ -1,10 +1,11 @@
 {{#if user}}
-  <div class="page" style="background:rgba(255,255,255,0.8)">
+  <div class="page" style="background-color:rgba(255,255,255,0.8)">
     {{!-- <div id="greeting"><h1>Hallo {{user.username}}</h1></div> --}}
     {{!-- <div><a href="/spelen">Ik wil spelen</a></div>
     <div><a href="/profiel">Profiel bewerken</a></div>
     <div><a href='/afmelden'>Afmelden</a></div> --}}
     {{!-- <div>{{user.username}}</div> --}}
+    <div>De totaalscores van de andere spelers zijn relatief t.o.v. jouw score in alle partijen waarin je samen speelde!</div>
     <div id="score-table">
       {{#if gamesPlayed.length}}
         {{!-- <h2>Spelresultaten</h2> --}}
@@ -14,31 +15,30 @@
               <th></th>
               <th></th>
               <th></th>
-              <th style="text-align:left" colspan="4">Jij</th>
-              <th style="text-align:left" colspan="4">Speler 2</th>
-              <th style="text-align:left" colspan="4">Speler 3</th>
-              <th style="text-align:left" colspan="4">Speler 4</th>
+              <th style="text-align:left" colspan="3">{{user.username}}</th>
+              <th style="text-align:left" colspan="4">Links van je</th>
+              <th style="text-align:left" colspan="4">Tegenover je</th>
+              <th style="text-align:left" colspan="4">Rechts van je</th>
             </tr>
             <tr>
-              <th style="text-align:left">Naam</th>
-              <th style="text-align:left">Datum</th>
               <th style="text-align:left">Spel</th>
+              <th style="text-align:left">Datum</th>
+              <th style="text-align:left">Gespeeld</th>
+              <th style="text-align:left">Slagen</th>
+              <th style="text-align:left">Score</th>
+              <th style="text-align:left">Totaal</th>
               <th style="text-align:left">Naam</th>
               <th style="text-align:left">Slagen</th>
               <th style="text-align:left">Score</th>
-              <th style="text-align:left">Total</th>
+              <th style="text-align:left">Totaal</th>
               <th style="text-align:left">Naam</th>
               <th style="text-align:left">Slagen</th>
               <th style="text-align:left">Score</th>
-              <th style="text-align:left">Total</th>
+              <th style="text-align:left">Totaal</th>
               <th style="text-align:left">Naam</th>
               <th style="text-align:left">Slagen</th>
               <th style="text-align:left">Score</th>
-              <th style="text-align:left">Total</th>
-              <th style="text-align:left">Naam</th>
-              <th style="text-align:left">Slagen</th>
-              <th style="text-align:left">Score</th>
-              <th style="text-align:left">Total</th>
+              <th style="text-align:left">Totaal</th>
             </tr>
           </thead>
           <tbody>
@@ -48,22 +48,21 @@
                   <td style="text-align:left">{{name}}</td>
                   <td style="text-align:left">{{getTimestamp created_at}}</td>
                   <td style="text-align:left">{{getBidName bid}}</td>
-                  <td style="text-align:left">{{scores.0.player_name}}</td>
                   <td style="text-align:left">{{scores.0.tricks_won}}</td>
                   <td style="text-align:left">{{scores.0.score}}</td>
                   <td style="text-align:left">{{scores.0.total_score}}</td>
                   <td style="text-align:left">{{scores.1.player_name}}</td>
                   <td style="text-align:left">{{scores.1.tricks_won}}</td>
                   <td style="text-align:left">{{scores.1.score}}</td>
-                  <td style="text-align:left">{{scores.0.total_score}}</td>
+                  <td style="text-align:left">{{scores.1.total_score}}</td>
                   <td style="text-align:left">{{scores.2.player_name}}</td>
                   <td style="text-align:left">{{scores.2.tricks_won}}</td>
                   <td style="text-align:left">{{scores.2.score}}</td>
-                  <td style="text-align:left">{{scores.0.total_score}}</td>
+                  <td style="text-align:left">{{scores.2.total_score}}</td>
                   <td style="text-align:left">{{scores.3.player_name}}</td>
                   <td style="text-align:left">{{scores.3.tricks_won}}</td>
                   <td style="text-align:left">{{scores.3.score}}</td>
-                  <td style="text-align:left">{{scores.0.total_score}}</td>
+                  <td style="text-align:left">{{scores.3.total_score}}</td>
                 </tr>
               {{/with}}
             {{/each}}
