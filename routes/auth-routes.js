@@ -190,7 +190,7 @@ passport.use(new FacebookStrategy(
               {
                 clientID:process.env.RIKKEN_FACEBOOK_APP_ID,
                 clientSecret:process.env.RIKKEN_FACEBOOK_APP_SECRET,
-                callbackURL:location.protocol+"//"+location.hostname+"/auth/facebook/callback",
+                callbackURL:"/auth/facebook/callback",
                 enableProof:true,
                 profileFields: ['emails','id','name']
               },
