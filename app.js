@@ -270,16 +270,19 @@ hbs.registerPartials(__dirname + '/views/partials');
 
 // const index = require('./routes/index');
 // app.use('/',index);
-app.use("/profiel", require("./routes/private-profile"));
+// MDH@28FEB2020 ??????: app.use("/profiel", require("./routes/private-profile"));
 
 app.use('/', require("./routes/auth-routes"));
 
 // routes rendering
 // MDH@13FEB2020: no need for a separate home page, we allow users to log in immediately at the root route
 app.get('/', (req, res, next) => {
-  res.render('auth/login',{user:req.user,route:"Aanmelden"});
+  res.render('auth/login',{user:req.user,route:"Aanmelden",home:true});
 });
 
+// MDH@18FEB2020: for contact and privacy policy
+app.get('/contact',(req,res,next)=>{res.render('contact');});
+app.get('/privacy',(req,res,next)=>{res.render('privacy_policy');});
 // app.get('/wachten', (req, res, next) => {
 //   res.render('waiting');
 // });
@@ -292,6 +295,9 @@ app.get('/spelen',(req,res,next)=>{
   else
     next(new Error("Schrijf je in of/en meld je aan."));
 });
+// MDH@18FEB2020: yet to be implemented!!!
+app.get('/profiel',(req,res,next)=>{res.render('profiel',{username:req.user.username,route:"Profiel"});});
+app.get('/uitnodigen',(req,res,next)=>{res.render('uitnodigen',{username:req.user.username,route:"Uitnodigen"});});
 
 // catch 404 and forward to error handler
 app.use((req, res, next) => {

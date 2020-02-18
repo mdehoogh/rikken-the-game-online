@@ -32,18 +32,23 @@
   
 } 
 
-#google > a {
+#google {
+  display:flex;
+  /* justify-content: center; */
+  align-items: center;
+}
+/* #google > a {
   border-radius: 4px;
   margin: 0.5em 0;
   border: none;
   padding: 0.4em 1em;
   color: black;
-}
+} */
 
-#glink:hover {
+/* #glink:hover {
   text-decoration: none;
   color: black;
-}
+} */
 
 .signup {
   display: flex;

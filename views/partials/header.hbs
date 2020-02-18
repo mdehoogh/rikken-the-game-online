@@ -3,8 +3,17 @@
         {{title}}{{#if route}}: {{route}}{{/if}}
         {{#if dashboard}}
             <div class='menu'>
+                <a href='/profiel'>Profiel</a>
+                <a href='/uitnodigen'>Uitnodigen</a>
                 <a href='/spelen'>Spelen</a>
                 <a href='/afmelden'>Afmelden</a>
             </div>
+        {{else}}
+            {{#if home}}
+                <div class='menu'>
+                    <a href='/contact'>Contact</a>
+                    <a href='/privacy'>Privacy beleid</a>
+                </div>
+            {{/if}}
         {{/if}}
     </header>

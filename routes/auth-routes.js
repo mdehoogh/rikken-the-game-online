@@ -11,6 +11,9 @@ const bcryptSalt = 10;
 const ensureLogin = require("connect-ensure-login");
 const LocalStrategy = require("passport-local").Strategy;
 const GoogleStrategy = require("passport-google-oauth20").Strategy;
+const FacebookStrategy = require("passport-facebook").Strategy; // MDH@18FEB2020
+const TwitterStrategy = require("passport-twitter").Strategy; // MDH@18FEB2020
+
 const passport = require("passport");
 
 //signup
@@ -149,23 +152,7 @@ router.get("/afmelden", (req, res) => {
 
 //passport OAuth
 
-router.get(
-  "/auth/google",
-  passport.authenticate("google", {
-    scope: [
-      "https://www.googleapis.com/auth/userinfo.profile",
-      "https://www.googleapis.com/auth/userinfo.email"
-    ]
-  })
-);
-router.get(
-  "/auth/google/callback",
-  passport.authenticate("google", {
-    successRedirect: "/dashboard",
-    failureRedirect: "/" 
-  })
-);
-
+// Google
 passport.use(
   // MDH@13FEB2020: proxy:true should solve the problem of returning to http instead of https
   new GoogleStrategy(
@@ -187,5 +174,67 @@ passport.use(
         }
       )
 );
+router.get("/auth/google",passport.authenticate("google",{
+    scope: [
+      "https://www.googleapis.com/auth/userinfo.profile",
+      "https://www.googleapis.com/auth/userinfo.email"
+    ]
+  })
+);
+router.get("/auth/google/callback",passport.authenticate("google",{successRedirect: "/dashboard",failureRedirect:"/"}));
 
+// MDH@18FEB2020: Facebook
+// 1. configure Passport
+// MDH@18FEB2020: profileFields:['emails'] might do the trick in getting the e-mail addresses!!!!!
+passport.use(new FacebookStrategy(
+              {
+                clientID:process.env.RIKKEN_FACEBOOK_APP_ID,
+                clientSecret:process.env.RIKKEN_FACEBOOK_APP_SECRET,
+                callbackURL:"/auth/facebook/callback",
+                profileFields: ['emails','id','name']
+              },
+              (accessToken,refreshToken,profile,done)=>{ // verify callback implementation
+                console.log("Facebook account details",profile);
+                // TODO perhaps we can use emails and photos as well if any??????
+                //      in particular emails may come in handy
+                // passing name in profileFields will return the name as first_name and last_name
+                User
+                .findOne({facebookID:profile._json.id})
+                .then(user=>{
+                  if(!user||!user.facebookID||user.facebookID!==profile._json.id)
+                    return User.create({facebookID:profile._json.id,username:profile._json.first_name+" "+profile._json.last_name,email:profile._json.email});
+                  return user;})
+                .then(user=>done(null,user))
+                .catch(err=>done(err));
+              })
+            );
+// 2. two required routes - redirect the user to Facebook - implement the callback 
+//    what scopes would we need??? let's ask for email because that might come quite handy
+router.get('/auth/facebook',passport.authenticate('facebook',{scope:'email,public_profile'}));
+router.get('/auth/facebook/callback',passport.authenticate('facebook',{successRedirect:'/dashboard',failureRedirect:'/'}));
+/*
+// MDH@18FEB2020: Twitter
+// 1. configure Passport
+passport.use(new TwitterStrategy(
+  {
+    clientID:process.env.RIKKEN_TWITTER_CONSUMER_KEY,
+    clientSecret:process.env.RIKKEN_TWITTER_CONSUMER_SECRET,
+    callbackURL:"/auth/twitter/callback"
+  },
+  (token,tokenSecret,profile,done)=>{ // verify callback implementation
+    console.log("Twitter account details",profile);
+    // TODO perhaps we can use emails and photos as well if any??????
+    //      in particular emails may come in handy
+    User
+    .findOne({twitterID:profile.id})
+    .then(user=>user||User.create({twitterID:profile.id,username:profile.displayName,emails:profile.emails}))
+    .then(user=>done(null,user))
+    .catch(err=>done(err));
+  })
+);
+// 2. two required routes - redirect the user to Facebook - implement the callback 
+//    what scopes would we need??? let's ask for email because that might come quite handy
+router.get('/auth/twitter',passport.authenticate('twitter',{scope:'email'}));
+router.get('/auth/twitter/callback',passport.authenticate('twitter',{successRedirect:'/dashboard',failureRedirect:'/'}));
+*/
 module.exports = router;
