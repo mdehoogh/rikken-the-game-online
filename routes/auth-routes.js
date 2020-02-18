@@ -192,7 +192,6 @@ passport.use(new FacebookStrategy(
                 clientSecret:process.env.RIKKEN_FACEBOOK_APP_SECRET,
                 callbackURL:"/auth/facebook/callback",
                 proxy:true,
-                enableProof:true,
                 profileFields: ['emails','id','name']
               },
               (accessToken,refreshToken,profile,done)=>{ // verify callback implementation
