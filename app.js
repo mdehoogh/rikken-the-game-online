@@ -281,6 +281,7 @@ app.get('/', (req, res, next) => {
 });
 
 // MDH@18FEB2020: for contact and privacy policy
+app.get('/betreffende',(req,res,next)=>{res.render('about');});
 app.get('/contact',(req,res,next)=>{res.render('contact');});
 app.get('/privacy',(req,res,next)=>{res.render('privacy_policy');});
 // app.get('/wachten', (req, res, next) => {
