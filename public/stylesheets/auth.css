@@ -1,3 +1,4 @@
+/* typically large screen setup */
 .loginform {
   margin: 2em;
   padding: 2em;
@@ -9,6 +10,40 @@
   max-width: 40%;
   background-color: rgb(26, 114, 92);
   color:whitesmoke;
+}
+/* when the screen becomes smaller and smaller use more for the login form background */
+@media only screen and (max-width:639px){
+  .loginform{
+      font-size:12px;
+      left:10%;
+      max-width:80%;
+  }
+}
+@media only screen and (min-width:640px) and (max-width:767px){
+  .loginform{
+      font-size:14px;
+      left:15%;
+      max-width:70%;
+  }
+}
+@media only screen and (min-width:768px) and (max-width:1023px){
+  .loginform{
+      font-size:16px;
+      left:20%;
+      max-width:60%;
+  }
+}
+@media only screen and (min-width:1024px) and (max-width:1199px){
+  .loginform{
+      font-size:18px;
+      left:25%;
+      max-width:50%;
+  }
+}
+@media screen and (min-width:1200px){
+  .loginform{
+      font-size:20px;
+  }
 }
 
 .fields{
