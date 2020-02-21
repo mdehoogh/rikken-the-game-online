@@ -274,6 +274,9 @@ hbs.registerPartials(__dirname + '/views/partials');
 
 app.use('/', require("./routes/auth-routes"));
 
+// MDH@21FEB2020: plug in the API routes so the Flutter app can authenticate it's user!!
+app.use('/api/v1',require("./routes/api-routes"));
+
 // routes rendering
 // MDH@13FEB2020: no need for a separate home page, we allow users to log in immediately at the root route
 app.get('/', (req, res, next) => {

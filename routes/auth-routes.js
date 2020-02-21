@@ -16,6 +16,9 @@ const TwitterStrategy = require("passport-twitter").Strategy; // MDH@18FEB2020
 
 const passport = require("passport");
 
+// MDH@21FEB2020: we should distinguish between browser routes and API routes 
+//                technically we could create a separate auth-api-routes script to handle these API calls which yes I think is better that way
+//                although we would duplicate certain functionality
 //signup
 router.get("/inschrijven", (req, res, next) => {
   res.render("auth/signup",{route:"Inschrijven"});
