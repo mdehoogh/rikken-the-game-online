@@ -2,7 +2,7 @@
    exposing all routes available to API calls (i.e. with root route /api/v1/ see app.js for that)
    removing all routes that would render a web page like /inschrijven, (so typically the Dutch named routes)
 */
-var cookie = require('cookie-signature'); // for signing the sessionID into a cookie
+// var cookie = require('cookie-signature'); // for signing the sessionID into a cookie
  
 const express = require("express");
 const router = express.Router();
@@ -13,11 +13,11 @@ const getPlayerScoreHistory = require("../controllers/getPlayerScoreHistory");
 
 const bcrypt = require("bcryptjs");
 const bcryptSalt = 10;
-const ensureLogin = require("connect-ensure-login");
-const LocalStrategy = require("passport-local").Strategy;
-const GoogleStrategy = require("passport-google-oauth20").Strategy;
-const FacebookStrategy = require("passport-facebook").Strategy; // MDH@18FEB2020
-const TwitterStrategy = require("passport-twitter").Strategy; // MDH@18FEB2020
+// const ensureLogin = require("connect-ensure-login");
+// const LocalStrategy = require("passport-local").Strategy;
+// const GoogleStrategy = require("passport-google-oauth20").Strategy;
+// const FacebookStrategy = require("passport-facebook").Strategy; // MDH@18FEB2020
+// const TwitterStrategy = require("passport-twitter").Strategy; // MDH@18FEB2020
 
 const passport = require("passport");
 
@@ -94,7 +94,7 @@ router.get("/logout",(req,res,next)=>{
 // dashboard
 // MDH@21FEB2020: dashboard renamed to gameresults because that's what they typically return
 //                but the request should contain the session 'cookie' that was sent in response to a successful login
-router.get("/gameresults"/*, ensureLogin.ensureLoggedIn()*/, async(req, res) => {
+router.get("/gameresults"/*, ensureLogin.ensureLoggedIn()*/, async(req,res,next) => {
   if(!req.user)return res.json({error:"Geen aangemelde gebruiker."});
   let gamesPlayedByUser=await getPlayerScoreHistory(req.user._id);
   console.log("Games played by user "+req.user._id,gamesPlayedByUser);
@@ -134,10 +134,44 @@ router.get("/gameresults"/*, ensureLogin.ensureLoggedIn()*/, async(req, res) => 
 // passport.serializeUser((user,cb)=>{cb(null, user._id);});
 // passport.deserializeUser((id,cb)=>{User.findById(id,(err,user)=>{if(err)return cb(err);cb(null,user);});});
 
-router.get("/logout",(req,res)=>{
+router.get("/logout",(req,res,next)=>{
   req.logout();
   // MDH@13FEB2020: with the Home page now being the login page, it's best to go there
   res.redirect("/"); // replacing: res.redirect('/aanmelden');
 });
+
+// MDH@23FEB2020: return a list of user names
+router.get("/users",(req,res,next)=>{
+  // for now we allow getting the list of user names without the need to be logged in
+  User.find((err,users)=>{
+    if(err)return next(err);
+    // send e-mail addresses as well if a registered user is requesting (which is questionable as well but could be used for invitations)
+    if(req.user){
+      let userInfos=users.map(user=>{return{'name':user.username,'email':user.email};});
+      res.json(userInfos);
+    }else // send user names only
+      res.json(users.map((user)=>user.username));
+  });
+});
+
+// fall-through in the API routes
+// catch 404 and forward to error handler
+router.use((req,res,next) => {
+  const err=new Error('Dit API eindpunt bestaat niet!');
+  err.status=404;
+  next(err);
+});
+
+// error handler
+router.use((err,req,res,next) => {
+  // // set locals, only providing error in development
+  // res.locals.message = err.message;
+  // res.locals.error = req.app.get('env') === 'development' ? err : {};
+
+  // return the error text
+  res.status(err.status || 500);
+  res.json({error:err.message});
+});
+
 
 module.exports = router;
