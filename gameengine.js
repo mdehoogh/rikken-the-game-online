@@ -538,6 +538,8 @@ module.exports=(socket_io_server,gamesListener,numberOfGamesPlayedSoFar,acknowle
 
         sendToAllPlayers(event,data){
             gameEngineLog("Game "+this.name+" sending event "+event+" with data "+JSON.stringify(data)+" to all players.");
+            // MDH@25FEB2020 BUG FIX: if the game is over stop sending
+            if(event=="GAMEOVER")if(this._eventToSend){this._eventToSend=null;this._promptEventResponseReceived();}
             // MDH@15JAN2020: I believe now it's best to simply send it to all players directly
             //                so the event will be acknowledged!!!!
             this._players.forEach((player)=>{player._sendNewEvent(event,data,5);});
