@@ -29,7 +29,7 @@
     "passport-local": "^1.0.0",
     "passport-twitter": "^1.0.4",
     "serve-favicon": "^2.5.0",
-    "socket.io": "^2.3.0"
+    "socket.io": "^2.4.0"
   },
   "description": "Multiplayer version of the Dutch card game rikken",
   "main": "app.js",
